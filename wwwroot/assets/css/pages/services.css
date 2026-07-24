@@ -1,0 +1,104 @@
+.services-section {
+    padding: clamp(50px, 8vw, 100px) 20px;
+    background: linear-gradient(135deg, #f9fdfc 0%, #f0f9f6 100%);
+}
+
+.services-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.tech-section {
+    background: linear-gradient(135deg, #f5f8f7 0%, #e8f5f2 100%);
+    padding: clamp(40px, 6vw, 60px) 20px;
+}
+
+.tech-header {
+    text-align: center;
+    margin-bottom: clamp(50px, 7vw, 70px);
+}
+
+    .tech-header p {
+        font-size: clamp(14px, 2vw, 16px);
+        color: #666;
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.7;
+    }
+
+.tech-grid {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.tech-card__icon {
+    width: clamp(55px, 7vw, 75px);
+    height: clamp(55px, 7vw, 75px);
+    margin: 0 auto 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #e0f4ef, #d4ebe5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(66,181,164,0.15);
+    position: relative;
+    overflow: hidden;
+    transition: transform .45s var(--ease-bounce), box-shadow .45s ease, background .45s ease;
+    animation: tech-icon-float 3.2s ease-in-out infinite;
+}
+
+    /* лёгкое "дыхание" иконок по очереди, чтобы блок не выглядел статично */
+    .tech-grid .tech-card:nth-child(1) .tech-card__icon { animation-delay: 0s; }
+    .tech-grid .tech-card:nth-child(2) .tech-card__icon { animation-delay: .3s; }
+    .tech-grid .tech-card:nth-child(3) .tech-card__icon { animation-delay: .6s; }
+    .tech-grid .tech-card:nth-child(4) .tech-card__icon { animation-delay: .9s; }
+
+    /* блик, пробегающий по иконке при наведении */
+    .tech-card__icon::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -60%;
+        width: 40%;
+        height: 100%;
+        background: linear-gradient(115deg, transparent, rgba(255,255,255,.55), transparent);
+        transform: skewX(-20deg);
+        transition: left .65s ease;
+    }
+
+    .tech-card:hover .tech-card__icon {
+        transform: scale(1.14) rotate(-6deg);
+        box-shadow: 0 12px 28px rgba(19,179,155,0.35);
+        background: linear-gradient(135deg, #d4f0ea, #bfe6dd);
+        animation-play-state: paused;
+    }
+
+        .tech-card:hover .tech-card__icon::after {
+            left: 130%;
+        }
+
+    .tech-card__icon img {
+        width: 65%;
+        height: auto;
+        object-fit: contain;
+        transition: transform .45s var(--ease-bounce);
+    }
+
+    .tech-card:hover .tech-card__icon img {
+        transform: scale(1.08);
+    }
+
+@keyframes tech-icon-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tech-card__icon {
+        animation: none;
+    }
+}
+
+.tech-card__body {
+    gap: 10px;
+}

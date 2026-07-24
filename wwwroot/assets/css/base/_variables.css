@@ -1,0 +1,35 @@
+:root {
+    /* ===== ОСНОВНЫЕ ЦВЕТА ===== */
+    --primary: #13b39b;
+    --primary-dark: #0a8a77;
+    --primary-hover: #0d9d88;
+    --primary-light: #5fd9c4;
+    --accent: #ffb672;
+    --accent-dark: #ff9843;
+    --dark: #000;
+    --text: #0a534a;
+    --light: #fbfbfb;
+    --white: #fff;
+    --card-bg: #ffffff;
+    --container: 1160px;
+    /* ===== ГРАДИЕНТЫ ===== */
+    --gradient-primary: linear-gradient(135deg, var(--primary) 0%, #17c9ae 45%, var(--primary-dark) 100%);
+    --gradient-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    --gradient-text: linear-gradient(120deg, var(--primary-dark) 0%, var(--primary) 45%, var(--accent) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.02));
+    /* ===== ТЕНИ ===== */
+    --shadow-sm: 0 4px 14px rgba(10, 83, 74, 0.08);
+    --shadow-md: 0 10px 30px rgba(10, 83, 74, 0.12);
+    --shadow-lg: 0 20px 55px rgba(10, 83, 74, 0.18);
+    --shadow-glow-hover: 0 14px 40px rgba(19, 179, 155, 0.35);
+    /* ===== СКРУГЛЕНИЯ / ПЕРЕХОДЫ ===== */
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 28px;
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    --transition: .35s var(--ease-smooth);
+    /* ===== ТИПОГРАФИКА ===== */
+    --font-heading: 'Manrope', 'Roboto', 'Segoe UI', Arial, sans-serif;
+    --font-body: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}

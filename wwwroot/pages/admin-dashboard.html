@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Панель администратора</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/logo/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/logo/favicon-16x16.png">
+    <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <style>
+        .hidden {
+            display: none !important;
+        }
+
+        .analytics-section-subtitle {
+            margin: 28px 0 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1c3a34;
+        }
+
+        .analytics-chart-empty {
+            padding: 24px;
+            text-align: center;
+            color: #7c8d89;
+            font-size: .9rem;
+        }
+
+        .chat-session-row:hover {
+            background: #f3f9f7;
+        }
+
+        .chat-session-detail td {
+            background: #f8faf9;
+            padding: 12px 16px;
+        }
+
+        .chat-session-messages div {
+            padding: 4px 0;
+            font-size: .88rem;
+            line-height: 1.5;
+            border-bottom: 1px dashed #e3ece9;
+        }
+
+            .chat-session-messages div:last-child {
+                border-bottom: none;
+            }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js для раздела «Аналитика» -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+</head>
+<body class="panel-body">
+
+    <main class="panel-main">
+        <div class="panel-layout">
+
+            <!-- Сайдбар -->
+            <aside class="panel-sidebar">
+                <div class="panel-brand">
+                    <span class="panel-logo">DC</span>
+                    <span class="panel-title">Администратор</span>
+                </div>
+                <div class="panel-user">
+                    <div class="panel-user-avatar" id="admin-sidebar-avatar"><span class="avatar-fallback">👤</span></div>
+                    <div class="panel-user-text">
+                        <div class="panel-user-name">Администратор</div>
+                        <div class="panel-user-email">admin@clinic.ru</div>
+                    </div>
+                </div>
+                <nav class="panel-nav">
+                    <span class="panel-nav-label">Записи пациентов</span>
+                    <button class="panel-nav-link active" data-section="requests">Новые заявки</button>
+                    <button class="panel-nav-link" data-section="schedule">Подтверждённые записи</button>
+                    <button class="panel-nav-link" data-section="history">История посещений</button>
+                    <span class="panel-nav-label">Инструменты</span>
+                    <button class="panel-nav-link" data-section="calendar">Календарь врача</button>
+                    <button class="panel-nav-link" data-section="phone">Запись по телефону</button>
+                    <button class="panel-nav-link" data-section="analytics">Аналитика</button>
+                    <button class="panel-nav-link" data-section="reviews">Отзывы</button>
+                    <button class="panel-nav-link" data-section="doctors">Врачи</button>
+                    <span class="panel-nav-label">Аккаунт</span>
+                    <button class="panel-nav-link" data-section="profile">Профиль</button>
+                </nav>
+
+                <!-- Блок выхода -->
+                <div class="panel-sidebar-footer">
+                    <button class="panel-btn-logout" id="btn-logout">Выход</button>
+                </div>
+            </aside>
+
+            <!-- Контент -->
+            <section class="panel-content">
+                <div class="panel-content-inner">
+
+                    <!-- Новые заявки -->
+                    <section class="panel-section" id="section-requests">
+                        <div class="panel-section-header">
+                            <h2>Новые заявки</h2>
+                            <p>Заявки, ожидающие обработки администратором.</p>
+                        </div>
+                        <div class="panel-card">
+                            <div class="panel-tabs">
+                                <button class="panel-tab active" data-tab="registered">Зарегистрированные</button>
+                                <button class="panel-tab" data-tab="guests">Гости</button>
+                                <button class="panel-tab" data-tab="bot">🤖 Через бот</button>
+                            </div>
+                            <div class="panel-panel" id="panel-registered">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Пациент</th>
+                                                <th>Телефон</th>
+                                                <th>Дата</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-requests-registered-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="panel-panel hidden" id="panel-guests">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Имя</th>
+                                                <th>Телефон</th>
+                                                <th>Дата</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-requests-guests-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Заявки через AI-чат -->
+                            <div class="panel-panel hidden" id="panel-bot">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Имя</th>
+                                                <th>Телефон</th>
+                                                <th>Дата</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-requests-bot-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Подтверждённые записи -->
+                    <section class="panel-section hidden" id="section-schedule">
+                        <div class="panel-section-header">
+                            <h2>Подтверждённые записи</h2>
+                            <p>Записи с назначенным врачом и временем.</p>
+                        </div>
+                        <div class="panel-card">
+                            <div class="panel-tabs">
+                                <button class="panel-tab active" data-tab="schedule-registered">Зарегистрированные</button>
+                                <button class="panel-tab" data-tab="schedule-guests">Гости</button>
+                                <button class="panel-tab" data-tab="schedule-bot">🤖 Через бот</button>
+                            </div>
+                            <div class="panel-panel" id="panel-schedule-registered">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Пациент</th>
+                                                <th>Врач</th>
+                                                <th>Дата и время</th>
+                                                <th>Телефон</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-schedule-registered-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="panel-panel hidden" id="panel-schedule-guests">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Имя</th>
+                                                <th>Врач</th>
+                                                <th>Дата и время</th>
+                                                <th>Телефон</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-schedule-guests-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <!-- Подтверждённые через AI-чат -->
+                            <div class="panel-panel hidden" id="panel-schedule-bot">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Имя</th>
+                                                <th>Врач</th>
+                                                <th>Дата и время</th>
+                                                <th>Телефон</th>
+                                                <th class="col-comment">Комментарий</th>
+                                                <th>Статус</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-schedule-bot-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- История -->
+                    <section class="panel-section hidden" id="section-history">
+                        <div class="panel-section-header">
+                            <h2>История посещений</h2>
+                            <p>Завершённые и отменённые записи.</p>
+                        </div>
+                        <div class="panel-card">
+                            <!-- Панель фильтров и поиска -->
+                            <div class="history-filters">
+                                <div class="history-search-wrap">
+                                    <svg class="history-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                                    <input type="text" id="history-search" class="history-search" placeholder="Поиск по имени или телефону...">
+                                </div>
+                                <div class="history-filter-group">
+                                    <button class="history-filter-btn active" data-filter="all">Все</button>
+                                    <button class="history-filter-btn" data-filter="registered">👤 Пользователи</button>
+                                    <button class="history-filter-btn" data-filter="guest">🧑 Гости</button>
+                                    <button class="history-filter-btn" data-filter="bot">🤖 Через бот</button>
+                                </div>
+                                <div class="history-filter-group">
+                                    <button class="history-filter-btn active" data-status="all">Все статусы</button>
+                                    <button class="history-filter-btn" data-status="completed">✅ Завершённые</button>
+                                    <button class="history-filter-btn" data-status="cancelled">❌ Отменённые</button>
+                                </div>
+                            </div>
+                            <div class="history-count" id="history-count"></div>
+                            <div class="panel-table-wrap">
+                                <table class="panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Имя</th>
+                                            <th>Тип</th>
+                                            <th>Врач</th>
+                                            <th>Дата и время</th>
+                                            <th>Телефон</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-history-body"></tbody>
+                                </table>
+                            </div>
+                            <div id="history-pagination"></div>
+                        </div>
+                    </section>
+
+                    <!-- Календарь врача -->
+                    <section class="panel-section hidden" id="section-calendar">
+                        <div class="panel-section-header">
+                            <h2>Календарь врача</h2>
+                            <p>Свободные и занятые слоты по дням.</p>
+                        </div>
+                        <div class="panel-card">
+                            <form class="panel-form panel-calendar-controls">
+                                <div class="panel-form-row">
+                                    <div class="panel-form-group">
+                                        <label for="calendar-doctor">Врач</label>
+                                        <select id="calendar-doctor" name="calendarDoctor">
+                                            <option value="">Выберите врача</option>
+                                        </select>
+                                    </div>
+                                    <div class="panel-form-group">
+                                        <label for="calendar-week">Неделя</label>
+                                        <input type="date" id="calendar-week" name="calendarWeek">
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="panel-table-wrap">
+                                <table class="panel-table panel-table-calendar">
+                                    <thead>
+                                        <tr>
+                                            <th>Время</th>
+                                            <th>Пн</th>
+                                            <th>Вт</th>
+                                            <th>Ср</th>
+                                            <th>Чт</th>
+                                            <th>Пт</th>
+                                            <th>Сб</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="calendar-slots-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Запись по телефону -->
+                    <section class="panel-section hidden" id="section-phone">
+                        <div class="panel-section-header">
+                            <h2>Запись по телефону</h2>
+                            <p>Создание записи при звонке пациента в клинику.</p>
+                        </div>
+                        <div class="phone-page-grid">
+                            <div class="panel-card">
+                                <div class="phone-form-hint">
+                                    <span class="phone-form-hint-icon">☎️</span>
+                                    Заполните данные со слов пациента — заявка сразу появится в разделе «Новые заявки».
+                                </div>
+                                <form class="panel-form" id="phone-appointment-form">
+                                    <div class="panel-form-row">
+                                        <div class="panel-form-group">
+                                            <label for="phone-name">👤 Имя пациента</label>
+                                            <input type="text" id="phone-name" name="name">
+                                        </div>
+                                        <div class="panel-form-group">
+                                            <label for="phone-phone">📱 Телефон</label>
+                                            <input type="tel" id="phone-phone" name="phone" placeholder="+7 (___) ___-__-__">
+                                        </div>
+                                    </div>
+                                    <div class="panel-form-row">
+                                        <div class="panel-form-group">
+                                            <label for="phone-date">📅 Дата</label>
+                                            <input type="date" id="phone-date" name="desiredDate">
+                                        </div>
+                                        <div class="panel-form-group">
+                                            <label for="phone-time">⏰ Время</label>
+                                            <input type="time" id="phone-time" name="desiredTime" value="09:00">
+                                        </div>
+                                        <div class="panel-form-group">
+                                            <label for="phone-doctor">🩺 Врач</label>
+                                            <select id="phone-doctor" name="doctorId">
+                                                <option value="">Выберите врача</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="panel-form-group">
+                                        <label for="phone-comment">📝 Комментарий / услуга</label>
+                                        <textarea id="phone-comment" name="comment" rows="3"
+                                                  placeholder="Кратко опишите проблему или услугу"></textarea>
+                                    </div>
+                                    <button type="submit" class="panel-btn-primary panel-btn-block">✓ Создать запись</button>
+                                </form>
+                            </div>
+
+                            <aside class="panel-card phone-quickpick-card">
+                                <h3 class="quickpick-title">⚡ Быстрый выбор</h3>
+
+                                <div class="quickpick-group">
+                                    <span class="quickpick-label">Дата</span>
+                                    <div class="quickpick-chips" id="phone-date-chips">
+                                        <button type="button" class="quickpick-chip" data-offset="0">Сегодня</button>
+                                        <button type="button" class="quickpick-chip" data-offset="1">Завтра</button>
+                                        <button type="button" class="quickpick-chip" data-offset="2">Послезавтра</button>
+                                    </div>
+                                </div>
+
+                                <div class="quickpick-group">
+                                    <span class="quickpick-label">Время</span>
+                                    <div class="quickpick-chips" id="phone-time-chips">
+                                        <button type="button" class="quickpick-chip" data-time="09:00">09:00</button>
+                                        <button type="button" class="quickpick-chip" data-time="11:00">11:00</button>
+                                        <button type="button" class="quickpick-chip" data-time="13:00">13:00</button>
+                                        <button type="button" class="quickpick-chip" data-time="15:00">15:00</button>
+                                        <button type="button" class="quickpick-chip" data-time="17:00">17:00</button>
+                                        <button type="button" class="quickpick-chip" data-time="19:00">19:00</button>
+                                    </div>
+                                </div>
+
+                                <div class="quickpick-tips">
+                                    <div class="quickpick-tip">💡 Уточните у пациента удобные дату и время заранее — так меньше переносов.</div>
+                                    <div class="quickpick-tip">📋 Комментарий помогает врачу подготовиться к приёму.</div>
+                                    <div class="quickpick-tip">🔁 Если слот занят — предложите ближайшее свободное время из «Календаря врача».</div>
+                                </div>
+                            </aside>
+                        </div>
+                    </section>
+
+                    <!-- Аналитика -->
+                    <section class="panel-section hidden" id="section-analytics">
+                        <div class="panel-section-header">
+                            <h2>Аналитика</h2>
+                            <p>Статистика по заявкам и записям клиники.</p>
+                        </div>
+
+                        <div class="analytics-cards">
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">📋</div>
+                                <div class="analytics-card-value" id="an-total">—</div>
+                                <div class="analytics-card-label">Всего заявок</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">📅</div>
+                                <div class="analytics-card-value" id="an-month">—</div>
+                                <div class="analytics-card-label">За этот месяц</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">✅</div>
+                                <div class="analytics-card-value" id="an-confirmed-rate">—</div>
+                                <div class="analytics-card-label">Подтверждено / завершено</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">⏳</div>
+                                <div class="analytics-card-value" id="an-pending">—</div>
+                                <div class="analytics-card-label">Ожидают обработки</div>
+                            </div>
+                        </div>
+
+                        <div class="analytics-charts">
+                            <div class="panel-card analytics-chart-card">
+                                <h3 class="analytics-chart-title">Заявки по дням (30 дней)</h3>
+                                <div class="analytics-chart-wrap">
+                                    <canvas id="chart-by-day"></canvas>
+                                </div>
+                            </div>
+                            <div class="panel-card analytics-chart-card">
+                                <h3 class="analytics-chart-title">Источник заявок</h3>
+                                <div class="analytics-chart-wrap analytics-chart-wrap-small">
+                                    <canvas id="chart-source"></canvas>
+                                </div>
+                            </div>
+                            <div class="panel-card analytics-chart-card analytics-chart-wide">
+                                <h3 class="analytics-chart-title">Популярные врачи</h3>
+                                <div class="analytics-chart-wrap">
+                                    <canvas id="chart-doctors"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Отзывы: отдельный вклад в аналитику -->
+                        <h3 class="analytics-section-subtitle">Отзывы пациентов</h3>
+                        <div class="analytics-cards">
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">💬</div>
+                                <div class="analytics-card-value" id="an-rev-total">—</div>
+                                <div class="analytics-card-label">Всего отзывов</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">⭐</div>
+                                <div class="analytics-card-value" id="an-rev-avg">—</div>
+                                <div class="analytics-card-label">Средний рейтинг (опубликованные)</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">🕓</div>
+                                <div class="analytics-card-value" id="an-rev-pending">—</div>
+                                <div class="analytics-card-label">Ожидают модерации</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">🚫</div>
+                                <div class="analytics-card-value" id="an-rev-rejected">—</div>
+                                <div class="analytics-card-label">Отклонено</div>
+                            </div>
+                        </div>
+                        <div class="analytics-charts">
+                            <div class="panel-card analytics-chart-card analytics-chart-wide">
+                                <h3 class="analytics-chart-title">Распределение оценок (опубликованные отзывы)</h3>
+                                <div class="analytics-chart-wrap">
+                                    <canvas id="chart-reviews-rating"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI-чат (Дента): о чём спрашивают пациенты -->
+                        <h3 class="analytics-section-subtitle">🤖 AI-чат «Дента»</h3>
+                        <div class="analytics-cards">
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">💬</div>
+                                <div class="analytics-card-value" id="an-chat-messages">—</div>
+                                <div class="analytics-card-label">Вопросов за 30 дней</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">🗂️</div>
+                                <div class="analytics-card-value" id="an-chat-sessions">—</div>
+                                <div class="analytics-card-label">Диалогов за 30 дней</div>
+                            </div>
+                        </div>
+                        <div class="analytics-charts">
+                            <div class="panel-card analytics-chart-card analytics-chart-wide">
+                                <h3 class="analytics-chart-title">Топ тем — какие услуги продвигать</h3>
+                                <div class="analytics-chart-wrap">
+                                    <canvas id="chart-chat-topics"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title">Последние диалоги</h3>
+                            <div class="panel-table-wrap">
+                                <table class="panel-table" id="chat-sessions-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Начало</th>
+                                            <th>Сообщений</th>
+                                            <th>Первый вопрос</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="chat-sessions-tbody">
+                                        <tr><td colspan="3">Загрузка…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Отзывы -->
+                    <section class="panel-section hidden" id="section-reviews">
+                        <div class="panel-section-header">
+                            <h2>Отзывы пациентов</h2>
+                            <p>Модерация отзывов перед публикацией на сайте.</p>
+                        </div>
+                        <div class="panel-card">
+                            <div class="panel-tabs">
+                                <button class="panel-tab active" data-tab="reviews-pending">На проверке</button>
+                                <button class="panel-tab" data-tab="reviews-approved">Опубликованные</button>
+                                <button class="panel-tab" data-tab="reviews-rejected">Отклонённые</button>
+                            </div>
+                            <div class="panel-panel" id="panel-reviews-pending">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Пациент</th>
+                                                <th>Оценка</th>
+                                                <th class="col-comment">Текст отзыва</th>
+                                                <th>Дата</th>
+                                                <th class="col-actions">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-reviews-pending-body"></tbody>
+                                    </table>
+                                </div>
+                                <div id="admin-reviews-pending-pagination"></div>
+                            </div>
+                            <div class="panel-panel hidden" id="panel-reviews-approved">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Пациент</th>
+                                                <th>Оценка</th>
+                                                <th class="col-comment">Текст отзыва</th>
+                                                <th>Опубликован</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-reviews-approved-body"></tbody>
+                                    </table>
+                                </div>
+                                <div id="admin-reviews-approved-pagination"></div>
+                            </div>
+                            <div class="panel-panel hidden" id="panel-reviews-rejected">
+                                <div class="panel-table-wrap">
+                                    <table class="panel-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Пациент</th>
+                                                <th>Оценка</th>
+                                                <th class="col-comment">Текст отзыва</th>
+                                                <th>Причина отклонения</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-reviews-rejected-body"></tbody>
+                                    </table>
+                                </div>
+                                <div id="admin-reviews-rejected-pagination"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Врачи -->
+                    <section class="panel-section hidden" id="section-doctors">
+                        <div class="panel-section-header">
+                            <h2>Врачи</h2>
+                            <p>Список врачей клиники — используется в записи, календаре и на сайте.</p>
+                        </div>
+                        <div class="panel-card">
+                            <div class="panel-card-toolbar">
+                                <button type="button" class="panel-btn-primary" id="btn-add-doctor">+ Добавить врача</button>
+                            </div>
+                            <div class="panel-table-wrap">
+                                <table class="panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>ФИО</th>
+                                            <th>Статус</th>
+                                            <th class="col-actions">Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-doctors-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Профиль администратора -->
+                    <section class="panel-section hidden" id="section-profile">
+                        <div class="panel-section-header">
+                            <h2>Профиль</h2>
+                            <p>Фото и данные вашего аккаунта администратора.</p>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title">Фото профиля</h3>
+                            <div id="admin-profile-avatar-uploader"></div>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title">Данные аккаунта</h3>
+                            <div class="panel-form">
+                                <div class="panel-form-group">
+                                    <label>Email</label>
+                                    <input type="email" id="admin-profile-email" disabled>
+                                </div>
+                                <div class="panel-form-group">
+                                    <label>Роль</label>
+                                    <input type="text" value="Администратор" disabled>
+                                </div>
+                                <div class="panel-form-group">
+                                    <label>Аккаунт создан</label>
+                                    <input type="text" id="admin-profile-created" disabled>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Модальное окно причины отклонения отзыва -->
+    <div id="reject-review-modal" class="panel-modal hidden">
+        <div class="panel-modal-backdrop"></div>
+        <div class="panel-modal-dialog">
+            <div class="panel-modal-header">
+                <h3>Отклонить отзыв</h3>
+                <button type="button" class="panel-modal-close" id="reject-modal-close">&times;</button>
+            </div>
+            <div class="panel-modal-body">
+                <form id="reject-review-form" class="panel-form">
+                    <input type="hidden" id="reject-review-id">
+                    <div class="panel-form-group">
+                        <label for="reject-reason">Причина отклонения (увидит пациент в личном кабинете)</label>
+                        <textarea id="reject-reason" rows="3" placeholder="Например: отзыв содержит нецензурную лексику / оскорбления / не относится к клинике" required></textarea>
+                    </div>
+                    <div class="panel-modal-footer">
+                        <button type="button" class="panel-btn-secondary" id="reject-modal-cancel">Отмена</button>
+                        <button type="submit" class="panel-btn-primary">Отклонить отзыв</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="edit-appointment-modal" class="panel-modal hidden">
+        <div class="panel-modal-backdrop"></div>
+        <div class="panel-modal-dialog">
+            <div class="panel-modal-header">
+                <h3>Редактировать запись</h3>
+                <button type="button" class="panel-modal-close" id="edit-modal-close">&times;</button>
+            </div>
+            <div class="panel-modal-body">
+                <form id="edit-appointment-form" class="panel-form">
+                    <input type="hidden" id="edit-appointment-id">
+                    <div class="panel-form-group">
+                        <label for="edit-doctor">Врач</label>
+                        <select id="edit-doctor"><option value="">Выберите врача</option></select>
+                    </div>
+                    <div class="panel-form-group">
+                        <label for="edit-datetime">Дата и время</label>
+                        <input type="datetime-local" id="edit-datetime">
+                    </div>
+                    <div class="panel-form-group">
+                        <label for="edit-comment">Комментарий</label>
+                        <textarea id="edit-comment" rows="3"></textarea>
+                    </div>
+                    <div class="panel-modal-footer">
+                        <button type="button" class="panel-btn-secondary" id="edit-modal-cancel">Отмена</button>
+                        <button type="submit" class="panel-btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления/редактирования врача -->
+    <div id="doctor-modal" class="panel-modal hidden">
+        <div class="panel-modal-backdrop"></div>
+        <div class="panel-modal-dialog">
+            <div class="panel-modal-header">
+                <h3 id="doctor-modal-title">Добавить врача</h3>
+                <button type="button" class="panel-modal-close" id="doctor-modal-close">&times;</button>
+            </div>
+            <div class="panel-modal-body">
+                <form id="doctor-form" class="panel-form">
+                    <input type="hidden" id="doctor-id">
+                    <div class="panel-form-group">
+                        <label for="doctor-fullname">ФИО врача</label>
+                        <input type="text" id="doctor-fullname" placeholder="Например: Dr. Раис Наджиб" required>
+                    </div>
+                    <div class="panel-form-group" id="doctor-active-group" style="display:none;">
+                        <label>
+                            <input type="checkbox" id="doctor-active">
+                            Врач активен (показывается в записи и на сайте)
+                        </label>
+                    </div>
+                    <div class="panel-modal-footer">
+                        <button type="button" class="panel-btn-secondary" id="doctor-modal-cancel">Отмена</button>
+                        <button type="submit" class="panel-btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/js/core/wowEffects.js" defer></script>
+
+    <script type="module" src="/assets/js/managers/admin/adminDashboard.js"></script>
+    <script type="module" src="/assets/js/managers/admin/reviewModeration.js"></script>
+    <script type="module" src="/assets/js/managers/admin/doctorsManager.js"></script>
+</body>
+</html>

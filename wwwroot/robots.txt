@@ -1,0 +1,9 @@
+﻿User-agent: *
+Allow: /
+Disallow: /pages/admin-dashboard.html
+Disallow: /pages/patient-dashboard.html
+Disallow: /api/
+Disallow: /hubs/
+Disallow: /uploads/
+
+Sitemap: https://dental-clinic.somee.com/sitemap.xml

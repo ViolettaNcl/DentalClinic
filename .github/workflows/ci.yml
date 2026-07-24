@@ -1,0 +1,34 @@
+name: CI
+
+# Простой CI: проверяет, что проект собирается на каждый push и Pull Request.
+# Не деплоит и не трогает базу данных — только компиляция, чтобы сразу видеть
+# сломанную сборку прямо в интерфейсе GitHub (зелёная/красная галочка у коммита).
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # Раскомментируйте, когда в проекте появятся автотесты (см. docs/DEVELOPER_GUIDE.md):
+      # - name: Test
+      #   run: dotnet test --no-build --configuration Release

@@ -1,0 +1,188 @@
+/* ======================== МОДАЛЬНОЕ ОКНО ======================== */
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(44, 58, 67, 0.22);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.modal-visible {
+  display: block !important;
+}
+
+.modal-content {
+  background: #fbfaf9;
+  margin: 7% auto 0;
+  padding: 32px 28px 26px;
+  width: 350px;
+  border-radius: 16px;
+  text-align: center;
+  position: relative;
+  animation: fadeIn 0.4s cubic-bezier(0.44, 1.4, 0.34, 1.1);
+  box-shadow: 0 12px 40px #2c3a4317;
+  border: 1.5px solid #e2e8ee;
+}
+
+.modal-content h2 {
+  margin-bottom: 21px;
+  color: #24756c;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.modal-content input {
+  width: 94%;
+  padding: 12px 14px;
+  margin: 11px 0;
+  border: 1.8px solid #e2e8ee;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+  box-shadow: 0 1.5px 8px #dce7eb0c;
+  transition: border-color 0.25s, background 0.19s, box-shadow 0.19s;
+}
+
+.modal-content input:focus {
+  border-color: #24756c;
+  outline: 0;
+  background: #f5fbf9;
+  box-shadow: 0 0 0 6px #e1f1ed36;
+}
+
+.modal-content input::placeholder {
+  color: #b1b9be;
+  opacity: 0.65;
+  font-weight: 500;
+  font-size: 0.96rem;
+}
+
+/* кнопка внутри модалки – на базе .btn-primary, без своего hover */
+.btn-modal {
+  width: 100%;
+  margin-top: 15px;
+  padding-inline: 0;
+}
+
+/* крестик закрытия */
+
+.close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 21px;
+  font-weight: 700;
+  color: #b1b9be;
+
+  background: #f9fafb;
+  border-radius: 50%;
+  box-shadow: 0 1px 5px #eee;
+  cursor: pointer;
+  transition: color 0.18s, background 0.15s;
+}
+
+.close:hover {
+  color: #24756c;
+  background: #e8f6f3;
+}
+
+/* текст внизу модалки */
+
+.modal-extra {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8ee;
+}
+
+.modal-extra small {
+  color: #b1b9be;
+  font-size: 0.9rem;
+}
+
+.modal-extra a {
+  color: #24756c;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.modal-extra a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ======================== КНОПКИ В ХЕДЕРЕ ======================== */
+
+/* базовая форма для кнопок в хедере — компактнее глобальной */
+.header-buttons .btn-primary {
+  padding: 9px 20px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+
+/* "Войти" — outline-версия на базе .btn-primary */
+.btn-login {
+  background: transparent;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* скрытая ссылка кабинета */
+.cabinet-link-hidden {
+  display: none;
+}
+
+/* ======================== АДАПТИВ ДЛЯ КНОПОК В ХЕДЕРЕ ======================== */
+
+@media (max-width: 600px) {
+  #header-buttons .btn-primary {
+    width: 100%;
+    margin: 8px 0;
+    padding: 14px 0;
+    font-size: 1.1rem;
+  }
+}
+
+/* ======================== АДАПТИВ ДЛЯ МОДАЛКИ ======================== */
+
+@media (max-width: 500px) {
+  .modal-content {
+    width: 98vw;
+    padding: 17px 3vw;
+    margin: 50% auto 0;
+  }
+
+  .modal-content h2 {
+    font-size: 1rem;
+  }
+
+  .close {
+    top: 7px;
+    right: 12px;
+    width: 26px;
+    height: 26px;
+    font-size: 19px;
+  }
+}

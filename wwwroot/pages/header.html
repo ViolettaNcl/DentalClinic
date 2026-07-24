@@ -1,0 +1,118 @@
+<header>
+    <div class="container header-container">
+        <div class="logo">
+            <img src="/assets/images/logo.jpg" alt="Dental Clinic Logo">
+            <span class="logo-text"></span>
+        </div>
+
+        <div class="hamburger" id="hamburger">
+            <span></span><span></span><span></span>
+        </div>
+
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="/index.html" data-i18n="nav_home">Главная</a></li>
+                <li><a href="/pages/about.html" data-i18n="nav_about">О клинике</a></li>
+                <li class="services-menu">
+                    <a href="/pages/services.html" data-i18n="nav_services">Услуги</a>
+                    <ul class="dropdown">
+                        <li><a href="/pages/services/cosmetic-treatments.html" data-i18n="svc_cosmetic">Косметические процедуры</a></li>
+                        <li><a href="/pages/services/fillings.html" data-i18n="svc_fillings">Пломбы</a></li>
+                        <li><a href="/pages/services/crowns.html" data-i18n="svc_crowns">Коронки</a></li>
+                        <li><a href="/pages/services/implants.html" data-i18n="svc_implants">Импланты</a></li>
+                        <li><a href="/pages/services/root-canal.html" data-i18n="svc_rootcanal">Лечение корневых каналов</a></li>
+                        <li><a href="/pages/services/bridges.html" data-i18n="svc_bridges">Мосты</a></li>
+                        <li><a href="/pages/services/extractions.html" data-i18n="svc_extractions">Удаление зубов</a></li>
+                        <li><a href="/pages/services/prosthetics.html" data-i18n="svc_prosthetics">Съёмные протезы</a></li>
+                    </ul>
+                </li>
+                <li><a href="/pages/doctors.html" data-i18n="nav_doctors">Врачи</a></li>
+                <li><a href="/pages/contact.html" data-i18n="nav_contact">Контакты</a></li>
+                <li id="cabinet-link" class="cabinet-link-hidden">
+                    <a href="/pages/patient-dashboard.html" data-i18n="nav_cabinet">Личный кабинет</a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="lang-switcher" id="lang-switcher">
+            <button type="button" class="lang-btn" id="lang-btn">
+                <span class="lang-btn__label">РУ</span>
+                <svg class="lang-btn__chevron" width="9" height="9" viewBox="0 0 10 10">
+                    <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" />
+                </svg>
+            </button>
+            <ul class="lang-dropdown" id="lang-dropdown"></ul>
+        </div>
+
+        <div class="header-buttons" id="header-buttons">
+            <a href="#" class="btn-primary btn-login" data-i18n="btn_login">Войти</a>
+            <a href="#" class="btn-primary btn-signup" data-i18n="btn_signup">Зарегистрироваться</a>
+        </div>
+    </div>
+</header>
+
+<!-- Плавающий колокольчик уведомлений: не часть шапки, всегда справа от экрана, только для вошедшего пациента -->
+<div class="notification-bell" id="notification-bell" style="display:none;">
+    <button type="button" class="notification-bell-btn" id="notification-bell-btn" aria-label="Уведомления">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        <span class="notification-badge" id="notification-badge" style="display:none;">0</span>
+    </button>
+    <div class="notification-dropdown" id="notification-dropdown">
+        <div class="notification-dropdown-header">
+            <span class="notification-dropdown-title" data-i18n="notif_title">Уведомления</span>
+            <button type="button" id="notification-mark-all" data-i18n="notif_mark_all_read">Прочитать всё</button>
+        </div>
+        <div class="notification-list" id="notification-list">
+            <div class="notification-empty">Загрузка...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Login Modal -->
+<div id="login-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 data-i18n="modal_login_title">Вход</h2>
+        <form id="loginForm">
+            <input type="email" placeholder="Email" required data-i18n-placeholder="placeholder_email">
+            <input type="password" placeholder="Пароль" required data-i18n-placeholder="placeholder_password">
+            <button type="submit" class="btn-primary btn-modal" data-i18n="btn_login">Войти</button>
+        </form>
+        <div class="modal-extra">
+            <small>
+                <span data-i18n="modal_no_account">Нет аккаунта?</span>
+                <a href="#" class="link-to-signup" data-i18n="modal_create">Создать</a>
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Signup Modal -->
+<div id="signup-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 data-i18n="modal_signup_title">Регистрация</h2>
+        <form id="signupForm">
+            <input type="text" placeholder="Имя" required data-i18n-placeholder="placeholder_name">
+            <input type="email" placeholder="Email" required data-i18n-placeholder="placeholder_email">
+            <input type="password" placeholder="Пароль" required data-i18n-placeholder="placeholder_password">
+            <button type="submit" class="btn-primary btn-modal" data-i18n="btn_signup">Зарегистрироваться</button>
+        </form>
+        <div class="modal-extra">
+            <small>
+                <span data-i18n="modal_has_account">Уже есть аккаунт?</span>
+                <a href="#" class="link-to-login" data-i18n="btn_login">Войти</a>
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer>
+    <div class="container footer-container">
+        <p data-i18n="footer_copyright">© 2026 Dental Clinic. Все права защищены.</p>
+    </div>
+</footer>

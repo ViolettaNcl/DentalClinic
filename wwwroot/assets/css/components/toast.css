@@ -1,0 +1,301 @@
+﻿/* =====================================================
+   TOAST — красивые всплывающие уведомления взамен alert()
+===================================================== */
+
+.toast-container {
+    position: fixed;
+    top: 90px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 420px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5eceb;
+    box-shadow: 0 10px 24px rgba(20, 30, 28, 0.10);
+    transform: translateX(120%);
+    opacity: 0;
+    animation: toastIn .4s cubic-bezier(0.25, 1, 0.4, 1) forwards;
+}
+
+    .toast.toast-hide {
+        animation: toastOut .3s ease forwards;
+    }
+
+@keyframes toastIn {
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toastOut {
+    to {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}
+
+.toast-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+}
+
+.toast-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-title {
+    font-family: var(--font-heading);
+    font-size: 14.5px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    color: var(--text);
+    line-height: 1.25;
+}
+
+.toast-message {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: #6b7a75;
+    word-break: break-word;
+    margin-top: 2px;
+}
+
+.toast-close {
+    flex-shrink: 0;
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: #b3bcb9;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 7px;
+    transition: color .2s ease, background .2s ease, transform .2s ease;
+}
+
+    .toast-close:hover {
+        color: #4b5a58;
+        background: #f0f4f3;
+        transform: rotate(90deg);
+    }
+
+.toast-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(0,0,0,0.06);
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+    transform-origin: left;
+    animation: toastProgress linear forwards;
+}
+
+    .toast-progress::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--toast-accent, currentColor);
+        opacity: .55;
+    }
+
+@keyframes toastProgress {
+    from {
+        transform: scaleX(1);
+    }
+
+    to {
+        transform: scaleX(0);
+    }
+}
+
+/* Варианты по типу */
+.toast-success .toast-icon {
+    background: #ecfdf5;
+    color: #15803d;
+}
+
+.toast-success {
+    border-left: 3px solid #15803d;
+    --toast-accent: #15803d;
+}
+
+.toast-error .toast-icon {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.toast-error {
+    border-left: 3px solid #b91c1c;
+    --toast-accent: #b91c1c;
+}
+
+.toast-info .toast-icon {
+    background: rgba(19,179,155,0.10);
+    color: var(--primary-dark, #0a534a);
+}
+
+.toast-info {
+    border-left: 3px solid var(--primary, #13b39b);
+    --toast-accent: var(--primary, #13b39b);
+}
+
+/* ── Вход / регистрация — тёплое, но компактное оформление ── */
+.toast-celebrate {
+    border-left: 3px solid var(--primary);
+    background: #f5fbfa;
+    --toast-accent: var(--primary, #13b39b);
+}
+
+    .toast-celebrate .toast-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 19px;
+        background: var(--primary);
+        animation: celebrateIcon .5s var(--ease-bounce);
+    }
+
+    .toast-celebrate.toast-wave .toast-icon {
+        animation: celebrateIcon .5s var(--ease-bounce), waveHand 1.6s ease-in-out .5s 2;
+        transform-origin: 70% 70%;
+    }
+
+    .toast-celebrate .toast-title {
+        font-size: 15px;
+        color: var(--primary-dark, #0a534a);
+    }
+
+@keyframes celebrateIcon {
+    0% {
+        opacity: 0;
+        transform: scale(.4) rotate(-20deg);
+    }
+
+    70% {
+        transform: scale(1.1) rotate(6deg);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+@keyframes waveHand {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    20% {
+        transform: rotate(-16deg);
+    }
+
+    40% {
+        transform: rotate(14deg);
+    }
+
+    60% {
+        transform: rotate(-10deg);
+    }
+
+    80% {
+        transform: rotate(6deg);
+    }
+}
+
+.toast-confetti {
+    position: absolute;
+    font-size: 11px;
+    opacity: 0;
+    animation: confettiPop 1s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes confettiPop {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) rotate(0deg) scale(.4);
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: var(--confetti-end, translate(24px, -30px)) rotate(200deg) scale(1);
+    }
+}
+
+/* Особый акцент для сообщения "звоните администратору" — телефон подсвечен и слегка покачивается */
+.toast-call .toast-icon {
+    animation: toastCallRing 1.4s ease-in-out infinite;
+}
+
+@keyframes toastCallRing {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    20% {
+        transform: rotate(-14deg);
+    }
+
+    40% {
+        transform: rotate(11deg);
+    }
+
+    60% {
+        transform: rotate(-7deg);
+    }
+
+    80% {
+        transform: rotate(4deg);
+    }
+}
+
+.toast-phone {
+    display: inline-block;
+    margin-top: 4px;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 13.5px;
+    letter-spacing: .02em;
+    color: var(--primary-dark, #0a534a);
+    background: rgba(19,179,155,0.10);
+    border: 1px solid rgba(19,179,155,0.25);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+@media (max-width: 480px) {
+    .toast-container {
+        left: 12px;
+        right: 12px;
+        top: 12px;
+        max-width: none;
+    }
+}

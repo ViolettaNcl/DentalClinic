@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+out/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Secrets — никогда не коммитить с реальными значениями
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.local.json
+*.pfx
+
+# Логи
+*.log
+
+# Загруженные пользователем файлы (аватары и т.п.) — не должны попадать в репозиторий
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep
+
+# Инструменты AI-редакторов
+.qodo/

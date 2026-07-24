@@ -1,0 +1,658 @@
+/* =====================================================
+   СТРАНИЦА ВРАЧЕЙ — мятовый дизайн с анимациями
+===================================================== */
+
+.doctors-section {
+    position: relative;
+    padding: 100px 0 90px;
+    background: linear-gradient(180deg, #f2fbf8 0%, #ffffff 18%, #ffffff 82%, #f2fbf8 100%);
+    overflow: hidden;
+    isolation: isolate;
+}
+
+    /* ── декоративный фон: мягкие мятовые пятна ── */
+    .doctors-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -2;
+        background-image: radial-gradient(circle at 8% 10%, rgba(19,179,155,0.12) 0%, transparent 40%), radial-gradient(circle at 92% 16%, rgba(95,217,196,0.14) 0%, transparent 40%), radial-gradient(circle at 12% 90%, rgba(19,179,155,0.10) 0%, transparent 38%), radial-gradient(circle at 88% 94%, rgba(10,138,119,0.10) 0%, transparent 40%);
+    }
+
+    /* тонкий узор — вместо смайликов */
+    .doctors-section::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        opacity: .5;
+        background-image: radial-gradient(circle at 50% 120%, rgba(19,179,155,0.10) 0%, transparent 55%);
+    }
+
+    /* декоративные плавающие мятовые кольца (замена эмодзи) */
+    .doctors-section .orb-deco {
+        position: absolute;
+        z-index: -1;
+        border-radius: 50%;
+        border: 2px solid rgba(19,179,155,0.18);
+        animation: floatRing 10s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+        .doctors-section .orb-deco:nth-child(1) {
+            width: 70px;
+            height: 70px;
+            top: 10%;
+            left: 5%;
+            animation-delay: 0s;
+        }
+
+        .doctors-section .orb-deco:nth-child(2) {
+            width: 34px;
+            height: 34px;
+            top: 70%;
+            left: 3%;
+            animation-delay: 1.6s;
+            border-color: rgba(19,179,155,0.28);
+        }
+
+        .doctors-section .orb-deco:nth-child(3) {
+            width: 50px;
+            height: 50px;
+            top: 18%;
+            right: 6%;
+            animation-delay: 3.2s;
+        }
+
+        .doctors-section .orb-deco:nth-child(4) {
+            width: 24px;
+            height: 24px;
+            top: 78%;
+            right: 5%;
+            animation-delay: 4.8s;
+            border-color: rgba(19,179,155,0.28);
+        }
+
+@keyframes floatRing {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: .6;
+    }
+
+    50% {
+        transform: translateY(-24px) scale(1.08);
+        opacity: 1;
+    }
+}
+
+.section-divider {
+    position: relative;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #a7e8db, transparent);
+    margin: 56px 0;
+    overflow: visible;
+}
+
+    .section-divider::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 14px;
+        height: 14px;
+        background: #fff;
+        border: 2px solid var(--primary);
+        border-radius: 50%;
+        box-shadow: 0 0 0 6px #fff, 0 0 16px rgba(19,179,155,.35);
+        animation: pulseDot 2.6s ease-in-out infinite;
+    }
+
+@keyframes pulseDot {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.35);
+    }
+}
+
+/* ── Карточка ────────────────────────────── */
+
+.doctor-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    transition: transform .18s ease-out, box-shadow .45s ease, border-color .45s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
+}
+
+    /* анимированная градиентная рамка при наведении — только мятовые тона */
+    .doctor-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        padding: 2px;
+        border-radius: 24px;
+        background: conic-gradient(from 0deg, var(--primary-dark), var(--primary-light), var(--primary), var(--primary-dark));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity .5s ease;
+        animation: rotateBorder 6s linear infinite;
+        animation-play-state: paused;
+    }
+
+    .doctor-card:hover::before {
+        opacity: 1;
+        animation-play-state: running;
+    }
+
+@keyframes rotateBorder {
+    to {
+        background: conic-gradient(from 360deg, var(--primary-dark), var(--primary-light), var(--primary), var(--primary-dark));
+    }
+}
+
+.doctor-card:hover {
+    box-shadow: 0 26px 55px rgba(19,179,155,0.22);
+    border-color: rgba(19,179,155,0.35);
+}
+
+.doctor-card__photo {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+    /* мягкое мятовое "гало" за фото */
+    .doctor-card__photo::before {
+        content: '';
+        position: absolute;
+        inset: -20%;
+        background: radial-gradient(circle at 50% 30%, rgba(19,179,155,0.25), transparent 65%);
+        opacity: 0;
+        transition: opacity .5s ease;
+        z-index: 0;
+    }
+
+.doctor-card:hover .doctor-card__photo::before {
+    opacity: 1;
+}
+
+.doctor-card__photo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(6,40,35,.4) 100%);
+    opacity: 0;
+    transition: opacity .45s ease;
+    z-index: 1;
+}
+
+.doctor-card:hover .doctor-card__photo::after {
+    opacity: 1;
+}
+
+.doctor-card__photo img {
+    position: relative;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    transition: transform .7s var(--ease-smooth), filter .5s ease;
+    filter: saturate(1);
+}
+
+.doctor-card:hover .doctor-card__photo img {
+    transform: scale(1.08);
+    filter: saturate(1.15);
+}
+
+.doctor-card--reverse {
+    grid-template-columns: 1fr 260px;
+}
+
+.doctor-card__aside {
+    display: flex;
+    flex-direction: column;
+    background: #f0fdf9;
+    border-right: 1px solid #e5e7eb;
+}
+
+.doctor-card--reverse .doctor-card__aside {
+    border-right: none;
+    border-left: 1px solid #e5e7eb;
+    order: 2;
+}
+
+.doctor-card__stats {
+    border-top: 1px solid #d1fae5;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 6px;
+    text-align: center;
+    border-right: 1px solid #d1fae5;
+    transition: background .3s ease;
+}
+
+    .stat-item:hover {
+        background: rgba(19,179,155,0.08);
+    }
+
+    .stat-item:last-child {
+        border-right: none;
+    }
+
+/* мятовый значок-кольцо вместо эмодзи-иконки */
+.stat-icon {
+    width: 26px;
+    height: 26px;
+    margin: 0 auto 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    box-shadow: 0 4px 10px rgba(19,179,155,0.3);
+    transition: transform .4s var(--ease-bounce), box-shadow .4s ease;
+}
+
+.stat-item:hover .stat-icon {
+    transform: scale(1.25) rotate(-8deg);
+    box-shadow: 0 6px 16px rgba(19,179,155,0.5);
+}
+
+.stat-number {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+}
+
+.stat-label {
+    font-size: 10px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+/* ── Body ────────────────────────────────── */
+
+.doctor-card__body {
+    padding: 30px 34px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.doctor-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border: 1px solid #a7f3d0;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+    position: relative;
+    overflow: hidden;
+}
+
+    .doctor-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--primary);
+        box-shadow: 0 0 0 3px rgba(19,179,155,0.25);
+        flex-shrink: 0;
+    }
+
+    .doctor-badge::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -60%;
+        width: 40%;
+        height: 100%;
+        background: linear-gradient(120deg, transparent, rgba(255,255,255,.9), transparent);
+        animation: badgeShine 3.6s ease-in-out infinite;
+    }
+
+@keyframes badgeShine {
+    0% {
+        left: -60%;
+    }
+
+    50% {
+        left: 130%;
+    }
+
+    100% {
+        left: 130%;
+    }
+}
+
+.doctor-card__name {
+    font-family: var(--font-heading);
+    font-size: 27px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0;
+    background: linear-gradient(120deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: background-position .6s ease;
+}
+
+.doctor-card:hover .doctor-card__name {
+    background-position: right center;
+}
+
+.doctor-card__role {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: -8px;
+}
+
+.doctor-card__desc {
+    font-size: 13.5px;
+    color: #374151;
+    line-height: 1.7;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f3f4f6;
+    margin: 0;
+}
+
+.doctor-card__edu h4,
+.doctor-card__skills h4 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+    margin-bottom: 8px;
+}
+
+.doctor-card__skills {
+    padding-top: 14px;
+    border-top: 1px solid #f3f4f6;
+}
+
+    .doctor-card__skills h4 {
+        margin-bottom: 10px;
+    }
+
+.edu-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 0;
+    padding: 0;
+}
+
+    .edu-list li {
+        font-size: 13px;
+        color: #4b5563;
+        padding-left: 14px;
+        position: relative;
+        line-height: 1.4;
+        transition: transform .3s ease, color .3s ease;
+    }
+
+        .edu-list li::before {
+            content: '—';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: 700;
+            transition: transform .3s ease;
+        }
+
+        .edu-list li:hover {
+            transform: translateX(4px);
+            color: #1f2937;
+        }
+
+            .edu-list li:hover::before {
+                transform: translateX(2px);
+            }
+
+.skills-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+}
+
+.skill-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.3;
+    opacity: 0;
+    transform: translateY(6px);
+    animation: skillPop .5s var(--ease-smooth) forwards;
+    animation-play-state: paused;
+}
+
+.doctor-card.in-view .skill-item {
+    animation-play-state: running;
+}
+
+.skill-item:nth-child(1) {
+    animation-delay: .05s;
+}
+
+.skill-item:nth-child(2) {
+    animation-delay: .12s;
+}
+
+.skill-item:nth-child(3) {
+    animation-delay: .19s;
+}
+
+.skill-item:nth-child(4) {
+    animation-delay: .26s;
+}
+
+.skill-item:nth-child(5) {
+    animation-delay: .33s;
+}
+
+.skill-item:nth-child(6) {
+    animation-delay: .40s;
+}
+
+@keyframes skillPop {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.skill-item::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    transition: transform .3s var(--ease-bounce), box-shadow .3s ease;
+}
+
+.skill-item:hover::before {
+    transform: scale(1.8);
+    box-shadow: 0 0 8px rgba(19,179,155,.6);
+}
+
+.doctor-card__quote {
+    position: relative;
+    font-size: 13px;
+    color: #4b5563;
+    border-left: 3px solid var(--primary);
+    padding: 12px 16px 12px 34px;
+    background: #f0fdf9;
+    border-radius: 0 8px 8px 0;
+    line-height: 1.6;
+    margin-top: auto;
+    overflow: hidden;
+}
+
+    .doctor-card__quote::before {
+        content: '“';
+        position: absolute;
+        top: -6px;
+        left: 6px;
+        font-family: Georgia, serif;
+        font-size: 46px;
+        color: rgba(19,179,155,0.25);
+        line-height: 1;
+    }
+
+/* Кнопка на всю ширину */
+.doctor-card__btn {
+    display: block;
+    text-align: center;
+    margin-top: auto;
+}
+
+/* ── Адаптивность ────────────────────────── */
+
+@media (max-width: 860px) {
+    .doctor-card,
+    .doctor-card--reverse {
+        grid-template-columns: 1fr;
+        transform: none !important;
+    }
+
+    .doctor-card__aside {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .doctor-card--reverse .doctor-card__aside {
+        order: 0;
+        border-left: none;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .doctor-card__photo {
+        min-height: 200px;
+    }
+
+    .doctor-card__stats {
+        border-top: none;
+        border-left: 1px solid #d1fae5;
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(3, 1fr);
+    }
+
+    .stat-item {
+        border-right: none;
+        border-bottom: 1px solid #d1fae5;
+        padding: 10px 14px;
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 10px;
+        text-align: left;
+    }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+}
+
+@media (max-width: 560px) {
+    .doctors-section {
+        padding: 40px 0 60px;
+    }
+
+        .doctors-section .orb-deco {
+            display: none;
+        }
+
+    .doctor-card__aside {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-card__photo {
+        min-height: 220px;
+        aspect-ratio: 16 / 9;
+    }
+
+    .doctor-card__stats {
+        border-left: none;
+        border-top: 1px solid #d1fae5;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: 1fr;
+    }
+
+    .stat-item {
+        flex-direction: column;
+        border-bottom: none;
+        border-right: 1px solid #d1fae5;
+        padding: 12px 6px;
+        align-items: center;
+        text-align: center;
+    }
+
+        .stat-item:last-child {
+            border-right: none;
+        }
+
+    .doctor-card__body {
+        padding: 20px 18px;
+        gap: 12px;
+    }
+
+    .doctor-card__name {
+        font-size: 22px;
+    }
+
+    .skills-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .section-divider {
+        margin: 32px 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .doctors-section .orb-deco,
+    .doctor-card::before,
+    .doctor-badge::after,
+    .section-divider::before {
+        animation: none !important;
+    }
+}

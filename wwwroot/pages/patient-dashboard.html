@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title data-i18n="patient_title">Личный кабинет</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/logo/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/logo/favicon-16x16.png">
+    <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="cabinet-body">
+    <script>
+        (function () {
+            var id = sessionStorage.getItem('patientId');
+            var role = sessionStorage.getItem('userRole');
+            if (!id || role?.toLowerCase() === 'admin') {
+                window.location.href = '/index.html';
+            }
+        })();
+    </script>
+
+
+    <main class="panel-main">
+        <div class="panel-layout">
+
+            <aside class="panel-sidebar">
+                <div class="panel-brand">
+                    <span class="panel-logo">DC</span>
+                    <span class="panel-title" data-i18n="patient_brand_title">Кабинет</span>
+                </div>
+                <div class="panel-user">
+                    <div class="panel-user-avatar" id="patient-sidebar-avatar"><span class="avatar-fallback">👤</span></div>
+                    <div class="panel-user-text">
+                        <div class="panel-user-name" id="patient-name">—</div>
+                        <div class="panel-user-email" id="patient-email">—</div>
+                    </div>
+                </div>
+                <nav class="panel-nav">
+                    <span class="panel-nav-label" data-i18n="patient_nav_label">Мои записи</span>
+                    <button class="panel-nav-link active" data-section="active" data-i18n="patient_active_title">Активные записи</button>
+                    <button class="panel-nav-link" data-section="history" data-i18n="history_section_title">История посещений</button>
+                    <span class="panel-nav-label" data-i18n="patient_reviews_label">Отзывы</span>
+                    <button class="panel-nav-link" data-section="reviews">
+                        <span data-i18n="patient_reviews_title">Мои отзывы</span>
+                        <span class="nav-badge hidden" id="reviews-nav-badge">0</span>
+                    </button>
+                    <span class="panel-nav-label" data-i18n="patient_settings_label">Настройки</span>
+                    <button class="panel-nav-link" data-section="profile" data-i18n="patient_profile_nav">Профиль</button>
+                </nav>
+            </aside>
+
+            <section class="panel-content">
+                <div class="panel-content-inner">
+
+                    <section class="panel-section" id="section-active">
+                        <div class="panel-section-header">
+                            <h2 data-i18n="patient_active_title">Активные записи</h2>
+                            <p data-i18n="patient_active_desc">Текущие и ожидающие подтверждения заявки.</p>
+                        </div>
+                        <div class="panel-card">
+                            <div class="panel-table-wrap">
+                                <table class="panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="table_doctor">Врач</th>
+                                            <th data-i18n="table_date">Дата</th>
+                                            <th data-i18n="table_time">Время</th>
+                                            <th class="col-comment" data-i18n="table_comment">Комментарий</th>
+                                            <th data-i18n="table_status">Статус</th>
+                                            <th class="col-actions" data-i18n="table_actions">Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="active-appointments">
+                                        <tr><td colspan="6" data-i18n="cabinet_loading">Загрузка...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel-section hidden" id="section-history">
+                        <div class="panel-section-header">
+                            <h2 data-i18n="history_section_title">История посещений</h2>
+                            <p data-i18n="history_section_desc">Завершённые и отменённые записи.</p>
+                        </div>
+
+                        <div class="analytics-cards" id="history-stats-cards">
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">🦷</div>
+                                <div class="analytics-card-value" id="stat-total-visits">—</div>
+                                <div class="analytics-card-label" data-i18n="patient_stat_total_visits">Завершённых визитов</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">📅</div>
+                                <div class="analytics-card-value" id="stat-client-since">—</div>
+                                <div class="analytics-card-label" data-i18n="patient_stat_client_since">С нами с</div>
+                            </div>
+                            <div class="analytics-card">
+                                <div class="analytics-card-icon">👨‍⚕️</div>
+                                <div class="analytics-card-value">
+                                    <span id="stat-favorite-doctor">—</span>
+                                    <button type="button" id="stat-favorite-doctor-translate" class="row-translate-btn hidden" title="Перевести">🌐</button>
+                                </div>
+                                <div class="analytics-card-label" data-i18n="patient_stat_favorite_doctor">Ваш лечащий врач</div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-table-wrap">
+                                <table class="panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="table_doctor">Врач</th>
+                                            <th data-i18n="table_date">Дата</th>
+                                            <th data-i18n="table_time">Время</th>
+                                            <th class="col-comment" data-i18n="table_comment">Комментарий</th>
+                                            <th data-i18n="table_status">Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-appointments">
+                                        <tr><td colspan="5" data-i18n="cabinet_loading">Загрузка...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel-section hidden" id="section-reviews">
+                        <div class="panel-section-header">
+                            <h2 data-i18n="patient_reviews_title">Мои отзывы</h2>
+                            <p data-i18n="patient_reviews_desc">Ваши отзывы и статус их проверки модератором.</p>
+                        </div>
+
+                        <div id="review-rejection-notice"></div>
+
+                        <button type="button" class="btn-primary btn-leave-review-cabinet btn-leave-review" data-i18n="patient_leave_new_review">
+                            Оставить новый отзыв
+                        </button>
+
+                        <div class="panel-card">
+                            <div class="my-reviews-list" id="my-reviews-list">
+                                <p class="panel-empty" data-i18n="ui_loading">Загрузка...</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="panel-section hidden" id="section-profile">
+                        <div class="panel-section-header">
+                            <h2 data-i18n="patient_profile_nav">Профиль</h2>
+                            <p data-i18n="patient_profile_subtitle">Личные данные и настройки безопасности.</p>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title" data-i18n="patient_profile_photo_title">Фото профиля</h3>
+                            <div id="profile-avatar-uploader"></div>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title" data-i18n="patient_profile_personal_title">Личные данные</h3>
+                            <form id="profile-form" class="panel-form">
+                                <div class="panel-form-group">
+                                    <label for="profile-firstname" data-i18n="placeholder_name">Имя</label>
+                                    <input type="text" id="profile-firstname" required>
+                                </div>
+                                <div class="panel-form-group">
+                                    <label for="profile-email" data-i18n="placeholder_email">Email</label>
+                                    <input type="email" id="profile-email" disabled>
+                                </div>
+                                <div class="panel-form-group">
+                                    <label for="profile-phone" data-i18n="table_phone">Телефон</label>
+                                    <input type="tel" id="profile-phone" placeholder="+7 (999) 123-45-67">
+                                </div>
+                                <div class="panel-modal-footer">
+                                    <button type="submit" class="panel-btn-primary" data-i18n="modal_btn_save">Сохранить</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="panel-card">
+                            <h3 class="analytics-chart-title" data-i18n="patient_password_section_title">Смена пароля</h3>
+                            <form id="password-form" class="panel-form">
+                                <div class="panel-form-group">
+                                    <label for="profile-current-password" data-i18n="patient_current_password_label">Текущий пароль</label>
+                                    <input type="password" id="profile-current-password" required autocomplete="current-password">
+                                </div>
+                                <div class="panel-form-group">
+                                    <label for="profile-new-password" data-i18n="patient_new_password_label">Новый пароль</label>
+                                    <input type="password" id="profile-new-password" required minlength="6" autocomplete="new-password">
+                                </div>
+                                <div class="panel-form-group">
+                                    <label for="profile-new-password-repeat" data-i18n="patient_repeat_password_label">Повторите новый пароль</label>
+                                    <input type="password" id="profile-new-password-repeat" required minlength="6" autocomplete="new-password">
+                                </div>
+                                <div class="panel-modal-footer">
+                                    <button type="submit" class="panel-btn-primary" data-i18n="patient_change_password_btn">Изменить пароль</button>
+                                </div>
+                            </form>
+                        </div>
+                    </section>
+
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Модальное окно переноса записи -->
+    <div id="reschedule-modal" class="panel-modal hidden">
+        <div class="panel-modal-backdrop"></div>
+        <div class="panel-modal-dialog">
+            <div class="panel-modal-header">
+                <h3 data-i18n="patient_reschedule_modal_title">Перенести запись</h3>
+                <button type="button" class="panel-modal-close" id="reschedule-modal-close">&times;</button>
+            </div>
+            <div class="panel-modal-body">
+                <form id="reschedule-form" class="panel-form">
+                    <input type="hidden" id="reschedule-appointment-id">
+                    <div class="panel-form-group">
+                        <label for="reschedule-datetime" data-i18n="patient_reschedule_datetime_label">Новая дата и время</label>
+                        <input type="datetime-local" id="reschedule-datetime" required>
+                    </div>
+                    <p class="panel-form-hint" data-i18n="patient_reschedule_hint">Новое время нужно будет подтвердить администратором клиники.</p>
+                    <div class="panel-modal-footer">
+                        <button type="button" class="panel-btn-secondary" id="reschedule-modal-cancel" data-i18n="modal_btn_cancel">Отмена</button>
+                        <button type="submit" class="panel-btn-primary" data-i18n="patient_reschedule_submit_btn">Отправить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка: оставить отзыв -->
+    <div id="review-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 data-i18n="review_modal_title">Ваш отзыв</h2>
+            <form id="review-form">
+                <div class="review-rating-picker" id="review-rating-picker">
+                    <span class="star-rating interactive">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </span>
+                    <span class="rating-hint" id="review-rating-hint" data-i18n="rating_hint_default">Выберите оценку</span>
+                </div>
+                <textarea id="review-text" maxlength="1000" placeholder="Расскажите о вашем опыте посещения клиники..." data-i18n-placeholder="review_text_placeholder" required></textarea>
+                <div class="review-char-count" id="review-char-count">0/1000</div>
+                <button type="submit" class="btn-primary btn-modal" data-i18n="review_submit_btn">Отправить на проверку</button>
+            </form>
+            <div class="modal-extra">
+                <small data-i18n="review_modal_note">Отзыв появится на сайте после проверки администратором</small>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/assets/js/main.js"></script>
+    <script src="/assets/js/core/scrollReveal.js" defer></script>
+    <script src="/assets/js/core/wowEffects.js" defer></script>
+    <script type="module" src="/assets/js/managers/patient/patientDashboard.js"></script>
+    <script type="module" src="/assets/js/managers/public/myReviews.js"></script>
+</body>
+</html>

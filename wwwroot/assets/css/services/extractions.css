@@ -1,0 +1,309 @@
+/* ========== KIDS FAIRY SECTION ========== */
+
+.kids-fairy-section {
+    padding: 50px 20px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%);
+}
+
+.kids-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+}
+
+.kids-intro {
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.7;
+    max-width: 900px;
+    margin: 0 auto 30px;
+    text-align: center;
+}
+
+.gifts-subtitle {
+    font-size: 1.3rem;
+    color: var(--primary);
+    margin: 0 0 30px;
+    font-weight: 700;
+    text-align: center;
+    position: relative;
+    padding: 0 24px;
+    letter-spacing: -0.02em;
+}
+
+    .gifts-subtitle::before,
+    .gifts-subtitle::after {
+        content: '•••';
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(19, 179, 155, 0.3);
+        font-size: 1.3rem;
+        font-weight: 400;
+    }
+
+    .gifts-subtitle::before {
+        left: 0;
+    }
+
+    .gifts-subtitle::after {
+        right: 0;
+    }
+
+.gifts-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.gift-card {
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(19, 179, 155, 0.08);
+    position: relative;
+    overflow: hidden;
+    border-left: 4px solid var(--primary);
+}
+
+.gift-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.gift-card h4 {
+    font-size: 0.95rem;
+    color: var(--primary);
+    margin: 0 0 8px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.gift-card p {
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.kids-info-box {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%);
+    border-radius: 12px;
+    border: 2px dashed rgba(19, 179, 155, 0.2);
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 24px;
+    padding: 30px;
+    box-shadow: 0 4px 16px rgba(19, 179, 155, 0.1);
+    position: relative;
+}
+
+    .kids-info-box::before {
+        content: '✨';
+        position: absolute;
+        top: 1px;
+        right: -1px;
+        font-size: 1.8rem;
+        opacity: 0.3;
+    }
+
+.kids-info-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.info-item {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(19, 179, 155, 0.15);
+}
+
+    .info-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .info-item h4 {
+        font-size: 1rem;
+        color: var(--primary);
+        margin: 0 0 8px;
+        font-weight: 700;
+    }
+
+.kids-info-icon {
+    color: #32b8c6;
+    font-size: 1.3rem;
+    margin-right: 8px;
+}
+
+.info-item p {
+    font-size: 0.9rem;
+    color: #555;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.kids-image-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(19, 179, 155, 0.12);
+    height: 280px;
+}
+
+.kids-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ========== INDICATIONS SECTION ========== */
+
+.indications-section {
+    padding: 50px 20px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(34, 197, 94, 0.08) 100%);
+}
+
+.indications-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+}
+
+.compact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.compact-item {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    border: 1px solid rgba(19, 179, 155, 0.15);
+    box-shadow: 0 2px 8px rgba(19, 179, 155, 0.05);
+}
+
+.check-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, rgba(19, 179, 155, 0.12) 0%, rgba(13, 128, 112, 0.12) 100%);
+    color: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    border: 1px solid rgba(19, 179, 155, 0.2);
+}
+
+.item-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.compact-item h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #222;
+    line-height: 1.4;
+}
+
+.compact-item p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 1024px) {
+    .gifts-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .kids-info-box {
+        grid-template-columns: 1fr;
+    }
+
+    .kids-image-wrapper {
+        height: 250px;
+    }
+
+    .compact-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .after-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .after-image-wrapper {
+        height: 350px;
+    }
+
+    .after-image-container {
+        position: static;
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gifts-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .compact-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .after-image-wrapper {
+        height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gifts-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .kids-image-wrapper {
+        height: 160px;
+    }
+
+    .compact-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .after-image-wrapper {
+        height: 250px;
+    }
+
+    .gallery-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}

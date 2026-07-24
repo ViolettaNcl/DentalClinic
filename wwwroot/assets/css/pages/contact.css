@@ -1,0 +1,778 @@
+/* ===================================================================
+   КОНТАКТЫ — редизайн: тема "улыбки"
+   Сигнатурный элемент: силуэт зуба/улыбки повторяется в шапке,
+   разделителе и водяном знаке карточки формы.
+=================================================================== */
+
+/* ===== ГЕРОЙ ===== */
+
+.contact-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 150px 20px 90px;
+    text-align: center;
+    background: radial-gradient(560px 320px at 18% -10%, rgba(255,182,114,0.25), transparent 65%), radial-gradient(700px 420px at 85% 0%, rgba(95,217,196,0.35), transparent 60%), var(--gradient-primary);
+    isolation: isolate;
+}
+
+.contact-hero-inner {
+    position: relative;
+    z-index: 2;
+    max-width: 640px;
+    margin: 0 auto;
+    animation: heroRise .9s var(--ease-smooth) both;
+}
+
+.contact-hero-icon {
+    display: inline-flex;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 14px;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.18));
+    animation: heroFloat 5s ease-in-out infinite;
+}
+
+    .contact-hero-icon svg {
+        width: 100%;
+        height: 100%;
+    }
+
+.contact-hero-title {
+    font-family: var(--font-heading);
+    font-size: clamp(2rem, 4.2vw, 2.9rem);
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.5px;
+    margin: 0 0 12px;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.15);
+}
+
+.contact-hero-subtitle {
+    font-size: clamp(0.95rem, 1.6vw, 1.08rem);
+    color: rgba(255,255,255,0.92);
+    line-height: 1.7;
+    margin: 0;
+}
+
+.contact-hero-divider {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 100%;
+    height: 90px;
+    z-index: 1;
+}
+
+    .contact-hero-divider path {
+        fill: var(--light);
+    }
+
+/* Плавающие "пузырьки" — отсылка к полосканию/чистке зубов */
+.hero-bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.28);
+    filter: blur(0.5px);
+    z-index: 1;
+    animation: bubbleFloat 7s ease-in-out infinite;
+}
+
+.hero-bubble--1 {
+    width: 18px;
+    height: 18px;
+    left: 12%;
+    top: 30%;
+    animation-delay: 0s;
+}
+
+.hero-bubble--2 {
+    width: 12px;
+    height: 12px;
+    left: 82%;
+    top: 22%;
+    animation-delay: 1.4s;
+}
+
+.hero-bubble--3 {
+    width: 26px;
+    height: 26px;
+    left: 68%;
+    top: 62%;
+    animation-delay: 2.6s;
+    background: rgba(255,182,114,0.3);
+}
+
+.hero-bubble--4 {
+    width: 9px;
+    height: 9px;
+    left: 30%;
+    top: 68%;
+    animation-delay: 3.8s;
+}
+
+@keyframes heroRise {
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes heroFloat {
+    0%, 100% {
+        transform: translateY(0) rotate(-2deg);
+    }
+
+    50% {
+        transform: translateY(-10px) rotate(2deg);
+    }
+}
+
+@keyframes bubbleFloat {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        opacity: .55;
+    }
+
+    50% {
+        transform: translateY(-26px) scale(1.15);
+        opacity: .9;
+    }
+}
+
+/* ===== ОБЩАЯ СЕКЦИЯ ===== */
+
+.contact-section {
+    max-width: 1120px;
+    margin: 0 auto 40px;
+    padding: 56px 20px 0;
+}
+
+.faq-contact-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: stretch;
+}
+
+/* Левая колонка */
+.faq-block {
+    background: #fff;
+    padding: 34px 32px;
+    border-radius: 22px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid #e8f0ed;
+    transition: transform .45s var(--ease-bounce), box-shadow .45s ease, border-color .45s ease;
+}
+
+    .faq-block:hover {
+        transform: translateY(-4px);
+        border-color: #d6f0eb;
+        box-shadow: 0 20px 50px rgba(19,179,155,0.18);
+    }
+
+.visit-info {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.visit-title {
+    color: var(--text);
+    font-family: var(--font-heading);
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -.3px;
+}
+
+.highlight-text {
+    color: #1d5c52;
+    font-weight: 600;
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 4px 0 8px;
+    padding: 14px 16px;
+    background: #f0faf8;
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+}
+
+.visit-description {
+    color: #5b6b68;
+    font-size: 14.5px;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.before-visit {
+    color: var(--primary-dark);
+    font-size: 13px;
+    font-weight: 800;
+    margin: 6px 0 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+}
+
+/* Чек-лист с анимированными отметками, каскадное появление */
+.visit-checklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+    .visit-checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 14px;
+        line-height: 1.55;
+        color: #48605c;
+        opacity: 0;
+        transform: translateX(-14px);
+        transition: opacity .5s ease, transform .5s ease;
+    }
+
+.faq-block.reveal-visible .visit-checklist li {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+    .faq-block.reveal-visible .visit-checklist li:nth-child(1) {
+        transition-delay: .1s;
+    }
+
+    .faq-block.reveal-visible .visit-checklist li:nth-child(2) {
+        transition-delay: .22s;
+    }
+
+    .faq-block.reveal-visible .visit-checklist li:nth-child(3) {
+        transition-delay: .34s;
+    }
+
+    .faq-block.reveal-visible .visit-checklist li:nth-child(4) {
+        transition-delay: .46s;
+    }
+
+.check-icon {
+    flex-shrink: 0;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    box-shadow: 0 3px 8px rgba(19,179,155,0.3);
+}
+
+/* Правая колонка (форма) */
+.contact-form-block {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px 34px 30px;
+    border: 1px solid #e8f0ed;
+    background: linear-gradient(160deg, #ffffff 0%, #f7fffd 100%);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    transition: transform .45s var(--ease-bounce), box-shadow .45s ease, border-color .45s ease;
+}
+
+    .contact-form-block::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--gradient-primary);
+    }
+
+    .contact-form-block:hover {
+        transform: translateY(-4px);
+        border-color: #d6f0eb;
+        box-shadow: 0 20px 50px rgba(19,179,155,0.2);
+    }
+
+.form-watermark {
+    position: absolute;
+    right: -38px;
+    bottom: -30px;
+    width: 220px;
+    height: 220px;
+    fill: rgba(19,179,155,0.05);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.form-title {
+    position: relative;
+    z-index: 1;
+    color: var(--text);
+    font-family: var(--font-heading);
+    margin: 0 0 6px 0;
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -.3px;
+    text-align: center;
+}
+
+.contact-form-block p {
+    position: relative;
+    z-index: 1;
+    color: #667772;
+    font-size: 13.5px;
+    margin: 0 0 20px;
+    line-height: 1.55;
+    text-align: center;
+}
+
+.contact-form-block form {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.contact-form-row {
+    display: flex;
+    gap: 14px;
+}
+
+    .contact-form-row .form-group {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group--empty {
+    visibility: hidden;
+}
+
+.contact-form-block label {
+    color: var(--primary-dark);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Поля с иконкой-подсказкой слева */
+.field-shell {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.field-icon {
+    position: absolute;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: #9db9b3;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+    transition: stroke .3s ease;
+}
+
+.field-shell--textarea .field-icon {
+    top: 12px;
+}
+
+.contact-form-block input,
+.contact-form-block textarea {
+    width: 100%;
+    padding: 11px 12px 11px 36px;
+    font-size: 13.5px;
+    border: 1.5px solid #e0e8e5;
+    border-radius: 12px;
+    background-color: #fafcfb;
+    font-family: inherit;
+    color: #263a36;
+    transition: border-color .3s ease, box-shadow .3s ease, background-color .3s ease;
+}
+
+    .contact-form-block input::placeholder,
+    .contact-form-block textarea::placeholder {
+        color: #a9bdb8;
+    }
+
+.contact-form-block textarea {
+    min-height: 78px;
+    resize: vertical;
+    padding-top: 11px;
+}
+
+    .contact-form-block input:focus,
+    .contact-form-block textarea:focus {
+        border-color: var(--primary);
+        outline: none;
+        background-color: #fff;
+        box-shadow: 0 0 0 4px rgba(19,179,155,0.12);
+    }
+
+        .contact-form-block input:focus ~ .field-icon,
+        .field-shell:focus-within .field-icon {
+            stroke: var(--primary);
+        }
+
+.use-profile-phone-btn {
+    align-self: flex-start;
+    margin-top: 2px;
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+    .use-profile-phone-btn:hover {
+        color: var(--primary-dark);
+    }
+
+    .use-profile-phone-btn.hidden {
+        display: none;
+    }
+
+.contact-form-block .btn-primary {
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* ===== НИЖНИЙ БЛОК КОНТАКТОВ ===== */
+
+.extra-contacts {
+    margin-top: 46px;
+}
+
+    .extra-contacts hr {
+        border: none;
+        border-top: 1px solid #d0ebe5;
+        margin: 0 auto 36px;
+        max-width: 1120px;
+    }
+
+.contact-cards-grid {
+    margin-top: 0;
+}
+
+.contact-card .card__icon-circle {
+    width: 54px;
+    height: 54px;
+}
+
+    .contact-card .card__icon-circle svg {
+        width: 24px;
+        height: 24px;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+/* ===== КАРТА ===== */
+
+.location-section {
+    margin-top: 40px;
+    padding: 40px 20px 56px;
+    text-align: center;
+    background: linear-gradient(180deg, #f6fbfa 0%, #eef8f6 100%);
+    border-top: 1px solid #d0ebe5;
+}
+
+.map-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.map-container {
+    position: relative;
+    width: 92%;
+    max-width: 980px;
+    border: 1px solid #e0e7e4;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+    .map-container iframe {
+        display: block;
+        width: 100%;
+        height: 440px;
+        border: none;
+        filter: saturate(0.92) contrast(1.02);
+    }
+
+.map-pulse {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 0 rgba(255, 152, 67, 0.6);
+    z-index: 2;
+    animation: mapPulse 2.4s ease-out infinite;
+}
+
+@keyframes mapPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 152, 67, 0.55);
+    }
+
+    70% {
+        box-shadow: 0 0 0 16px rgba(255, 152, 67, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 152, 67, 0);
+    }
+}
+
+/* ===== ЯВНАЯ КНОПКА "ПОСТРОИТЬ МАРШРУТ" ===== */
+
+.route-fab-btn {
+    position: absolute;
+    z-index: 4;
+    right: 16px;
+    bottom: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px 12px 16px;
+    background: var(--gradient-primary);
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(19,179,155,0.45);
+    transition: transform .3s var(--ease-bounce), box-shadow .3s ease;
+    animation: fabPulse 2.6s ease-in-out infinite;
+}
+
+    .route-fab-btn .route-fab-icon {
+        font-size: 17px;
+    }
+
+    .route-fab-btn:hover {
+        transform: translateY(-3px) scale(1.03);
+        box-shadow: 0 16px 36px rgba(19,179,155,0.55);
+    }
+
+    .route-fab-btn:active {
+        transform: translateY(-1px) scale(0.98);
+    }
+
+    .route-fab-btn:disabled {
+        cursor: default;
+        opacity: 0.9;
+    }
+
+@keyframes fabPulse {
+    0%, 100% {
+        box-shadow: 0 12px 30px rgba(19,179,155,0.45);
+    }
+
+    50% {
+        box-shadow: 0 12px 34px rgba(19,179,155,0.65);
+    }
+}
+
+.route-fab-btn.is-loading .route-fab-icon {
+    display: none;
+}
+
+.route-fab-btn.is-loading::before {
+    content: '';
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    animation: fabSpin .7s linear infinite;
+}
+
+@keyframes fabSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.route-result-toast {
+    position: absolute;
+    z-index: 4;
+    right: 16px;
+    bottom: 76px;
+    max-width: 260px;
+    background: #fff;
+    border: 1px solid #e3ece9;
+    border-radius: 14px;
+    padding: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #48605c;
+    box-shadow: 0 16px 40px rgba(6,40,35,0.22);
+    opacity: 0;
+    transform: translateY(8px) scale(.97);
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease;
+}
+
+    .route-result-toast.is-visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+        padding: 14px 16px;
+    }
+
+    .route-result-toast a {
+        display: inline-block;
+        margin-top: 4px;
+        color: var(--primary);
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+        .route-result-toast a:hover {
+            text-decoration: underline;
+        }
+
+/* ===== ДВИЖЕНИЕ С УВАЖЕНИЕМ К prefers-reduced-motion ===== */
+@media (prefers-reduced-motion: reduce) {
+    .contact-hero-icon,
+    .hero-bubble,
+    .map-pulse,
+    .route-fab-btn {
+        animation: none !important;
+    }
+
+    .contact-hero-inner {
+        animation: none !important;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ===== АДАПТИВ ===== */
+
+@media (max-width: 1024px) {
+    .faq-contact-container {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .contact-section {
+        padding-top: 44px;
+    }
+
+    .contact-hero {
+        padding: 130px 20px 80px;
+    }
+}
+
+@media (max-width: 768px) {
+    .faq-block,
+    .contact-form-block {
+        padding: 26px 22px;
+    }
+
+    .contact-hero {
+        padding: 110px 20px 76px;
+    }
+
+    .contact-hero-title {
+        font-size: 1.7rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .contact-form-row {
+        flex-direction: column;
+    }
+
+    .form-group--empty {
+        display: none;
+    }
+
+    .map-frame {
+        width: 96%;
+        padding: 6px;
+    }
+
+    .map-info-card {
+        left: 14px;
+        top: 12px;
+        padding: 9px 13px;
+    }
+
+    .route-fab-btn {
+        right: 10px;
+        bottom: 10px;
+        padding: 10px 16px 10px 13px;
+        font-size: 12.5px;
+    }
+
+    .route-result-toast {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        bottom: 66px;
+    }
+
+    .map-corner {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .contact-hero {
+        padding: 100px 16px 66px;
+    }
+
+    .contact-hero-icon {
+        width: 52px;
+        height: 52px;
+    }
+
+    .visit-title {
+        font-size: 1.15rem;
+    }
+
+    .map-container iframe {
+        height: 280px;
+    }
+}

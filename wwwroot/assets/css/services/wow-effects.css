@@ -1,0 +1,282 @@
+/* =====================================================================
+   WOW-EFFECTS — креативный слой анимаций для страниц услуг (8 страниц)
+   Подключается ТОЛЬКО на страницах с классом .service-detail-page,
+   поэтому никак не влияет на остальной сайт.
+   ===================================================================== */
+
+/* ---------- 1. Индикатор прочтения страницы (сверху) ---------- */
+
+.scroll-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 4px;
+    width: 0%;
+    background: var(--gradient-text);
+    background-size: 300% auto;
+    animation: progressShimmer 3s linear infinite;
+    box-shadow: 0 0 14px rgba(19, 179, 155, .65), 0 0 4px rgba(255, 182, 114, .5);
+    z-index: 9999;
+    transition: width .12s linear;
+    border-radius: 0 4px 4px 0;
+}
+
+@keyframes progressShimmer {
+    to { background-position: -300% center; }
+}
+
+/* ---------- 2. Плавающие частицы в hero ---------- */
+
+.service-detail-page .hero-section {
+    isolation: isolate;
+}
+
+.wow-particle {
+    position: absolute;
+    top: 100%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    color: rgba(255, 255, 255, .55);
+    font-size: var(--p-size, 22px);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, .35));
+    animation: floatUp var(--p-duration, 11s) ease-in var(--p-delay, 0s) infinite;
+    will-change: transform, opacity;
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) translateX(0) rotate(0deg) scale(.7);
+        opacity: 0;
+    }
+    10% {
+        opacity: .9;
+    }
+    50% {
+        transform: translateY(-160px) translateX(var(--p-drift, 20px)) rotate(180deg) scale(1);
+    }
+    90% {
+        opacity: .5;
+    }
+    100% {
+        transform: translateY(-340px) translateX(calc(var(--p-drift, 20px) * -1)) rotate(360deg) scale(.6);
+        opacity: 0;
+    }
+}
+
+.service-detail-page .hero-title {
+    position: relative;
+    display: inline-block;
+    animation: heroTitlePop .8s var(--ease-bounce) both;
+}
+
+.service-detail-page .hero-subtitle {
+    animation: heroFadeUp .9s var(--ease-smooth) .15s both;
+}
+
+.service-detail-page .hero-content > .btn-cta-white {
+    animation: heroFadeUp .9s var(--ease-smooth) .3s both;
+}
+
+@keyframes heroTitlePop {
+    0% { opacity: 0; transform: translateY(26px) scale(.92); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes heroFadeUp {
+    0% { opacity: 0; transform: translateY(18px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* лёгкое "дыхание" кнопки в hero, чтобы взгляд цеплялся за призыв к действию */
+.service-detail-page .btn-cta-white {
+    position: relative;
+    overflow: hidden;
+}
+
+    .service-detail-page .btn-cta-white::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%);
+        transform: translateX(-120%);
+        animation: ctaSweep 3.2s ease-in-out 1s infinite;
+    }
+
+@keyframes ctaSweep {
+    0%, 55% { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
+}
+
+/* ---------- 3. Заголовки секций — акцентная искра ---------- */
+
+.service-detail-page .section-title {
+    position: relative;
+}
+
+/* ---------- 4. 3D-наклон карточек (types / gallery / pricing) ---------- */
+
+.service-detail-page .type-card,
+.service-detail-page .gallery-item,
+.service-detail-page .card--pricing {
+    --rx: 0deg;
+    --ry: 0deg;
+    --mx: 50%;
+    --my: 50%;
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+    transition: transform .25s var(--ease-smooth), box-shadow .35s ease, border-color .35s ease;
+    position: relative;
+}
+
+.service-detail-page .type-card::after,
+.service-detail-page .card--pricing::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle 180px at var(--mx) var(--my), rgba(19, 179, 155, .16), transparent 70%);
+    opacity: 0;
+    transition: opacity .3s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.service-detail-page .type-card:hover::after,
+.service-detail-page .card--pricing:hover::after {
+    opacity: 1;
+}
+
+.service-detail-page .type-card > *,
+.service-detail-page .card--pricing > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* блик, скользящий по галерее */
+.service-detail-page .gallery-item {
+    isolation: isolate;
+}
+
+.service-detail-page .gallery-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, .55) 50%, transparent 60%);
+    transform: translateX(-130%);
+    transition: transform .15s;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.service-detail-page .gallery-item:hover .gallery-image::before {
+    transform: translateX(130%);
+    transition: transform .85s ease;
+}
+
+/* кинематографичное появление галереи при скролле */
+.service-detail-page .gallery-item {
+    opacity: 0;
+    transform: translateY(36px) scale(.94);
+    clip-path: inset(0 0 0 0 round 12px);
+}
+
+.service-detail-page .gallery-item.wow-in-view {
+    animation: galleryReveal .75s var(--ease-smooth) forwards;
+}
+
+@keyframes galleryReveal {
+    0% { opacity: 0; transform: translateY(36px) scale(.94); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- 5. Цена — эффект "пульс" при появлении + счётчик ---------- */
+
+.service-detail-page .card__price {
+    position: relative;
+}
+
+.service-detail-page .card__price .amount {
+    display: inline-block;
+    transition: transform .2s ease;
+}
+
+.service-detail-page .card--pricing.wow-counted .card__price .amount {
+    animation: priceGlow 1s ease .05s;
+}
+
+@keyframes priceGlow {
+    0% { transform: scale(1); text-shadow: none; }
+    40% { transform: scale(1.12); text-shadow: 0 0 18px rgba(19, 179, 155, .55); }
+    100% { transform: scale(1); text-shadow: none; }
+}
+
+.service-detail-page .card--pricing.featured {
+    animation: featuredFloat 4.5s ease-in-out infinite;
+}
+
+@keyframes featuredFloat {
+    0%, 100% { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(0); }
+    50% { transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-8px); }
+}
+
+/* ---------- 6. FAQ — рябь на клике + мягкое сияние активного пункта ---------- */
+
+.service-detail-page .faq-question {
+    position: relative;
+    overflow: hidden;
+}
+
+.wow-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(19, 179, 155, .25);
+    transform: scale(0);
+    animation: rippleOut .6s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes rippleOut {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+.service-detail-page .faq-item.active {
+    box-shadow: 0 14px 40px rgba(19, 179, 155, .28), 0 0 0 1px rgba(19, 179, 155, .12) inset;
+}
+
+.service-detail-page .faq-item.active .faq-icon {
+    filter: drop-shadow(0 0 6px rgba(19, 179, 155, .6));
+}
+
+/* ---------- 7. Магнитная кнопка CTA / записаться ---------- */
+
+.service-detail-page .btn-primary {
+    transition: transform .18s var(--ease-smooth), box-shadow .3s ease;
+}
+
+/* ---------- 8. Уважение к prefers-reduced-motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .wow-particle,
+    .service-detail-page .hero-title,
+    .service-detail-page .hero-subtitle,
+    .service-detail-page .hero-content > .btn-cta-white,
+    .service-detail-page .btn-cta-white::after,
+    .service-detail-page .card--pricing.featured,
+    .service-detail-page .card--pricing.wow-counted .card__price .amount {
+        animation: none !important;
+    }
+
+    .scroll-progress-bar {
+        animation: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .wow-particle {
+        display: none; /* на мобильных не грузим лишнюю анимацию */
+    }
+}

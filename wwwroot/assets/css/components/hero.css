@@ -1,0 +1,112 @@
+/* Общий фон и базовая геометрия — используется на внутренних страницах */
+.hero-section {
+    background: var(--gradient-primary);
+    background-size: 200% 200%;
+    animation: heroGradientShift 12s ease infinite;
+    color: var(--white);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    padding-inline: 20px;
+    padding-top: 110px;
+    padding-bottom: 80px;
+    border-radius: 0 0 40px 40px;
+    box-shadow: 0 15px 50px rgba(19, 179, 155, 0.25);
+}
+
+@keyframes heroGradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Декоративные круги */
+.hero-section::before,
+.hero-section::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.hero-section::before {
+    top: -40%;
+    left: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+}
+
+.hero-section::after {
+    bottom: -40%;
+    right: -15%;
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
+}
+
+.hero-section > .container {
+    max-width: 800px;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-title {
+    font-family: var(--font-heading);
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    margin: 10px 0 16px;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    text-shadow: none;
+}
+
+.hero-subtitle {
+    font-size: clamp(1rem, 2.4vw, 1.25rem);
+    margin: 0 auto 24px;
+    font-weight: 500;
+    max-width: 600px;
+    line-height: 1.7;
+    opacity: 0.96;
+    text-shadow: none;
+}
+
+/* Адаптив */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 100px 16px 60px;
+        border-radius: 0 0 30px 30px;
+    }
+
+        .hero-section > .container {
+            max-width: 100%;
+        }
+}
+
+@media (max-width: 480px) {
+    .hero-section {
+        padding: 105px 12px 45px;
+        border-radius: 0 0 24px 24px;
+    }
+
+    .hero-title {
+        font-size: 2.1rem;
+        font-weight: 600;
+        margin: 18px 0 14px;
+    }
+
+    .hero-subtitle {
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-top: 15px;
+        margin-bottom: 24px;
+    }
+}

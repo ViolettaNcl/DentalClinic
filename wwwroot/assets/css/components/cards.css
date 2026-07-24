@@ -1,0 +1,225 @@
+/* ===== CARD GRID BASE ===== */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(16px, 3vw, 24px);
+    max-width: var(--container);
+    margin: 0 auto;
+    justify-items: center;
+}
+
+/* ===== PRICING: DEFAULT (4 CARDS) ===== */
+.card-grid--pricing {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    align-items: stretch;
+    justify-items: stretch;
+}
+
+    /* ===== PRICING: 3 CARDS CENTER MODE ===== */
+    .card-grid--pricing.card-grid--3 {
+        grid-template-columns: repeat(3, 320px);
+        justify-content: center;
+    }
+
+/* ===== COMPACT GRID ===== */
+.card-grid--compact {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    justify-content: center;
+}
+
+    .card-grid--compact .card {
+        padding: 16px 12px;
+        width: 100%;
+    }
+
+@media (max-width: 1024px) {
+    .card-grid--compact {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .card-grid--compact {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 420px) {
+    .card-grid--compact {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== BASE CARD ===== */
+.card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: clamp(20px, 3vw, 28px) clamp(16px, 2.5vw, 20px);
+    box-shadow: 0 8px 24px rgba(42,123,111,0.12);
+    border: 1px solid rgba(66,181,164,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+    justify-self: center;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform .45s var(--ease-bounce), box-shadow .45s ease, border-color .45s ease;
+}
+
+    .card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        opacity: 0;
+        background: linear-gradient(180deg, rgba(19,179,155,0.06), transparent 60%);
+        transition: opacity .4s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-10px) scale(1.015);
+        box-shadow: 0 22px 48px rgba(19,179,155,0.22);
+        border-color: rgba(19,179,155,0.35);
+    }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+/* ===== ICON ===== */
+.card__icon-circle {
+    width: clamp(55px, 8vw, 70px);
+    height: clamp(55px, 8vw, 70px);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #42b5a4, var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 6px 18px rgba(66,181,164,0.22);
+    transition: transform .45s var(--ease-bounce), box-shadow .45s ease;
+}
+
+    .card__icon-circle img {
+        width: 60%;
+        height: auto;
+        object-fit: contain;
+    }
+
+.card:hover .card__icon-circle {
+    transform: scale(1.12) rotate(-8deg);
+    box-shadow: 0 10px 28px rgba(19,179,155,0.4);
+}
+
+/* ===== TEXT ===== */
+.card__title {
+    color: #2a7b6f;
+    font-size: clamp(14px, 2vw, 16px);
+    font-weight: 700;
+    margin: 0;
+}
+
+.card__text {
+    color: #666;
+    font-size: clamp(11px, 1.5vw, 13px);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ===== LIST ===== */
+.card__list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    text-align: left;
+    flex: 1;
+}
+
+    .card__list li {
+        font-size: clamp(11px, 1.5vw, 13px);
+        line-height: 1.6;
+        color: #666;
+        padding: 4px 0 4px 22px;
+        position: relative;
+    }
+
+        .card__list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+/* ===== FEATURED ===== */
+.card--featured {
+    border-color: var(--primary);
+    box-shadow: 0 10px 30px rgba(19,179,155,0.2);
+    transform: scale(1.02);
+}
+
+    .card--featured:hover {
+        transform: translateY(-10px) scale(1.035);
+    }
+
+/* ===== PRICING ===== */
+.card--pricing {
+    padding: 28px 24px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: none;
+}
+
+    .card--pricing:hover .card__price {
+        background: linear-gradient( 135deg, rgba(19,179,155,0.14), rgba(50,184,198,0.14) );
+    }
+
+    /* PRICE */
+    .card--pricing .card__price {
+        display: flex;
+        justify-content: center;
+        align-items: baseline;
+        gap: 4px;
+        margin: 12px 0 20px;
+        padding: 16px;
+        border-radius: 10px;
+        background: linear-gradient( 135deg, rgba(19,179,155,0.08), rgba(50,184,198,0.08) );
+        transition: background .4s ease;
+    }
+
+        .card--pricing .card__price .amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .card--pricing .card__price .currency {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .card-grid--pricing {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+        .card-grid--pricing.card-grid--3 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+}
+
+@media (max-width: 640px) {
+    .card-grid--pricing {
+        grid-template-columns: 1fr;
+    }
+}

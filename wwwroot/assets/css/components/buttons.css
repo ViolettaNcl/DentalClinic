@@ -1,0 +1,26 @@
+.btn-cta-white {
+    display: inline-block;
+    background: var(--white);
+    color: var(--primary);
+    padding: clamp(11px, 2vw, 15px) clamp(26px, 4vw, 40px);
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: clamp(0.95rem, 2vw, 1.05rem);
+    border: 2px solid var(--white);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.3s, color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+
+    .btn-cta-white:hover {
+        background: #f0f9ff;
+        color: #0d8070;
+        box-shadow: 0 12px 40px rgba(0,0,0,.2);
+        transform: translateY(-3px);
+    }
+
+    .btn-cta-white:active {
+        transform: translateY(-1px);
+    }

@@ -1,0 +1,446 @@
+/* =====================================================================
+   SMILE-METER — «Улыбкометр» с фото-улыбкой (v3)
+   Полностью совместим с оригинальной разметкой; изменён только визуал:
+   вместо SVG-зубов — стек из 8 реалистичных фото со смешиванием.
+   ===================================================================== */
+
+.smile-meter-section {
+    padding: 80px 0 90px;
+    background: radial-gradient(ellipse at 20% 0%, rgba(19, 179, 155, .07), transparent 55%), radial-gradient(ellipse at 85% 100%, rgba(255, 152, 67, .08), transparent 55%), var(--light);
+    position: relative;
+    overflow: hidden;
+}
+
+.smile-meter-subtitle {
+    text-align: center;
+    max-width: 560px;
+    margin: -10px auto 44px;
+    color: var(--text);
+    opacity: .75;
+    font-size: 16px;
+}
+
+/* ---------- Карточка ---------- */
+
+.smile-meter {
+    position: relative;
+    max-width: 940px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 48px;
+    align-items: center;
+    background: var(--card-bg);
+    border-radius: 28px;
+    box-shadow: var(--shadow-lg);
+    padding: 44px 46px;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+    .smile-meter::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        z-index: -2;
+        border-radius: 30px;
+        padding: 2px;
+        background: conic-gradient(from var(--aura-angle, 0deg), var(--primary) 0deg, var(--accent) 90deg, var(--primary-light) 180deg, var(--accent) 270deg, var(--primary) 360deg);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: auraRotate 10s linear infinite;
+        opacity: .55;
+    }
+
+@keyframes auraRotate {
+    to {
+        --aura-angle: 360deg;
+    }
+}
+
+@property --aura-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.smile-meter::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -10%;
+    width: 420px;
+    height: 420px;
+    background: radial-gradient(circle, rgba(19, 179, 155, .1), transparent 70%);
+    transform: translateY(-50%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* ---------- Визуал улыбки ---------- */
+
+.smile-meter-visual {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.smile-ring-wrap {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.smile-ring-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.smile-ring-track {
+    fill: none;
+    stroke: rgba(10, 83, 74, .08);
+    stroke-width: 7;
+}
+
+.smile-ring-progress {
+    fill: none;
+    stroke: url(#smileRingGradient);
+    stroke-width: 7;
+    stroke-linecap: round;
+    transition: stroke-dashoffset .35s var(--ease-smooth);
+    filter: drop-shadow(0 0 8px rgba(19, 179, 155, .45));
+}
+
+/* ---------- Фото-стек (замена SVG-зубов) ---------- */
+
+.smile-photo-stack {
+    position: absolute;
+    inset: 18px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f4e7e2;
+    box-shadow: inset 0 6px 18px rgba(10, 83, 74, .18), 0 10px 24px rgba(10, 83, 74, .18);
+    z-index: 1;
+}
+
+    .smile-photo-stack img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: opacity .22s var(--ease-smooth);
+        will-change: opacity;
+        user-select: none;
+        pointer-events: none;
+    }
+
+/* Плашка со счётом — теперь только крупная цифра, без подписи */
+
+.smile-score-badge {
+    position: absolute;
+    left: 50%;
+    bottom: -14px;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(10, 83, 74, .22);
+    line-height: 1;
+    pointer-events: none;
+}
+
+    .smile-score-badge #smile-score-value {
+        font-family: var(--font-heading);
+        font-weight: 800;
+        font-size: 40px;
+        background: var(--gradient-text);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .smile-score-badge > span {
+        font-family: var(--font-heading);
+        font-weight: 800;
+        font-size: 40px;
+        background: var(--gradient-text);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+.smile-hero-label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+    min-height: 20px;
+    margin-top: 16px;
+    color: var(--primary-dark);
+    transition: opacity .2s ease;
+}
+
+    .smile-hero-label.pop {
+        animation: heroLabelPop .5s var(--ease-bounce);
+    }
+
+@keyframes heroLabelPop {
+    0% {
+        transform: scale(.85);
+        opacity: .3;
+    }
+
+    60% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* конфетти */
+.smile-confetti-host {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.smile-confetti-piece {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    pointer-events: none;
+    animation: confettiBurst .9s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+
+@keyframes confettiBurst {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(calc(-50% + var(--cx, 0px)), calc(-50% + var(--cy, 0px))) scale(0) rotate(var(--cr, 90deg));
+        opacity: 0;
+    }
+}
+
+/* ---------- Слайдеры ---------- */
+
+.smile-meter-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.smile-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.smile-slider-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.smile-slider-value {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--primary-dark);
+    background: rgba(19, 179, 155, .1);
+    padding: 2px 9px;
+    border-radius: 20px;
+    min-width: 40px;
+    text-align: center;
+    transition: transform .15s var(--ease-bounce);
+}
+
+.smile-slider-track {
+    position: relative;
+    height: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.smile-slider input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--slider-color, var(--primary)) var(--val, 40%), rgba(10, 83, 74, .09) var(--val, 40%));
+    outline: none;
+    cursor: pointer;
+    transition: background .05s linear;
+}
+
+    .smile-slider input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #fff;
+        border: 4px solid var(--slider-color, var(--primary));
+        box-shadow: 0 3px 10px rgba(19, 179, 155, .4);
+        cursor: grab;
+        transition: transform .18s var(--ease-bounce);
+        margin-top: -1px;
+    }
+
+    .smile-slider input[type="range"]:active::-webkit-slider-thumb {
+        cursor: grabbing;
+        transform: scale(1.22);
+    }
+
+    .smile-slider input[type="range"]::-moz-range-track {
+        height: 10px;
+        border-radius: 10px;
+        background: rgba(10, 83, 74, .09);
+    }
+
+    .smile-slider input[type="range"]::-moz-range-progress {
+        height: 10px;
+        border-radius: 10px;
+        background: var(--slider-color, var(--primary));
+    }
+
+    .smile-slider input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #fff;
+        border: 4px solid var(--slider-color, var(--primary));
+        box-shadow: 0 3px 10px rgba(19, 179, 155, .4);
+        cursor: grab;
+    }
+
+/* ---------- Результат ---------- */
+
+.smile-result {
+    margin-top: 8px;
+    padding: 20px 22px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, rgba(19, 179, 155, .06), rgba(255, 152, 67, .06));
+    border: 1px dashed rgba(19, 179, 155, .35);
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.smile-result-icon {
+    font-size: 26px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 3px 6px rgba(19, 179, 155, .3));
+}
+
+.smile-result-body {
+    flex: 1;
+}
+
+    .smile-result-body p {
+        margin: 0 0 12px;
+        font-size: 14.5px;
+        color: var(--text);
+        line-height: 1.5;
+        min-height: 42px;
+    }
+
+        .smile-result-body p.swap {
+            animation: resultSwap .35s var(--ease-smooth);
+        }
+
+@keyframes resultSwap {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.smile-result .btn-primary {
+    display: inline-flex;
+}
+
+/* ---------- Появление секции ---------- */
+
+.smile-meter {
+    opacity: 0;
+    transform: translateY(24px) scale(.98);
+}
+
+.smile-meter-section.in-view .smile-meter {
+    animation: smileMeterIn .7s var(--ease-smooth) forwards;
+}
+
+@keyframes smileMeterIn {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .smile-meter::before {
+        animation: none;
+    }
+
+    .smile-photo-stack img {
+        transition: none;
+    }
+
+    .smile-meter {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .smile-meter {
+        grid-template-columns: 1fr;
+        padding: 32px 24px;
+    }
+
+    .smile-ring-wrap {
+        width: 260px;
+        height: 260px;
+    }
+
+    .smile-score-badge #smile-score-value,
+    .smile-score-badge > span {
+        font-size: 34px;
+    }
+}

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="home_title">Dental Clinic</title>
+    <meta name="description" content="Стоматологическая клиника в Волгограде: имплантация, лечение, протезирование и косметическая стоматология. Онлайн-запись, опытные врачи, честные цены.">
+    <link rel="canonical" href="https://dental-clinic.somee.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Dental Clinic — стоматологическая клиника в Волгограде">
+    <meta property="og:description" content="Стоматологическая клиника в Волгограде: имплантация, лечение, протезирование и косметическая стоматология. Онлайн-запись, опытные врачи, честные цены.">
+    <meta property="og:image" content="https://dental-clinic.somee.com/assets/images/Page_index/dental-hero-banner.jpg">
+    <meta property="og:url" content="https://dental-clinic.somee.com/">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:site_name" content="Dental Clinic">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/logo/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/logo/favicon-16x16.png">
+    <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <link rel="stylesheet" href="/assets/css/components/tooth-chart.css">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Dentist",
+            "name": "Dental Clinic",
+            "image": "https://dental-clinic.somee.com/assets/images/logo.jpg",
+            "url": "https://dental-clinic.somee.com/",
+            "telephone": "+7-499-999-99-99",
+            "email": "support@dentalclinic.ru",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "ул. Мира 25",
+                "addressLocality": "Волгоград",
+                "addressCountry": "RU"
+            },
+            "openingHoursSpecification": {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": [
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday"
+                ],
+                "opens": "09:00",
+                "closes": "20:00"
+            },
+            "priceRange": "$$"
+        }
+    </script>
+</head>
+<body>
+    <div id="app-container">
+        <section class="hero">
+            <span class="hero-orb"></span>
+            <span class="hero-orb"></span>
+            <span class="hero-orb"></span>
+            <div class="hero-content">
+                <h1 data-i18n="hero_title">Современная стоматология для вашей улыбки</h1>
+                <p data-i18n="hero_subtitle">Инновационные технологии, опытные врачи и забота о каждом пациенте</p>
+                <div class="hero-buttons">
+                    <a href="/pages/contact.html" class="btn-primary">
+                        <span class="btn-text" data-i18n="hero_btn">Записаться на приём</span>
+                    </a>
+                </div>
+            </div>
+            <section class="stats">
+                <div class="stat"><h3>150+</h3><p data-i18n="stat_patients">благодарных пациентов</p></div>
+                <div class="stat"><h3 id="stat-rating-value">5.0★</h3><p data-i18n="stat_rating">средняя оценка</p></div>
+                <div class="stat"><h3>2</h3><p data-i18n="stat_specialists">опытных специалистов</p></div>
+            </section>
+        </section>
+
+        <section class="reviews-section" id="reviews-section">
+            <div class="reviews-inner">
+                <h2 class="section-title" data-i18n="reviews_title">Отзывы наших пациентов</h2>
+
+                <div class="reviews-summary">
+                    <span class="reviews-summary-score" id="reviews-avg-score">—</span>
+                    <span class="star-rating" id="reviews-avg-stars"></span>
+                    <span class="reviews-summary-divider"></span>
+                    <span class="reviews-summary-count" id="reviews-count" data-i18n="ui_loading">Загрузка...</span>
+                </div>
+
+                <div class="reviews-controls">
+                    <div class="reviews-sort" id="reviews-sort">
+                        <button type="button" class="reviews-sort-toggle" id="reviews-sort-toggle">
+                            <svg class="icon-sort" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4" stroke-linecap="round" /></svg>
+                            <span class="reviews-sort-label" id="reviews-sort-label" data-i18n="reviews_sort_newest">Сначала новые</span>
+                            <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                        </button>
+                        <div class="reviews-sort-menu" id="reviews-sort-menu">
+                            <button type="button" class="reviews-sort-option active" data-value="newest" data-label-key="reviews_sort_newest">
+                                <svg class="icon-option" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                                <span data-i18n="reviews_sort_newest">Сначала новые</span>
+                                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                            </button>
+                            <button type="button" class="reviews-sort-option" data-value="oldest" data-label-key="reviews_sort_oldest">
+                                <svg class="icon-option" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9" /><path d="M3 5v5h5" /><path d="M12 7v5l3 2" /></svg>
+                                <span data-i18n="reviews_sort_oldest">Сначала старые</span>
+                                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                            </button>
+                            <button type="button" class="reviews-sort-option" data-value="rating_desc" data-label-key="reviews_sort_rating_desc">
+                                <svg class="icon-option" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17l-6.2 3.3 1.2-6.9L2 8.7l7-1L12 1l3 6.7 7 1-5 4.7 1.2 6.9z" /></svg>
+                                <span data-i18n="reviews_sort_rating_desc">Рейтинг: по убыванию</span>
+                                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                            </button>
+                            <button type="button" class="reviews-sort-option" data-value="rating_asc" data-label-key="reviews_sort_rating_asc">
+                                <svg class="icon-option" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17l-6.2 3.3 1.2-6.9L2 8.7l7-1L12 1l3 6.7 7 1-5 4.7 1.2 6.9z" /></svg>
+                                <span data-i18n="reviews_sort_rating_asc">Рейтинг: по возрастанию</span>
+                                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reviews-carousel">
+                    <button type="button" class="reviews-nav-btn prev" id="reviews-prev" aria-label="Назад">&#8249;</button>
+                    <div class="reviews-track-wrap">
+                        <div class="reviews-track" id="reviews-track">
+                            <div class="reviews-empty">Загрузка отзывов...</div>
+                        </div>
+                    </div>
+                    <button type="button" class="reviews-nav-btn next" id="reviews-next" aria-label="Вперёд">&#8250;</button>
+                </div>
+                <div class="reviews-dots" id="reviews-dots"></div>
+
+                <div class="reviews-cta">
+                    <p data-i18n="reviews_cta_text">Уже были у нас на приёме? Поделитесь впечатлением!</p>
+                    <button type="button" class="btn-primary btn-leave-review" data-i18n="reviews_cta_btn">Оставить отзыв</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Модалка: гостю нужно войти, чтобы оставить отзыв -->
+    <div id="review-login-required" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+
+            <div class="review-login-hero">
+                <div class="review-login-icon">
+                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12z" />
+                        <path d="M20.4 21.8c0-4.1-3.8-7.5-8.4-7.5s-8.4 3.4-8.4 7.5" />
+                    </svg>
+                </div>
+
+                <h2 data-i18n="review_login_title">Нужен аккаунт</h2>
+                <p data-i18n="review_login_text">Отзывы могут оставлять только зарегистрированные пациенты. Это займёт меньше минуты.</p>
+            </div>
+
+            <div class="review-login-perks">
+                <span class="perk">
+                    <span class="perk-icon">
+                        <svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                    </span>
+                    <span data-i18n="review_login_perk1">Регистрация за 30 секунд</span>
+                </span>
+                <span class="perk">
+                    <span class="perk-icon">
+                        <svg viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                    </span>
+                    <span data-i18n="review_login_perk2">Личный кабинет и запись онлайн</span>
+                </span>
+            </div>
+
+            <div class="review-login-actions">
+                <button type="button" class="btn-outline" id="review-login-required-login" data-i18n="btn_login">Войти</button>
+                <button type="button" class="btn-primary" id="review-login-required-signup" data-i18n="modal_signup_title">Регистрация</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка: оставить отзыв -->
+    <div id="review-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 data-i18n="review_modal_title">Ваш отзыв</h2>
+            <form id="review-form">
+                <div class="review-rating-picker" id="review-rating-picker">
+                    <span class="star-rating interactive">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </span>
+                    <span class="rating-hint" id="review-rating-hint" data-i18n="rating_hint_default">Выберите оценку</span>
+                </div>
+                <textarea id="review-text" maxlength="1000" placeholder="Расскажите о вашем опыте посещения клиники..." data-i18n-placeholder="review_text_placeholder" required></textarea>
+                <div class="review-char-count" id="review-char-count">0/1000</div>
+                <button type="submit" class="btn-primary btn-modal" data-i18n="review_submit_btn">Отправить на проверку</button>
+            </form>
+            <div class="modal-extra">
+                <small data-i18n="review_modal_note">Отзыв появится на сайте после проверки администратором</small>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/assets/js/main.js"></script>
+    <script src="/assets/js/core/scrollReveal.js" defer></script>
+    <script src="/assets/js/core/wowEffects.js" defer></script>
+    <script type="module" src="/assets/js/managers/auth/authManager.js"></script>
+    <script type="module" src="/assets/js/core/navigationManager.js"></script>
+    <script type="module" src="/assets/js/managers/public/reviewsManager.js"></script>
+    <script src="/assets/js/managers/public/toothChart.js" defer></script>
+</body>
+</html>

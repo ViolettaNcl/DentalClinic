@@ -1,0 +1,17 @@
+.pricing-note {
+    width: 100%; /* на всю ширину */
+    margin: 24px 0 0; /* отступ сверху 24px, без боковых отступов */
+    padding: 12px 20px;
+    text-align: center;
+    color: #666;
+    font-size: 0.9rem;
+    background: none;
+    border: none;
+    border-radius: 0;
+}
+
+@media (min-width: 1200px) {
+    .cosmetic-page .pricing-cards {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

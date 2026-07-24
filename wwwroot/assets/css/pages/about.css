@@ -1,0 +1,258 @@
+.about-section {
+    background: linear-gradient(135deg, #f5f8f7 0%, #e8f5f2 100%);
+    padding: clamp(60px, 10vw, 90px) 20px;
+    overflow-x: hidden;
+    position: relative;
+}
+
+    .about-section::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 300px;
+        height: 300px;
+        background: rgba(66,181,164,0.08);
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+.about-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: clamp(20px, 4vw, 40px);
+    align-items: stretch;
+    position: relative;
+    z-index: 1;
+}
+
+.about-block {
+    flex: 1;
+    background: var(--white);
+    padding: clamp(24px, 4vw, 40px);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(42,123,111,0.12);
+    border: 1px solid rgba(66,181,164,0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .4s ease, transform .4s var(--ease-smooth);
+}
+
+    .about-block:hover {
+        box-shadow: 0 16px 40px rgba(42,123,111,0.2);
+    }
+
+.highlight-title {
+    display: inline-block;
+    margin: 12px 0;
+    padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 20px) clamp(10px, 2vw, 15px);
+    font-size: clamp(1.1rem, 3vw, 1.5rem);
+    font-weight: 700;
+    color: #2a7b6f;
+    background: linear-gradient(135deg, rgba(42,123,111,0.08), rgba(66,181,164,0.05));
+    border-radius: 8px;
+    border-left: 4px solid #42b5a4;
+    letter-spacing: 0.3px;
+}
+
+.about-left p, .about-right p, .philosophy-text p {
+    font-size: 16px;
+    line-height: 1.8;
+    margin-bottom: 20px;
+    color: #444;
+}
+
+.about-list, .philosophy-text ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+    .about-list li, .philosophy-text li {
+        position: relative;
+        margin-bottom: 14px;
+        padding-left: 28px;
+        line-height: 1.6;
+        color: #555;
+    }
+
+        .about-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #42b5a4;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+.about-img {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(42,123,111,0.15);
+    object-fit: cover;
+    transition: transform .6s var(--ease-smooth), box-shadow .4s ease;
+}
+
+    .about-img:hover {
+        transform: scale(1.025);
+        box-shadow: 0 14px 40px rgba(42,123,111,0.28);
+    }
+
+.about-img-right {
+    flex-grow: 1;
+}
+
+.about-quote-mark {
+    display: block;
+    font-size: 72px;
+    line-height: 1;
+    font-family: Georgia, serif;
+    color: rgba(66,181,164,0.28);
+    margin-bottom: -20px;
+}
+
+/* ===== Сертификаты как значки достижений ===== */
+.cert-card {
+    position: relative;
+    overflow: visible !important;
+}
+
+.cert-ribbon {
+    position: absolute;
+    top: -10px;
+    right: 14px;
+    background: linear-gradient(135deg, #42b5a4, #2a7b6f);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    box-shadow: 0 6px 14px rgba(42,123,111,0.35);
+    transition: transform .4s var(--ease-bounce);
+}
+
+.cert-card:hover .cert-ribbon {
+    transform: translateY(-3px) rotate(-4deg);
+}
+
+.cert-card:hover .card__icon-circle {
+    transform: scale(1.12) rotate(6deg);
+}
+
+@media (max-width: 640px) {
+    .about-badge {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -18px;
+    }
+
+    .about-badge-float, .about-badge {
+        animation: about-badge-float-mobile 3.5s ease-in-out infinite;
+    }
+}
+
+@keyframes about-badge-float-mobile {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .about-badge {
+        animation: none;
+    }
+}
+
+.certificates-section {
+    padding: 40px 20px;
+    margin-bottom: 5px;
+}
+
+/* Philosophy */
+.philosophy-section {
+    background: linear-gradient(180deg, #f9fdfc 0%, #f0f9f6 100%);
+    padding: clamp(40px, 6vw, 60px) 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+    .philosophy-section::before {
+        content: '';
+        position: absolute;
+        top: -150px;
+        right: -150px;
+        width: 400px;
+        height: 400px;
+        background: rgba(66,181,164,0.08);
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+.philosophy-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: clamp(30px, 5vw, 60px);
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+}
+
+.philosophy-image img {
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(42,123,111,0.2);
+    object-fit: cover;
+    border: 2px solid rgba(66,181,164,0.1);
+    transition: transform .6s var(--ease-smooth), box-shadow .4s ease;
+}
+
+    .philosophy-image img:hover {
+        transform: scale(1.02) rotate(-.3deg);
+        box-shadow: 0 22px 60px rgba(42,123,111,0.32);
+    }
+
+.philosophy-text {
+    flex: 1;
+    min-width: 300px;
+    color: #1e1e1e;
+}
+
+    .philosophy-text ul {
+        margin: 25px 0;
+    }
+
+    .philosophy-text li::before {
+        content: '→';
+        position: absolute;
+        left: 0;
+        color: #42b5a4;
+        font-weight: 700;
+        font-size: 18px;
+    }
+
+@media (max-width: 1024px) {
+    .about-container, .philosophy-container {
+        flex-direction: column;
+    }
+
+    .philosophy-container {
+        text-align: center;
+    }
+
+    .philosophy-image img {
+        max-width: 100%;
+        border-radius: 16px;
+    }
+}

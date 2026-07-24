@@ -1,0 +1,337 @@
+{
+  "info": {
+    "name": "DentalClinic API",
+    "description": "Коллекция запросов для тестирования REST API проекта DentalClinic. Импортируйте в Postman и задайте переменные окружения base_url и token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://localhost:7063" },
+    { "key": "token", "value": "" },
+    { "key": "admin_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (patient)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd123\",\n  \"phone\": \"+79990000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (patient)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+            },
+            "description": "Скопируйте token из ответа в переменную окружения {{token}}"
+          }
+        },
+        {
+          "name": "Admin login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/admin/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminP@ss123\"\n}"
+            },
+            "description": "Скопируйте token из ответа в переменную окружения {{admin_token}}"
+          }
+        },
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/auth/profile"
+          }
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/auth/change-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"P@ssw0rd123\",\n  \"newPassword\": \"NewP@ssw0rd456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointment Requests",
+      "item": [
+        {
+          "name": "Create request (guest)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/appointmentrequest",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Гость\",\n  \"phone\": \"+79990000000\",\n  \"appointmentDate\": \"2026-08-01T10:00:00\",\n  \"comment\": \"Болит зуб\",\n  \"doctorId\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "My requests (patient)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/appointmentrequest/patient/1"
+          }
+        },
+        {
+          "name": "All requests (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/appointmentrequest/admin/all"
+          }
+        },
+        {
+          "name": "Update request (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/appointmentrequest/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"doctorId\": 1,\n  \"appointmentDate\": \"2026-08-01T10:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel own request (patient)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/appointmentrequest/1/cancel"
+          }
+        },
+        {
+          "name": "Reschedule own request (patient)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/appointmentrequest/1/reschedule",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newDate\": \"2026-08-05T12:00:00\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctors",
+      "item": [
+        {
+          "name": "List active doctors",
+          "request": { "method": "GET", "url": "{{base_url}}/api/doctor" }
+        },
+        {
+          "name": "List all doctors (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/doctor/admin/all"
+          }
+        },
+        {
+          "name": "Create doctor (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/doctor",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Иванов Иван Иванович\",\n  \"specialization\": \"Импланты, хирургия\",\n  \"experienceYears\": 10,\n  \"bio\": \"Опытный специалист\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "List active services",
+          "request": { "method": "GET", "url": "{{base_url}}/api/service" }
+        },
+        {
+          "name": "Create service (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/service",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Импланты\",\n  \"name\": \"Имплант стандарт\",\n  \"priceFrom\": 25000,\n  \"priceTo\": 40000,\n  \"unit\": \"зуб\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Approved reviews (public)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/review/approved" }
+        },
+        {
+          "name": "Create review (patient)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"text\": \"Отличная клиника!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Pending reviews (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/review/admin/pending"
+          }
+        },
+        {
+          "name": "Moderate review (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/review/admin/1/moderate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true,\n  \"rejectionReason\": null\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "My notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/notification"
+          }
+        },
+        {
+          "name": "Unread count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/notification/unread-count"
+          }
+        },
+        {
+          "name": "Mark all read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/api/notification/read-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Chat",
+      "item": [
+        {
+          "name": "Send message",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"test-session-1\",\n  \"message\": \"Сколько стоит имплант?\",\n  \"lang\": \"ru\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Recent sessions (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/chat/admin/sessions?take=50"
+          }
+        },
+        {
+          "name": "Chat stats (admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/chat/admin/stats?days=30"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Stats",
+      "item": [
+        {
+          "name": "Export Excel report",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/adminstats/export/xlsx?from=2026-07-01&to=2026-07-31"
+          }
+        },
+        {
+          "name": "Printable report",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/adminstats/export/report?from=2026-07-01&to=2026-07-31"
+          }
+        }
+      ]
+    }
+  ]
+}

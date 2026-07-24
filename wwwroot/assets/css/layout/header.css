@@ -1,0 +1,523 @@
+header {
+    position: fixed;
+    inset: 0 0 auto;
+    background: linear-gradient(180deg, rgba(4,6,6,.98) 0%, rgba(0,0,0,.96) 100%);
+    color: #fff;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    border-bottom: 1px solid rgba(19,179,155,.14);
+    transition: box-shadow .35s ease, background .35s ease, border-color .35s ease;
+}
+
+    /* блюр-подложка шапки вынесена в псевдоэлемент, а не висит на самом header.
+       Это важно: backdrop-filter/filter на самом header создаёт новый containing
+       block для всех вложенных position:fixed элементов (в т.ч. .header-buttons.active
+       и мобильного nav ul) — из-за этого на телефонах кнопки "Войти/Регистрация"
+       отсчитывали bottom:24px не от низа экрана, а от низа шапки и улетали наверх.
+       Через ::before блюр остаётся визуально тем же, но header больше не ломает
+       позиционирование своих fixed-потомков. */
+    header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        pointer-events: none;
+    }
+
+    /* тонкая светящаяся линия под шапкой */
+    header::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(19,179,155,.55), transparent);
+        pointer-events: none;
+    }
+
+    /* состояние при прокрутке страницы (класс добавляется JS-ом) */
+    header.scrolled {
+        background: rgba(0,0,0,.92);
+        box-shadow: 0 8px 28px rgba(0,0,0,.35);
+        border-bottom-color: rgba(19,179,155,.28);
+    }
+
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1240px;
+    min-height: 76px;
+    margin: 0 auto;
+    padding: 8px clamp(16px, 2.4vw, 32px);
+    flex-wrap: nowrap;
+    gap: clamp(12px, 2vw, 32px);
+    box-sizing: border-box;
+    transition: min-height .3s ease;
+}
+
+header.scrolled .header-container {
+    min-height: 66px;
+}
+
+/* ===== ЛОГОТИП ===== */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    flex-shrink: 0;
+    transition: transform .35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+    .logo:hover {
+        transform: scale(1.04);
+    }
+
+    .logo img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px rgba(19,179,155,.35);
+        transition: box-shadow .4s ease, transform .5s ease;
+    }
+
+    .logo:hover img {
+        box-shadow: 0 0 20px rgba(19,179,155,.7), 0 0 0 2px rgba(19,179,155,.7);
+        transform: rotate(-8deg);
+    }
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    gap: 6px;
+}
+
+    .logo-text::before {
+        content: "DENTAL";
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: 5px;
+        color: #fff;
+        font-family: 'Georgia', serif;
+    }
+
+    .logo-text::after {
+        content: "CLINIC";
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 7px;
+        color: #13b39b;
+        font-family: 'Georgia', serif;
+    }
+
+/* ===== МЕНЮ (десктоп) ===== */
+nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+}
+
+    nav ul {
+        display: flex;
+        list-style: none;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(6px, 1.4vw, 12px);
+        min-width: 0;
+        margin: 0 auto;
+    }
+
+        nav ul li {
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+            nav ul li a {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                color: rgba(255,255,255,.9);
+                font-weight: 500;
+                font-size: clamp(.82rem, .68rem + .45vw, 1.05rem);
+                white-space: nowrap;
+                text-decoration: none;
+                padding: 8px 14px;
+                border-radius: 8px;
+                transition: color .3s ease, background .3s ease;
+            }
+
+                /* анимированная линия-подчёркивание для кнопок хедера */
+                nav ul li a::after {
+                    content: '';
+                    position: absolute;
+                    left: 14px;
+                    right: 14px;
+                    bottom: 4px;
+                    height: 2px;
+                    background: #13b39b;
+                    border-radius: 2px;
+                    transform: scaleX(0);
+                    transform-origin: center;
+                    transition: transform .3s var(--ease-smooth, ease);
+                }
+
+                nav ul li a:hover,
+                nav ul li a.active {
+                    color: #fff;
+                    background: rgba(19,179,155,.12);
+                }
+
+                    nav ul li a:hover::after,
+                    nav ul li a.active::after {
+                        transform: scaleX(1);
+                    }
+
+            /* ===== ДРОПДАУН "УСЛУГИ" ===== */
+            nav ul li.services-menu {
+                position: relative;
+            }
+
+                nav ul li.services-menu .dropdown {
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(10,12,12,.98);
+                    backdrop-filter: blur(8px);
+                    padding: 10px 0;
+                    border-radius: 12px;
+                    border: 1px solid rgba(19,179,155,.18);
+                    min-width: 270px;
+                    box-shadow: 0 16px 40px rgba(0,0,0,.45);
+                    flex-direction: column;
+                    gap: 0;
+                    z-index: 1200;
+                    overflow: hidden;
+                    opacity: 0;
+                    animation: dropdownIn .22s ease forwards;
+                }
+
+@keyframes dropdownIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+/* декоративная линия сверху панели */
+nav ul li.services-menu .dropdown::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #13b39b, transparent);
+}
+
+/* обнуляем чужие отступы у пунктов дропдауна */
+nav ul li.services-menu .dropdown li {
+    margin: 0;
+}
+
+    nav ul li.services-menu .dropdown li a {
+        display: block;
+        padding: 12px 20px;
+        font-size: 1rem;
+        line-height: 1.3;
+        white-space: normal;
+        padding-bottom: 12px;
+        transition: background .25s ease, color .25s ease, padding-left .25s ease;
+    }
+
+        /* убираем подчёркивание хедера внутри дропдауна */
+        nav ul li.services-menu .dropdown li a::after {
+            display: none;
+        }
+
+        nav ul li.services-menu .dropdown li a:hover {
+            background: #6cbeb2a2;
+            color: #000;
+            padding-left: 26px;
+        }
+
+nav ul li.services-menu:hover .dropdown {
+    display: flex;
+}
+
+/* ===== ИСПРАВЛЕНИЕ ПОДМЕНЮ "УСЛУГИ" ДЛЯ RTL (АРАБСКИЙ) ===== */
+[dir="rtl"] nav ul li.services-menu .dropdown {
+    flex-direction: column !important;
+    width: max-content;
+    max-width: 320px;
+}
+
+    [dir="rtl"] nav ul li.services-menu .dropdown li a {
+        text-align: right;
+    }
+
+/* ===== КНОПКИ ===== */
+.header-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+    white-space: nowrap;
+    z-index: 1200;
+}
+
+/* ===== ГАМБУРГЕР ===== */
+.hamburger {
+    display: none;
+    width: 42px;
+    height: 42px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(19,179,155,.06);
+    border: 1px solid rgba(19,179,155,.4);
+    border-radius: 10px;
+    cursor: pointer;
+    z-index: 1300;
+    padding: 6px;
+    flex-shrink: 0;
+    transition: background .25s ease, border-color .25s ease;
+}
+
+    .hamburger:hover {
+        background: rgba(19,179,155,.14);
+        border-color: #13b39b;
+    }
+
+    .hamburger span {
+        display: block;
+        height: 2px;
+        width: 22px;
+        background: #13b39b;
+        border-radius: 2px;
+        margin: 3px 0;
+        transition: transform .3s ease, opacity .3s ease;
+    }
+
+    .hamburger.open span:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+    }
+
+    .hamburger.open span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .hamburger.open span:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+    }
+
+/* ===== ПЛАНШЕТ (601px – 992px) ===== */
+@media (min-width: 601px) and (max-width: 992px) {
+
+    .header-container {
+        padding: 8px 20px;
+    }
+
+    .logo {
+        order: 1;
+    }
+
+    .header-buttons {
+        order: 2;
+        flex-direction: row;
+        gap: 8px;
+        margin-left: auto;
+        width: auto;
+    }
+
+        .header-buttons a {
+            font-size: 0.82rem;
+            padding: 8px 12px;
+            white-space: nowrap;
+        }
+
+    .hamburger {
+        display: flex;
+        order: 3;
+        margin-left: 12px;
+    }
+
+    nav {
+        order: 4;
+        width: 100%;
+    }
+
+        nav ul {
+            flex-direction: column;
+            align-items: center;
+            display: none;
+            width: 100%;
+            background: rgba(8,10,10,.98);
+            backdrop-filter: blur(10px);
+            position: absolute;
+            top: 75px;
+            left: 0;
+            padding: 20px 0;
+            z-index: 1100;
+            border-top: 1px solid rgba(19,179,155,.2);
+            box-shadow: 0 16px 30px rgba(0,0,0,.35);
+        }
+
+            nav ul.active {
+                display: flex;
+            }
+
+            nav ul li a {
+                font-size: 1.2rem;
+                font-weight: 600;
+                padding: 10px 0;
+            }
+}
+
+/* ===== МОБИЛЬНАЯ (до 600px) ===== */
+@media (max-width: 600px) {
+
+    .header-container {
+        padding: 4px 16px;
+    }
+
+    .lang-switcher {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .hamburger {
+        display: flex;
+        order: 3;
+    }
+
+    .header-buttons {
+        display: none;
+    }
+
+        .header-buttons.active {
+            display: flex;
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 88vw;
+            max-width: 360px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            opacity: 1;
+            pointer-events: all;
+            z-index: 2050;
+            background: rgba(8,10,10,.98);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(19,179,155,.2);
+            box-shadow: 0 16px 40px rgba(0,0,0,.45);
+        }
+
+        /* общие стили кнопок для обоих брейкпоинтов */
+        .header-buttons a {
+            width: 100%;
+            font-size: 1rem;
+            padding: 14px 22px;
+            border-radius: 10px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+    nav ul {
+        flex-direction: column;
+        align-items: center;
+        display: none;
+        width: 100%;
+        background: rgba(8,10,10,.98);
+        backdrop-filter: blur(10px);
+        position: fixed;
+        top: 77px;
+        left: 0;
+        padding: 16px 0 180px;
+        z-index: 1100;
+        height: 100vh;
+        border-top: 1px solid rgba(19,179,155,.2);
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: opacity .3s, transform .4s;
+        overflow-y: auto;
+    }
+
+        nav ul.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+            animation: slideDown .31s cubic-bezier(.56,1.1,.3,.9);
+        }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-38px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    nav ul li {
+        margin: 4px 0;
+    }
+
+        nav ul li a {
+            font-size: 1.3rem;
+            font-weight: 700;
+            padding: 10px 0;
+            letter-spacing: .6px;
+        }
+}
+
+/* ===== МОБИЛЬНАЯ БОЛЬШАЯ (390px – 600px) ===== */
+@media (min-width: 390px) and (max-width: 600px) {
+
+    nav ul {
+        justify-content: flex-start;
+        padding: 20px 0 220px;
+    }
+
+        nav ul li {
+            margin: 10px 0;
+        }
+
+            nav ul li a {
+                font-size: 2rem;
+                padding: 16px 0;
+            }
+
+    .header-buttons.active {
+        padding: 20px;
+        gap: 14px;
+    }
+
+    .header-buttons a {
+        font-size: 1.2rem;
+        padding: 18px 24px;
+    }
+}

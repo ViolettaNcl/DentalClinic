@@ -1,0 +1,51 @@
+footer {
+    position: relative;
+    background: linear-gradient(135deg, #06110f 0%, #000 60%, #041a16 100%);
+    color: var(--white);
+    text-align: center;
+    padding: 34px 20px 26px;
+    overflow: hidden;
+}
+
+    footer::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: var(--gradient-primary);
+        background-size: 200% 100%;
+        animation: footerGlow 6s linear infinite;
+    }
+
+@keyframes footerGlow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 200% 50%;
+    }
+}
+
+footer::after {
+    content: '';
+    position: absolute;
+    bottom: -60px;
+    right: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(19,179,155,0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.footer-container {
+    position: relative;
+    z-index: 1;
+}
+
+footer p {
+    font-size: .92rem;
+    letter-spacing: .3px;
+    color: rgba(255,255,255,.75);
+}
