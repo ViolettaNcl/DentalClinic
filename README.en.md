@@ -33,7 +33,7 @@ a patient dashboard, an admin panel, an AI assistant with voice replies, and a 5
 
 The site is published and available at:
 
-### 👉 [www.Dental-Clinic.somee.com](https://www.Dental-Clinic.somee.com)
+### 👉 [www.dental-clinic.somee.com](http://www.dental-clinic.somee.com/)
 
 > ⏳ Hosting is on a free tier (somee.com), so on the first visit after a period of
 > inactivity the site may take up to ~30 seconds to "wake up" — that's expected, not a bug.
@@ -153,7 +153,7 @@ The site will be available at the address from `Properties/launchSettings.json` 
 📖 For details — configuring secrets via `dotnet user-secrets`, environment requirements,
 project structure — see [`docs/en/DEVELOPER_GUIDE.md`](docs/en/DEVELOPER_GUIDE.md).
 
-> ⚠️ **Before publishing your own fork to GitHub**, please read
+> ⚠️ **Before your first publish to GitHub**, please read
 > [`docs/en/SECURITY.md`](docs/en/SECURITY.md) — it explains how to safely store secrets
 > (DB password, JWT key, API keys) and avoid leaking them into a public repository.
 
@@ -190,12 +190,6 @@ Full template — in [`appsettings.Example.json`](appsettings.Example.json). Key
 🇷🇺 Русская версия всех документов — в корне репозитория и в [`docs/`](docs/).
 
 ## 🖼 Screenshots
-
-The images below are wired up via links — once you save files with these exact names
-into `docs/screenshots/`, they'll appear automatically:
-
-`home.png` · `services.png` · `patient-dashboard.png` · `admin-dashboard.png` ·
-`admin-stats.png` · `chat-bot.png` · `language-switcher.png`
 
 <table>
 <tr>
@@ -241,9 +235,6 @@ into `docs/screenshots/`, they'll appear automatically:
 </td>
 </tr>
 </table>
-
-> Just save files with the names listed above into `docs/screenshots/` — the photos will
-> appear here and in the other docs (`docs/en/USER_GUIDE.md`, `docs/en/ADMIN_GUIDE.md`).
 
 ## 🧰 Developer tooling
 

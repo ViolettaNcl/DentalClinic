@@ -34,7 +34,7 @@
 
 Сайт опубликован и доступен по адресу:
 
-### 👉 [www.Dental-Clinic.somee.com](https://www.Dental-Clinic.somee.com)
+### 👉 [www.dental-clinic.somee.com](http://www.dental-clinic.somee.com/)
 
 > ⏳ Хостинг бесплатный (somee.com), поэтому при первом заходе после простоя сайт может
 > "просыпаться" до ~30 секунд — это нормально, не баг.
@@ -153,7 +153,7 @@ dotnet run
 📖 Подробности: настройка секретов через `dotnet user-secrets`, требования к окружению,
 структура кода — в [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md).
 
-> ⚠️ **Перед публикацией своего форка в GitHub** обязательно прочитайте
+> ⚠️ **Перед первой публикацией на GitHub** обязательно прочитайте
 > [`docs/SECURITY.md`](docs/SECURITY.md) — там объясняется, как безопасно хранить секреты
 > (пароль БД, JWT-ключ, ключи API) и не допустить их утечки в публичный репозиторий.
 
@@ -190,12 +190,6 @@ dotnet run
 🇬🇧 English version of all documents is available in [`docs/en/`](docs/en/).
 
 ## 🖼 Скриншоты
-
-Изображения ниже подключены по ссылкам — как только вы сохраните файлы с указанными
-именами в папку `docs/screenshots/`, они отобразятся автоматически:
-
-`home.png` · `services.png` · `patient-dashboard.png` · `admin-dashboard.png` ·
-`admin-stats.png` · `chat-bot.png` · `language-switcher.png`
 
 <table>
 <tr>
@@ -241,9 +235,6 @@ dotnet run
 </td>
 </tr>
 </table>
-
-> Просто сохраните файлы с указанными выше именами в `docs/screenshots/` — фото сразу
-> появятся тут и в остальных документах (`docs/USER_GUIDE.md`, `docs/ADMIN_GUIDE.md`).
 
 ## 🧰 Инструменты для разработчиков
 
