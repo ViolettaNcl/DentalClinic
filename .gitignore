@@ -25,3 +25,7 @@ wwwroot/uploads/*
 
 # Инструменты AI-редакторов
 .qodo/
+# Docker Compose env files
+.env
+.env.*
+!.env.example
