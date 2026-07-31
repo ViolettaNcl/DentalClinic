@@ -16,7 +16,7 @@ RUN dotnet publish ./DentalClinic.csproj \
     --no-restore
 
 # ============ 2. Runtime ============
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 # Непривилегированный пользователь вместо root
