@@ -105,8 +105,31 @@ Styles follow a structure close to ITCSS: `base/` (variables, reset) → `layout
 
 ## 7. Testing locally
 
-The project doesn't yet have automated tests — when adding new functionality, it's
-recommended to:
+### Automated tests
+
+The `DentalClinic.Tests` project (xUnit) runs without a real database —
+integration tests use EF Core InMemory instead of SQL Server:
+
+```bash
+dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj
+```
+
+What's covered:
+- `Unit/JwtTokenServiceTests` — token issuance, claims, handling a missing `Jwt:Key`;
+- `Unit/GeminiTranslateLimiterTests` — that the limiter genuinely prevents two
+  calls from running concurrently;
+- `Integration/HealthEndpointTests` — `/health` returns 200 and doesn't require auth;
+- `Integration/AuthControllerTests` — register/login, duplicate email, short
+  password, wrong password.
+
+CI (`.github/workflows/ci.yml`) runs this same suite on every push/PR to `main`.
+When adding a new controller or service, add tests alongside it the same way —
+`CustomWebApplicationFactory` already spins up the whole app with an in-memory
+database.
+
+### Manual testing
+
+In addition to the automated tests, for noticeable UI changes it's still useful to:
 1. Verify endpoints via Swagger UI (`/swagger`) or the `DentalClinic.http` file (you can
    open and run requests directly in Visual Studio / VS Code with the REST Client
    extension).

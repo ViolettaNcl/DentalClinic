@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # NuGet-пакеты (.csproj) — и в основном проекте, и в тестах
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Один PR на все minor/patch-обновления сразу, чтобы не заваливало
+      # почту десятком мелких PR каждую неделю. Major-версии (потенциально
+      # ломающие изменения, напр. EF Core 9 → 10) всегда идут отдельным PR.
+      dotnet-minor-patch:
+        update-types: [ "minor", "patch" ]
+
+  # Версии actions/*, docker/* и т.п. в самих workflow-файлах
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Базовые образы в Dockerfile (mcr.microsoft.com/dotnet/sdk, /aspnet)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

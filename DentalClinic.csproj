@@ -11,7 +11,21 @@
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.9" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.0.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+	</ItemGroup>
+
+	<!-- SDK-style проекты по умолчанию берут в компиляцию ВСЕ .cs-файлы из всех
+	     подпапок. DentalClinic.Tests лежит рядом (не в отдельном родительском
+	     каталоге), поэтому без явного исключения компилятор пытался собрать
+	     тестовые файлы (Xunit, WebApplicationFactory и т.п.) прямо в составе
+	     основного веб-проекта, у которого нет соответствующих пакетов —
+	     отсюда ошибки CS0246/CS0234 на "Xunit"/"Fact"/"WebApplicationFactory". -->
+	<ItemGroup>
+		<Compile Remove="DentalClinic.Tests/**/*.cs" />
+		<Content Remove="DentalClinic.Tests/**" />
+		<None Remove="DentalClinic.Tests/**" />
+		<EmbeddedResource Remove="DentalClinic.Tests/**" />
 	</ItemGroup>
 
 </Project>
