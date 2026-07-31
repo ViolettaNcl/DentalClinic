@@ -38,7 +38,7 @@ jobs:
           dotnet-version: '9.0.x'
       - run: dotnet restore DentalClinic.csproj
       - run: dotnet publish DentalClinic.csproj -c Release -o ./publish
-      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
