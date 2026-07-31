@@ -23,12 +23,14 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Restore dependencies (app)
+        run: dotnet restore DentalClinic.csproj
 
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
+      - name: Build (app)
+        run: dotnet build DentalClinic.csproj --no-restore --configuration Release
 
-      # Раскомментируйте, когда в проекте появятся автотесты (см. docs/DEVELOPER_GUIDE.md):
-      # - name: Test
-      #   run: dotnet test --no-build --configuration Release
+      - name: Restore dependencies (tests)
+        run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
+
+      - name: Run tests
+        run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"

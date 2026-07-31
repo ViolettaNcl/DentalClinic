@@ -1,11 +1,13 @@
 using DentalClinic.BackgroundJobs;
 using DentalClinic.Data;
+using DentalClinic.HealthChecks;
 using DentalClinic.Hubs;
 using DentalClinic.Services;
 using DentalClinic.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -15,6 +17,12 @@ var builder = WebApplication.CreateBuilder(args);
 // ================= DB =================
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ================= Health checks =================
+// /health проверяет, что процесс жив И что есть соединение с БД —
+// этого достаточно для аптайм-мониторинга (UptimeRobot, healthcheck в Docker/оркестраторе).
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("db");
 
 // ================= Уведомления + фоновые задачи =================
 builder.Services.AddScoped<NotificationService>();
@@ -211,7 +219,16 @@ app.UseRouting();
 
 app.UseCors("AllowFrontend");
 
-app.UseRateLimiter();
+// В Development лимитер отключаем целиком: интеграционные тесты поднимают
+// приложение через WebApplicationFactory и держат ОДИН и тот же host на все
+// тест-методы класса — а значит и один и тот же счётчик "auth"-лимита (8/мин),
+// который реальные пользователи в проде никогда не делят между собой. Заодно
+// это удобно и для ручной локальной отладки — не упереться в лимит, дёргая
+// эндпоинты один за другим из Swagger/Postman.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseRateLimiter();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -225,6 +242,14 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
+// Не проверяем полную готовность (миграции/сидинг) — только то, что процесс
+// жив и есть соединение с БД. Без [Authorize] и без rate limiting намеренно:
+// это должен быть самый дешёвый и всегда доступный запрос для мониторинга.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthCheckJsonWriter.WriteResponse
+});
+
 // ================= Первичное заполнение прайса и врачей =================
 // При первом запуске после обновления (пустые таблицы Services/Doctors)
 // заполняем их тем же прайсом и врачами, что раньше были зашиты в промпте
@@ -237,3 +262,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Топ-level statements генерируют класс Program как internal — этого достаточно
+// для запуска приложения, но не для WebApplicationFactory<Program> в тестах,
+// которому нужен доступный извне тип. Пустой partial-класс делает Program public,
+// не меняя поведение самого приложения.
+public partial class Program { }
