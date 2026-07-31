@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ============ 1. Build & Publish ============
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Кэшируем restore отдельным слоем: пересобирается только если поменялся .csproj
