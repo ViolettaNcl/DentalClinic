@@ -1,14 +1,5 @@
 name: CD
 
-# Запускается только ПОСЛЕ успешного завершения workflow "CI" (build) на ветке main.
-# Перед любым деплоем job "test" ещё раз прогоняет тесты — это подстраховка на
-# случай ручного запуска (workflow_dispatch), который иначе обошёл бы проверку CI.
-# Делает три вещи:
-#   1. test        — dotnet test; если падает, deploy-ftp и docker-image не запускаются.
-#   2. deploy-ftp   — публикует dotnet publish на текущий хостинг (somee.com) по FTP.
-#   3. docker-image — собирает и пушит Docker-образ в GitHub Container Registry
-#      (ghcr.io) — пригодится, если в будущем переедете на VPS/Docker-хостинг.
-
 on:
   workflow_run:
     workflows: [ "CI" ]
@@ -24,57 +15,36 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-
-      - name: Restore (tests)
-        run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
-
-      - name: Run tests
-        run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+      - run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
+      - run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
 
   deploy-ftp:
     name: Deploy (FTP → somee.com)
     needs: test
     runs-on: ubuntu-latest
-    # Включайте этот job, только если задали секреты FTP_SERVER / FTP_USERNAME / FTP_PASSWORD
-    # (Settings → Secrets and variables → Actions). Пока секретов нет — job аккуратно
-    # завершится ошибкой на шаге деплоя, ничего не сломав в репозитории.
     environment: production
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
-
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-
-      - name: Restore
-        run: dotnet restore DentalClinic.csproj
-
-      - name: Publish
-        run: dotnet publish DentalClinic.csproj -c Release -o ./publish
-
-      - name: Upload via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - run: dotnet restore DentalClinic.csproj
+      - run: dotnet publish DentalClinic.csproj -c Release -o ./publish
+      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           local-dir: ./publish/
-          # На somee.com сайт публикуется в подпапку www.<сайт>.somee.com — см.
-          # Properties/PublishProfiles/FTPProfile.pubxml (FtpSitePath)
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
           exclude: |
             **/appsettings.Development.json
@@ -88,23 +58,21 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
+      - name: Compute lowercase image name
+        id: image
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/dentalclinic:latest
-            ghcr.io/${{ github.repository_owner }}/dentalclinic:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
