@@ -103,10 +103,33 @@ dotnet tool install --global dotnet-ef
 
 ## 7. Тестирование локально
 
-В проекте пока нет автотестов — при добавлении новой функциональности рекомендуется:
-1. Проверять эндпоинты через Swagger UI (`/swagger`) или файл `DentalClinic.http`
+### Автотесты
+
+Проект `DentalClinic.Tests` (xUnit) запускается без реальной БД —
+интеграционные тесты используют EF Core InMemory вместо SQL Server:
+
+```bash
+dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj
+```
+
+Что покрыто:
+- `Unit/JwtTokenServiceTests` — выпуск JWT, claims, обработка отсутствующего `Jwt:Key`;
+- `Unit/GeminiTranslateLimiterTests` — что лимитер реально не даёт двум вызовам
+  выполняться параллельно;
+- `Integration/HealthEndpointTests` — `/health` отвечает 200 и не требует авторизации;
+- `Integration/AuthControllerTests` — регистрация/вход, дубликат email, короткий
+  пароль, неверный пароль.
+
+CI (`.github/workflows/ci.yml`) гоняет этот же набор на каждый push/PR в `main`.
+Добавляя новый контроллер или сервис — заводите тесты рядом, по той же схеме:
+`CustomWebApplicationFactory` уже поднимает всё приложение целиком с in-memory БД.
+
+### Ручная проверка
+
+Дополнительно к автотестам, при заметных изменениях в UI полезно:
+1. Проверить эндпоинты через Swagger UI (`/swagger`) или файл `DentalClinic.http`
    (можно открыть и выполнять запросы прямо в Visual Studio / VS Code с расширением REST Client).
-2. Проверять UI вручную в браузере для всех трёх ролей (гость, пациент, администратор).
+2. Проверить UI вручную в браузере для всех трёх ролей (гость, пациент, администратор).
 
 ## 8. Устранение типичных проблем
 

@@ -60,10 +60,72 @@ Encrypt / Nginx / хостинг-провайдера) это будет раб�
    ```
    либо выполните это один раз локально с временно указанной прод-строкой подключения.
 
-## 6. Чек-лист перед деплоем
+## 6. Автоматический деплой (CI/CD)
+
+Кроме `ci.yml` (сборка на каждый push/PR) в проекте есть `.github/workflows/cd.yml` —
+он запускается автоматически после успешного CI на ветке `main` и делает две
+независимые вещи:
+
+| Job | Что делает | Какие секреты нужны в Settings → Secrets and variables → Actions |
+|---|---|---|
+| `deploy-ftp` | `dotnet publish` + заливка результата по FTPS на текущий хостинг (somee.com) | `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_SERVER_DIR` (например `/www.Dental-Clinic.somee.com`) |
+| `docker-image` | Сборка Docker-образа и публикация в `ghcr.io/<владелец репозитория>/dentalclinic` | Не нужны — использует встроенный `GITHUB_TOKEN` |
+
+Если секреты FTP не заданы, `deploy-ftp` просто упадёт с ошибкой на шаге загрузки —
+репозиторию и текущему хостингу это не навредит. Job `docker-image` работает
+независимо и всегда публикует свежий образ, даже если FTP-деплой не настроен.
+
+Запустить оба job вручную (без ожидания push) можно через
+Actions → CD → Run workflow (`workflow_dispatch`).
+
+## 7. Запуск через Docker / docker-compose
+
+В проекте есть `Dockerfile` (multi-stage build) и `docker-compose.yml`, который
+поднимает приложение вместе с SQL Server — не нужно ставить SQL Server локально.
+
+```bash
+cp .env.example .env
+# откройте .env и впишите свои значения (пароль БД, JWT-ключ, ключ Gemini API)
+
+docker compose up --build
+```
+
+Приложение будет доступно на `http://localhost:8080`, SQL Server — на `localhost:1433`.
+
+**Важно:** миграций EF Core в проекте нет — таблицы в БД создаются вручную
+(тем же способом, что вы уже используете для somee.com). При первом запуске
+контейнера с пустой БД `DbSeeder` заполнит `Services`/`Doctors` только если
+таблицы уже существуют — создайте схему до первого старта `app`.
+
+Данные SQL Server и загруженные аватары хранятся в именованных Docker-томах
+(`dentalclinic-db-data`, `dentalclinic-uploads`) — переживают `docker compose down`
+(но не `docker compose down -v`).
+
+## 8. Мониторинг: `/health`
+
+Приложение отдаёт `GET /health` — без авторизации и без rate limiting, специально
+для внешнего мониторинга (UptimeRobot, healthcheck в Docker/оркестраторе, curl
+из cron). Проверяет, что процесс жив и есть соединение с БД:
+
+```json
+{
+  "status": "Healthy",
+  "totalDurationMs": 12.4,
+  "checks": [
+    { "name": "db", "status": "Healthy", "durationMs": 12.1, "error": null }
+  ]
+}
+```
+
+`status: "Unhealthy"` и HTTP 503 — если БД недоступна. Настройте внешний
+мониторинг на этот адрес, чтобы узнавать о падении сайта раньше пациентов.
+
+## 9. Чек-лист перед деплоем
 
 - [ ] `appsettings.json` в репозитории не содержит реальных секретов (см. `docs/SECURITY.md`)
 - [ ] `Jwt:Key` на проде — новый случайный ключ, отличный от использовавшегося в разработке
 - [ ] `AllowedOrigins` указывает на реальный домен фронтенда, а не на `localhost`
 - [ ] `BackgroundJobs:CleanupEnabled` осознанно включён/выключен под ваш процесс
 - [ ] Резервное копирование БД настроено на стороне хостинг-провайдера
+- [ ] Если используете `cd.yml` — секреты `FTP_SERVER`/`FTP_USERNAME`/`FTP_PASSWORD`/`FTP_SERVER_DIR` заданы в Settings → Secrets and variables → Actions
+- [ ] Если используете Docker — таблицы в БД контейнера созданы вручную ДО первого запуска `app` (миграций нет)
