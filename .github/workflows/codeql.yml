@@ -1,0 +1,54 @@
+name: CodeQL
+
+# Статический анализ на уязвимости: C# (бэкенд) и JavaScript (фронтенд в wwwroot).
+# Результаты появляются во вкладке репозитория Security → Code scanning alerts.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # Раз в неделю по понедельникам в 03:00 UTC — ловит новые известные уязвимости
+    # даже если в коде давно ничего не менялось
+    - cron: '0 3 * * 1'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp', 'javascript-typescript' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      # Для C# CodeQL нужно фактически собрать проект, чтобы проанализировать его
+      - name: Build (app)
+        if: matrix.language == 'csharp'
+        run: |
+          dotnet restore DentalClinic.csproj
+          dotnet build DentalClinic.csproj --no-restore --configuration Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
