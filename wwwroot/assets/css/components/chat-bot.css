@@ -415,6 +415,15 @@
     animation: micPulse 1.3s ease-in-out infinite;
 }
 
+.chat-mic--unavailable {
+    opacity: .68;
+    border-style: dashed;
+}
+
+    .chat-mic--unavailable:hover {
+        transform: none;
+    }
+
 @keyframes micPulse {
     0%,100% {
         box-shadow: 0 0 0 0 rgba(230,72,63,.45);

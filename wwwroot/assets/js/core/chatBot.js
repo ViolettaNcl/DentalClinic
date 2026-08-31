@@ -6,6 +6,7 @@
 
 import { onLanguageChange } from './i18n.js';
 import { translateText } from '../services/textTranslate.js';
+import { showError } from '../services/ui.js';
 
 const I18N_BASE_PATH = '/assets/i18n/';
 const LANG_STORAGE_KEY = 'site_lang';
@@ -51,6 +52,10 @@ class ChatBot {
         // Голосовой ввод (Web Speech API)
         this._recognition = null;
         this._isListening = false;
+        this._micStartPending = false;
+        this._voiceUnavailableReason = null;
+        this._voiceInputPrefix = '';
+        this._micStoppedByUser = false;
 
         // Озвучка ответов бота (Web Speech Synthesis) — по умолчанию выключена
         this.ttsEnabled = localStorage.getItem('chat_tts_enabled') === '1';
@@ -164,7 +169,7 @@ class ChatBot {
           <input type="text" id="chat-input" class="chat-input"
             placeholder="${this._tr('chat_placeholder', 'Напишите вопрос...')}"
             maxlength="500" autocomplete="off"/>
-          <button class="chat-mic" id="chat-mic" type="button" aria-label="${this._tr('chat_aria_mic', 'Голосовой ввод')}" title="${this._tr('chat_aria_mic', 'Голосовой ввод')}">
+          <button class="chat-mic" id="chat-mic" type="button" aria-pressed="false" aria-label="${this._tr('chat_aria_mic', 'Голосовой ввод')}" title="${this._tr('chat_aria_mic', 'Голосовой ввод')}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
@@ -203,10 +208,20 @@ class ChatBot {
         const micBtn = document.getElementById('chat-mic');
         if (!micBtn) return;
 
+        // Доступ к микрофону запрещён браузером на обычных HTTP-страницах
+        // (исключение — localhost). Раньше SpeechRecognition молча возвращал
+        // not-allowed, а обработчик тут же скрывал ошибку, поэтому кнопка
+        // выглядела сломанной. Оставляем её видимой и объясняем причину по клику.
+        if (window.isSecureContext === false) {
+            this._markVoiceUnavailable('insecure');
+            return;
+        }
+
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            // Браузер не поддерживает голосовой ввод — прячем кнопку, не ломаем интерфейс
-            micBtn.style.display = 'none';
+            // Кнопку не прячем: иначе пользователь не понимает, куда исчезла
+            // заявленная функция. По клику показываем совместимый браузер.
+            this._markVoiceUnavailable('unsupported');
             return;
         }
 
@@ -215,53 +230,133 @@ class ChatBot {
         this._recognition.interimResults = true; // показываем текст в поле по мере распознавания, не только в конце
         this._recognition.maxAlternatives = 1;
 
+        this._recognition.addEventListener('start', () => {
+            this._micStartPending = false;
+            this._setListening(true);
+        });
+
         this._recognition.addEventListener('result', e => {
             const input = document.getElementById('chat-input');
+            if (!input) return;
+
             let finalText = '';
             let interimText = '';
 
-            for (let i = e.resultIndex; i < e.results.length; i++) {
+            // e.resultIndex указывает только на изменившийся фрагмент. Если
+            // собирать текст начиная с него, ранее распознанные слова исчезают
+            // при следующем событии. Пересобираем полную текущую расшифровку.
+            for (let i = 0; i < e.results.length; i++) {
                 const transcript = e.results[i][0].transcript;
                 if (e.results[i].isFinal) finalText += transcript;
                 else interimText += transcript;
             }
 
-            // Показываем распознанный текст в поле сразу, пока человек ещё говорит
-            input.value = (finalText || interimText).trim();
+            const spokenText = `${finalText}${interimText}`.trim();
+            input.value = [this._voiceInputPrefix, spokenText].filter(Boolean).join(' ');
 
             if (finalText.trim()) {
                 // Финальный (уточнённый) результат готов — текст остаётся в поле,
                 // отправляет сам пользователь (кнопкой или Enter)
-                this._recognition.stop();
                 input.focus();
             }
         });
 
-        this._recognition.addEventListener('end', () => this._setListening(false));
-        this._recognition.addEventListener('error', () => this._setListening(false));
+        this._recognition.addEventListener('end', () => {
+            this._micStartPending = false;
+            this._setListening(false);
+            document.getElementById('chat-input')?.focus();
+        });
+
+        this._recognition.addEventListener('error', event => {
+            this._micStartPending = false;
+            this._setListening(false);
+
+            // stop(), вызванный самим пользователем, в некоторых реализациях
+            // сопровождается aborted — это нормальное завершение, не ошибка.
+            if (event.error === 'aborted' && this._micStoppedByUser) {
+                this._micStoppedByUser = false;
+                return;
+            }
+
+            this._showVoiceError(event.error);
+        });
     }
 
     _toggleMic() {
-        if (!this._recognition) return;
+        if (this._voiceUnavailableReason) {
+            this._showVoiceError(this._voiceUnavailableReason);
+            return;
+        }
+
+        if (!this._recognition || this._micStartPending) return;
+
         if (this._isListening) {
+            this._micStoppedByUser = true;
             this._recognition.stop();
             return;
         }
+
         try {
             // Ставим тот же язык, что выбран на сайте — это заметно повышает
             // точность распознавания (движок не гадает между языками)
             this._recognition.lang = this._speechLangCode();
-            document.getElementById('chat-input').value = '';
+            this._voiceInputPrefix = document.getElementById('chat-input')?.value.trim() || '';
+            this._micStoppedByUser = false;
+            this._micStartPending = true;
             this._recognition.start();
-            this._setListening(true);
-        } catch {
+        } catch (error) {
+            this._micStartPending = false;
             this._setListening(false);
+            this._showVoiceError(error?.name || 'start-failed');
         }
+    }
+
+    _markVoiceUnavailable(reason) {
+        this._voiceUnavailableReason = reason;
+        const micBtn = document.getElementById('chat-mic');
+        if (!micBtn) return;
+
+        micBtn.classList.add('chat-mic--unavailable');
+        const message = this._voiceErrorMessage(reason);
+        micBtn.setAttribute('aria-label', message);
+        micBtn.setAttribute('title', message);
+    }
+
+    _voiceErrorMessage(reason) {
+        const messages = {
+            insecure: ['chat_voice_https_required', 'Голосовой ввод доступен только по защищённому HTTPS-соединению. Откройте сайт по HTTPS.'],
+            unsupported: ['chat_voice_unsupported', 'Этот браузер не поддерживает распознавание речи. Откройте сайт в Chrome или Edge.'],
+            'not-allowed': ['chat_voice_permission_denied', 'Доступ к микрофону запрещён. Разрешите его для сайта в настройках браузера и попробуйте снова.'],
+            'service-not-allowed': ['chat_voice_permission_denied', 'Доступ к микрофону запрещён. Разрешите его для сайта в настройках браузера и попробуйте снова.'],
+            'audio-capture': ['chat_voice_no_microphone', 'Микрофон не найден или занят другим приложением.'],
+            network: ['chat_voice_network_error', 'Сервис распознавания речи недоступен. Проверьте интернет и попробуйте снова.'],
+            'no-speech': ['chat_voice_no_speech', 'Речь не распознана. Нажмите микрофон и говорите чуть громче.']
+        };
+        const [key, fallback] = messages[reason] || ['chat_voice_start_error', 'Не удалось запустить голосовой ввод. Попробуйте ещё раз.'];
+        return this._tr(key, fallback);
+    }
+
+    _showVoiceError(reason) {
+        showError(this._voiceErrorMessage(reason), {
+            title: this._tr('chat_aria_mic', 'Голосовой ввод')
+        });
     }
 
     _setListening(on) {
         this._isListening = on;
-        document.getElementById('chat-mic')?.classList.toggle('chat-mic--active', on);
+        const micBtn = document.getElementById('chat-mic');
+        if (!micBtn) return;
+
+        micBtn.classList.toggle('chat-mic--active', on);
+        micBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+
+        const label = on
+            ? this._tr('chat_voice_listening', 'Слушаю… Нажмите, чтобы остановить.')
+            : this._voiceUnavailableReason
+                ? this._voiceErrorMessage(this._voiceUnavailableReason)
+                : this._tr('chat_aria_mic', 'Голосовой ввод');
+        micBtn.setAttribute('aria-label', label);
+        micBtn.setAttribute('title', label);
     }
 
     // ════════════════════════════════
@@ -434,6 +529,14 @@ class ChatBot {
                 await this._onSiteLanguageChanged(cur);
             }
             if (this._proTimer) { clearTimeout(this._proTimer); this._proTimer = null; }
+        } else if ((this._isListening || this._micStartPending) && this._recognition) {
+            // Не оставляем микрофон активным после закрытия окна чата.
+            this._micStoppedByUser = true;
+            try {
+                if (typeof this._recognition.abort === 'function') this._recognition.abort();
+                else this._recognition.stop();
+            }
+            catch { this._micStartPending = false; this._setListening(false); }
         }
 
         document.getElementById('chat-widget').classList.toggle('chat-open', this.isOpen);
@@ -470,7 +573,9 @@ class ChatBot {
             ttsBtn.setAttribute('title', label);
         }
         if (micBtn) {
-            const label = this._tr('chat_aria_mic', 'Голосовой ввод');
+            const label = this._voiceUnavailableReason
+                ? this._voiceErrorMessage(this._voiceUnavailableReason)
+                : this._tr('chat_aria_mic', 'Голосовой ввод');
             micBtn.setAttribute('aria-label', label);
             micBtn.setAttribute('title', label);
         }
