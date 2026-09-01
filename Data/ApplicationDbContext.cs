@@ -56,6 +56,11 @@ namespace DentalClinic.Data
             modelBuilder.Entity<AppointmentRequest>()
                 .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
 
+            modelBuilder.Entity<AppointmentRequest>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_AppointmentRequests_Status",
+                    "[Status] IN ('pending', 'confirmed', 'cancelled', 'completed')"));
+
             // SessionId — быстрый поиск истории конкретного диалога с ботом;
             // CreatedAt — под очистку/выборку логов чата по дате (см. Stalependingcleanupservice)
             modelBuilder.Entity<ChatMessageLog>()

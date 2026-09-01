@@ -7,8 +7,7 @@
 ## 1. Требования
 
 - [.NET SDK 9](https://dotnet.microsoft.com/download) (`dotnet --version` → 9.x)
-- SQL Server (локально, в Docker, или облачный — например [somee.com](https://somee.com),
-  Azure SQL, или локальный SQL Server Express / LocalDB)
+- SQL Server (локально, в Docker, в Azure SQL или другом managed SQL Server)
 - Ключ Google Gemini API (для чат-бота) — получить на
   [ai.google.dev](https://ai.google.dev)
 - (Опционально) ключ ElevenLabs API — для озвучки ответов бота
