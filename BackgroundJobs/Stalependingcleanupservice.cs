@@ -1,6 +1,4 @@
-﻿using DentalClinic.Data;
 using DentalClinic.Services;
-using Microsoft.EntityFrameworkCore;
 
 namespace DentalClinic.BackgroundJobs;
 
@@ -28,8 +26,6 @@ public class StalePendingCleanupService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var intervalHours = _config.GetValue<int?>("BackgroundJobs:CleanupCheckIntervalHours") ?? 24;
-        var expiryDays = _config.GetValue<int?>("BackgroundJobs:PendingRequestExpiryDays") ?? 3;
-
         using var timer = new PeriodicTimer(TimeSpan.FromHours(intervalHours));
 
         try { await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); }
@@ -39,14 +35,16 @@ public class StalePendingCleanupService : BackgroundService
         {
             try
             {
-                var enabled = _config.GetValue<bool?>("BackgroundJobs:CleanupEnabled") ?? true;
+                var enabled = _config.GetValue<bool?>("BackgroundJobs:CleanupEnabled") ?? false;
                 if (!enabled)
                 {
                     _logger.LogInformation("StalePendingCleanupService: автоотмена выключена в настройках (BackgroundJobs:CleanupEnabled = false), пропускаю");
                 }
                 else
                 {
-                    await CleanupStaleRequestsAsync(expiryDays, stoppingToken);
+                    using var scope = _scopeFactory.CreateScope();
+                    var maintenance = scope.ServiceProvider.GetRequiredService<AppointmentMaintenanceService>();
+                    await maintenance.CleanupStaleRequestsAsync(stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -57,38 +55,4 @@ public class StalePendingCleanupService : BackgroundService
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task CleanupStaleRequestsAsync(int expiryDays, CancellationToken ct)
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var notifications = scope.ServiceProvider.GetRequiredService<NotificationService>();
-
-        var threshold = DateTime.UtcNow.AddDays(-expiryDays);
-
-        var stale = await db.AppointmentRequests
-            .Where(r => r.Status == "pending" && r.CreatedAt < threshold)
-            .ToListAsync(ct);
-
-        if (stale.Count == 0) return;
-
-        foreach (var request in stale)
-        {
-            request.Status = "cancelled";
-            request.Comment = string.IsNullOrWhiteSpace(request.Comment)
-                ? "[Автоматически отменена: не обработана администратором]"
-                : request.Comment + " [Автоматически отменена: не обработана администратором]";
-
-            if (request.PatientId.HasValue)
-            {
-                await notifications.NotifyAsync(
-                    request.PatientId.Value,
-                    "appointment_cancelled",
-                    "Ваша заявка на приём была автоматически отменена — она долго ждала подтверждения. Пожалуйста, запишитесь ещё раз или позвоните нам.",
-                    request.Id);
-            }
-        }
-
-        await db.SaveChangesAsync(ct);
-        _logger.LogInformation("Автоматически отменено зависших заявок: {Count}", stale.Count);
-    }
 }

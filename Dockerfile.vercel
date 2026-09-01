@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+COPY DentalClinic.csproj ./
+RUN dotnet restore ./DentalClinic.csproj
+
+COPY . .
+RUN dotnet publish ./DentalClinic.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+
+RUN adduser --disabled-password --gecos "" appuser \
+    && mkdir -p /app/wwwroot/uploads/avatars \
+    && chown -R appuser:appuser /app
+
+COPY --from=build --chown=appuser:appuser /app/publish .
+
+USER appuser
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+# Vercel передаёт порт контейнеру через PORT. Значение 8080 оставлено
+# запасным для локальной проверки образа.
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "exec dotnet DentalClinic.dll --urls http://0.0.0.0:${PORT:-8080}"]

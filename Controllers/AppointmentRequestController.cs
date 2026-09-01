@@ -6,6 +6,8 @@ using DentalClinic.Models;
 using DentalClinic.Data;
 using DentalClinic.Services;
 using System.Security.Claims;
+using System.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DentalClinic.Controllers;
 
@@ -16,15 +18,18 @@ public class AppointmentRequestController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AppointmentRequestController> _logger;
     private readonly NotificationService _notifications;
+    private readonly AppointmentSchedulingService _scheduling;
 
     public AppointmentRequestController(
         ApplicationDbContext context,
         ILogger<AppointmentRequestController> logger,
-        NotificationService notifications)
+        NotificationService notifications,
+        AppointmentSchedulingService scheduling)
     {
         _context = context;
         _logger = logger;
         _notifications = notifications;
+        _scheduling = scheduling;
     }
 
     // Заявки конкретного пациента — только сам пациент (по токену) или админ
@@ -83,10 +88,40 @@ public class AppointmentRequestController : ControllerBase
     // а не из тела запроса (иначе можно было бы записаться "от лица" другого пациента).
     [HttpPost]
     [EnableRateLimiting("AppointmentCreate")]
-    public async Task<IActionResult> Create([FromBody] AppointmentRequest request)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateAppointmentRequest dto,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Phone))
-            return BadRequest(new { message = "Телефон обязателен" });
+        var appointmentDate = dto.AppointmentDate.HasValue
+            ? _scheduling.Normalize(dto.AppointmentDate.Value)
+            : (DateTime?)null;
+
+        if (dto.DoctorId.HasValue && !appointmentDate.HasValue)
+            return BadRequest(new { message = "Для выбора врача укажите время приёма" });
+
+        await using var transaction = await BeginSchedulingTransactionAsync(cancellationToken);
+
+        if (appointmentDate.HasValue)
+        {
+            var validation = await _scheduling.ValidateAsync(
+                appointmentDate.Value,
+                dto.DoctorId,
+                allowDateOnly: !dto.DoctorId.HasValue,
+                cancellationToken: cancellationToken);
+            if (!validation.IsValid) return SchedulingError(validation);
+        }
+
+        var request = new AppointmentRequest
+        {
+            FirstName = dto.FirstName?.Trim(),
+            Phone = dto.Phone.Trim(),
+            AppointmentDate = appointmentDate,
+            Comment = dto.Comment?.Trim(),
+            DoctorId = dto.DoctorId,
+            CreatedAt = DateTime.UtcNow,
+            Status = AppointmentStatuses.Pending,
+            ReminderSent = false
+        };
 
         if (User.Identity?.IsAuthenticated == true && User.IsInRole("Patient"))
         {
@@ -98,21 +133,19 @@ public class AppointmentRequestController : ControllerBase
             request.PatientId = null;
         }
 
-        request.CreatedAt = DateTime.UtcNow;
-        request.Status ??= "pending";
-
         try
         {
             _context.AppointmentRequests.Add(request);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
+            if (transaction != null) await transaction.CommitAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при создании заявки на приём (телефон: {Phone})", request.Phone);
+            _logger.LogError(ex, "Ошибка при создании заявки на приём");
             return StatusCode(500, new { message = "Не удалось создать заявку, попробуйте позже" });
         }
 
-        _logger.LogInformation("Создана заявка на приём #{Id} (телефон: {Phone})", request.Id, request.Phone);
+        _logger.LogInformation("Создана заявка на приём #{Id}", request.Id);
 
         return Ok(new { id = request.Id, message = "Заявка создана" });
     }
@@ -120,26 +153,69 @@ public class AppointmentRequestController : ControllerBase
     // Редактировать заявку (админ)
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateAppointmentRequest dto)
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] UpdateAppointmentRequest dto,
+        CancellationToken cancellationToken)
     {
-        var request = await _context.AppointmentRequests.FindAsync(id);
+        await using var transaction = await BeginSchedulingTransactionAsync(cancellationToken);
+
+        var request = await _context.AppointmentRequests.FindAsync([id], cancellationToken);
         if (request == null) return NotFound();
 
-        var previousStatus = request.Status;
+        if (!AppointmentStatuses.TryNormalize(request.Status, out var previousStatus))
+            return Conflict(new { message = "У заявки сохранён неизвестный статус. Исправьте данные вручную" });
 
-        if (dto.AppointmentDate.HasValue) request.AppointmentDate = dto.AppointmentDate;
+        var nextStatus = previousStatus;
+        if (!string.IsNullOrWhiteSpace(dto.Status))
+        {
+            if (!AppointmentStatuses.TryNormalize(dto.Status, out nextStatus))
+                return BadRequest(new { message = "Недопустимый статус заявки" });
+
+            if (!AppointmentStatuses.CanTransition(previousStatus, nextStatus))
+                return BadRequest(new { message = $"Переход статуса {previousStatus} → {nextStatus} запрещён" });
+        }
+
+        var nextDate = dto.AppointmentDate.HasValue
+            ? _scheduling.Normalize(dto.AppointmentDate.Value)
+            : request.AppointmentDate;
+        var nextDoctorId = dto.DoctorId ?? request.DoctorId;
+        var scheduleChanged = dto.AppointmentDate.HasValue || dto.DoctorId.HasValue;
+        var becomingConfirmed = previousStatus != AppointmentStatuses.Confirmed
+            && nextStatus == AppointmentStatuses.Confirmed;
+        var reactivating = previousStatus != AppointmentStatuses.Pending
+            && nextStatus == AppointmentStatuses.Pending;
+
+        if (nextStatus == AppointmentStatuses.Confirmed && (!nextDate.HasValue || !nextDoctorId.HasValue))
+            return BadRequest(new { message = "Для подтверждения укажите врача и время приёма" });
+
+        if (nextDate.HasValue && (scheduleChanged || becomingConfirmed || reactivating))
+        {
+            var validation = await _scheduling.ValidateAsync(
+                nextDate.Value,
+                nextDoctorId,
+                request.Id,
+                allowDateOnly: !nextDoctorId.HasValue,
+                cancellationToken: cancellationToken);
+            if (!validation.IsValid) return SchedulingError(validation);
+        }
+
+        if (dto.AppointmentDate.HasValue)
+        {
+            request.AppointmentDate = nextDate;
+            request.ReminderSent = false;
+        }
         if (!string.IsNullOrWhiteSpace(dto.Comment)) request.Comment = dto.Comment;
-        if (!string.IsNullOrWhiteSpace(dto.Status)) request.Status = dto.Status;
+        request.Status = nextStatus;
 
         if (dto.DoctorId.HasValue)
         {
-            if (!await _context.Doctors.AnyAsync(d => d.Id == dto.DoctorId.Value && d.IsActive))
-                return BadRequest(new { message = "Указан несуществующий или неактивный врач" });
-
             request.DoctorId = dto.DoctorId;
+            request.ReminderSent = false;
         }
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
+        if (transaction != null) await transaction.CommitAsync(cancellationToken);
 
         // Уведомляем пациента о смене статуса (только если это зарегистрированный
         // пациент, а не гостевая запись, и статус реально изменился)
@@ -149,11 +225,11 @@ public class AppointmentRequestController : ControllerBase
                 ? request.AppointmentDate.Value.ToString("dd.MM.yyyy HH:mm")
                 : "уточняется";
 
-            var (type, message) = request.Status?.ToLower() switch
+            var (type, message) = request.Status switch
             {
-                "confirmed" => ("appointment_confirmed", $"Ваша запись на {dateText} подтверждена ✅"),
-                "cancelled" => ("appointment_cancelled", $"Ваша запись на {dateText} отклонена администратором"),
-                "completed" => ("appointment_completed", $"Приём {dateText} отмечен как завершённый. Будем рады видеть вас снова!"),
+                AppointmentStatuses.Confirmed => ("appointment_confirmed", $"Ваша запись на {dateText} подтверждена ✅"),
+                AppointmentStatuses.Cancelled => ("appointment_cancelled", $"Ваша запись на {dateText} отклонена администратором"),
+                AppointmentStatuses.Completed => ("appointment_completed", $"Приём {dateText} отмечен как завершённый. Будем рады видеть вас снова!"),
                 _ => (null, null)
             };
 
@@ -167,28 +243,39 @@ public class AppointmentRequestController : ControllerBase
     // Создать запись по телефону (админ)
     [HttpPost("admin/phone")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateFromPhone([FromBody] AdminPhoneAppointmentDto dto)
+    public async Task<IActionResult> CreateFromPhone(
+        [FromBody] AdminPhoneAppointmentDto dto,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.Phone))
             return BadRequest(new { message = "Имя и телефон обязательны" });
 
-        if (dto.DoctorId.HasValue &&
-            !await _context.Doctors.AnyAsync(d => d.Id == dto.DoctorId.Value && d.IsActive))
-            return BadRequest(new { message = "Указан несуществующий или неактивный врач" });
+        if (!dto.AppointmentDate.HasValue || !dto.DoctorId.HasValue)
+            return BadRequest(new { message = "Для подтверждённой записи укажите врача и время приёма" });
+
+        var appointmentDate = _scheduling.Normalize(dto.AppointmentDate.Value);
+        await using var transaction = await BeginSchedulingTransactionAsync(cancellationToken);
+
+        var validation = await _scheduling.ValidateAsync(
+            appointmentDate,
+            dto.DoctorId,
+            cancellationToken: cancellationToken);
+        if (!validation.IsValid) return SchedulingError(validation);
 
         var request = new AppointmentRequest
         {
-            FirstName = dto.FirstName,
-            Phone = dto.Phone,
-            Comment = dto.Comment,
-            AppointmentDate = dto.AppointmentDate,
+            FirstName = dto.FirstName.Trim(),
+            Phone = dto.Phone.Trim(),
+            Comment = dto.Comment?.Trim(),
+            AppointmentDate = appointmentDate,
             DoctorId = dto.DoctorId,
-            Status = "confirmed",
+            Status = AppointmentStatuses.Confirmed,
             CreatedAt = DateTime.UtcNow
         };
 
         _context.AppointmentRequests.Add(request);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
+        if (transaction != null) await transaction.CommitAsync(cancellationToken);
 
         return Ok(new { id = request.Id, message = "Телефонная запись создана" });
     }
@@ -203,13 +290,13 @@ public class AppointmentRequestController : ControllerBase
 
         if (!IsOwnerOfAppointment(request)) return Forbid();
 
-        var status = request.Status?.ToLower();
-        if (status == "confirmed")
+        var status = request.Status?.ToLowerInvariant();
+        if (status == AppointmentStatuses.Confirmed)
             return BadRequest(new { message = "Подтверждённую запись нельзя изменить самостоятельно — пожалуйста, позвоните администратору клиники: +7 (499) 999-99-99" });
-        if (status != "pending")
+        if (status != AppointmentStatuses.Pending)
             return BadRequest(new { message = "Эту запись уже нельзя отменить" });
 
-        request.Status = "cancelled";
+        request.Status = AppointmentStatuses.Cancelled;
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Пациент отменил свою запись #{Id}", request.Id);
@@ -222,22 +309,38 @@ public class AppointmentRequestController : ControllerBase
     // подтверждения администратором.
     [HttpPut("{id:int}/reschedule")]
     [Authorize]
-    public async Task<IActionResult> RescheduleOwn(int id, [FromBody] PatientRescheduleRequest dto)
+    public async Task<IActionResult> RescheduleOwn(
+        int id,
+        [FromBody] PatientRescheduleRequest dto,
+        CancellationToken cancellationToken)
     {
-        var request = await _context.AppointmentRequests.FindAsync(id);
+        await using var transaction = await BeginSchedulingTransactionAsync(cancellationToken);
+
+        var request = await _context.AppointmentRequests.FindAsync([id], cancellationToken);
         if (request == null) return NotFound();
 
         if (!IsOwnerOfAppointment(request)) return Forbid();
 
-        var status = request.Status?.ToLower();
-        if (status == "confirmed")
+        var status = request.Status?.ToLowerInvariant();
+        if (status == AppointmentStatuses.Confirmed)
             return BadRequest(new { message = "Подтверждённую запись нельзя перенести самостоятельно — пожалуйста, позвоните администратору клиники: +7 (499) 999-99-99" });
-        if (status != "pending")
+        if (status != AppointmentStatuses.Pending)
             return BadRequest(new { message = "Эту запись уже нельзя перенести" });
 
-        request.AppointmentDate = dto.AppointmentDate;
-        request.Status = "pending";
-        await _context.SaveChangesAsync();
+        var appointmentDate = _scheduling.Normalize(dto.AppointmentDate);
+        var validation = await _scheduling.ValidateAsync(
+            appointmentDate,
+            request.DoctorId,
+            request.Id,
+            allowDateOnly: !request.DoctorId.HasValue,
+            cancellationToken: cancellationToken);
+        if (!validation.IsValid) return SchedulingError(validation);
+
+        request.AppointmentDate = appointmentDate;
+        request.Status = AppointmentStatuses.Pending;
+        request.ReminderSent = false;
+        await _context.SaveChangesAsync(cancellationToken);
+        if (transaction != null) await transaction.CommitAsync(cancellationToken);
 
         _logger.LogInformation("Пациент перенёс свою запись #{Id} на {Date}", request.Id, dto.AppointmentDate);
 
@@ -257,5 +360,14 @@ public class AppointmentRequestController : ControllerBase
     {
         if (User.IsInRole("Admin")) return true;
         return request.PatientId.HasValue && IsOwnerOrAdmin(request.PatientId.Value);
+    }
+
+    private IActionResult SchedulingError(SchedulingValidationResult validation) =>
+        StatusCode(validation.StatusCode, new { message = validation.Message });
+
+    private async Task<IDbContextTransaction?> BeginSchedulingTransactionAsync(CancellationToken cancellationToken)
+    {
+        if (!_context.Database.IsRelational()) return null;
+        return await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
     }
 }

@@ -24,32 +24,6 @@ jobs:
       - run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
       - run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
 
-  deploy-ftp:
-    name: Deploy (FTP → somee.com)
-    needs: test
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-      - run: dotnet restore DentalClinic.csproj
-      - run: dotnet publish DentalClinic.csproj -c Release -o ./publish
-      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          local-dir: ./publish/
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          exclude: |
-            **/appsettings.Development.json
-            **/*.pdb
-
   docker-image:
     name: Build & push Docker image (GHCR)
     needs: test

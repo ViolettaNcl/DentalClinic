@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "entrypoint": "Dockerfile.vercel"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/maintenance/reminders",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/maintenance/cleanup",
+      "schedule": "15 6 * * *"
+    }
+  ]
+}

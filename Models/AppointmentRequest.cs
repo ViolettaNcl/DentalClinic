@@ -24,7 +24,9 @@ public class AppointmentRequest
     [StringLength(500)]
     public string? Comment { get; set; }
 
-    public string Status { get; set; } = "pending";
+    [Required]
+    [StringLength(20)]
+    public string Status { get; set; } = AppointmentStatuses.Pending;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
