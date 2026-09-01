@@ -5,6 +5,7 @@ using DentalClinic.Hubs;
 using DentalClinic.Services;
 using DentalClinic.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -26,8 +27,33 @@ builder.Services.AddHealthChecks()
 
 // ================= Уведомления + фоновые задачи =================
 builder.Services.AddScoped<NotificationService>();
-builder.Services.AddHostedService<AppointmentReminderService>();
-builder.Services.AddHostedService<StalePendingCleanupService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ClinicClock>();
+builder.Services.AddScoped<AppointmentSchedulingService>();
+builder.Services.AddScoped<AppointmentMaintenanceService>();
+var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
+
+// Vercel может останавливать контейнер между запросами, поэтому там задачи
+// запускаются через защищённые Cron endpoints. В обычном Docker окружении
+// сохраняем прежние постоянно работающие фоновые службы.
+if (!isVercel)
+{
+    builder.Services.AddHostedService<AppointmentReminderService>();
+    builder.Services.AddHostedService<StalePendingCleanupService>();
+}
+
+// В Vercel TLS завершается на прокси перед контейнером. Учитываем исходный
+// протокол, чтобы не создавать цикл HTTPS-редиректов и верно строить URL.
+if (isVercel)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 // ================= AI-ассистент (Дента): кэш + сервис знаний =================
 // ChatKnowledgeService на лету собирает актуальные цены и врачей из БД для
@@ -183,6 +209,9 @@ builder.Services.AddResponseCompression(options =>
 var app = builder.Build();
 
 // ================= MIDDLEWARE =================
+
+if (isVercel)
+    app.UseForwardedHeaders();
 
 // Глобальный перехват необработанных исключений — вместо страницы ошибки ASP.NET
 // клиент получает аккуратный JSON, а сама ошибка попадает в лог.

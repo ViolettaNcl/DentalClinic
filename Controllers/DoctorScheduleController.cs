@@ -41,7 +41,7 @@ public class DoctorScheduleController : ControllerBase
         var appointments = await _db.AppointmentRequests
             .Where(a => a.DoctorId == doctorId
                         && a.AppointmentDate != null
-                        && a.Status.ToLower() == "confirmed"
+                        && a.Status == AppointmentStatuses.Confirmed
                         && a.AppointmentDate >= fromDate
                         && a.AppointmentDate <= toDate)
             .ToListAsync();

@@ -50,6 +50,12 @@ namespace DentalClinic.Data
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
 
+            // Индекс нужен не только для календаря врача, но и для диапазонной
+            // проверки конфликтов под Serializable-транзакцией. Благодаря ему
+            // SQL Server блокирует узкий диапазон слотов конкретного врача.
+            modelBuilder.Entity<AppointmentRequest>()
+                .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
+
             // SessionId — быстрый поиск истории конкретного диалога с ботом;
             // CreatedAt — под очистку/выборку логов чата по дате (см. Stalependingcleanupservice)
             modelBuilder.Entity<ChatMessageLog>()
