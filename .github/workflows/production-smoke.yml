@@ -1,0 +1,66 @@
+name: Production Smoke
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PRODUCTION_ORIGIN: https://dental-clinic-vn.vercel.app
+      PRODUCTION_HTTP_ORIGIN: http://dental-clinic-vn.vercel.app
+    steps:
+      - name: Wait for healthy production and current canonical domain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 24); do
+            echo "Production smoke attempt ${attempt}/24"
+
+            health="$(curl --silent --show-error --fail --max-time 20 "${PRODUCTION_ORIGIN}/health" 2>/dev/null || true)"
+            home="$(curl --silent --show-error --fail --max-time 20 "${PRODUCTION_ORIGIN}/" 2>/dev/null || true)"
+
+            if printf '%s' "$health" | grep -q '"status":"Healthy"' \
+              && printf '%s' "$health" | grep -q '"name":"db"' \
+              && printf '%s' "$home" | grep -q 'https://dental-clinic-vn.vercel.app/'; then
+              echo "Production is healthy and serving the canonical domain."
+              printf '%s\n' "$health"
+              exit 0
+            fi
+
+            sleep 15
+          done
+
+          echo "Production did not become healthy/current before timeout." >&2
+          exit 1
+
+      - name: Verify HTTP redirects to HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(curl --silent --show-error --head --max-time 20 \
+            --write-out '%{http_code} %{redirect_url}' --output /dev/null \
+            "${PRODUCTION_HTTP_ORIGIN}/")"
+          code="${result%% *}"
+          redirect="${result#* }"
+          echo "HTTP response: ${code}; redirect: ${redirect}"
+
+          case "$code" in
+            301|302|307|308) ;;
+            *) echo "Expected an HTTP redirect status, got ${code}." >&2; exit 1 ;;
+          esac
+
+          case "$redirect" in
+            https://dental-clinic-vn.vercel.app/*) ;;
+            *) echo "HTTP did not redirect to the production HTTPS origin." >&2; exit 1 ;;
+          esac

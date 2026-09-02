@@ -10,7 +10,7 @@
 
 Целевой production-домен:
 
-`https://dental-clinic-violettancls-projects.vercel.app`
+`https://dental-clinic-vn.vercel.app`
 
 ## 1. Обязательные production-переменные
 

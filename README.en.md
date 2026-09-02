@@ -33,7 +33,7 @@ a patient dashboard, an admin panel, an AI assistant with voice replies, and a 5
 
 Target production domain:
 
-### 👉 [dental-clinic-violettancls-projects.vercel.app](https://dental-clinic-violettancls-projects.vercel.app/)
+### 👉 [dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/)
 
 > The server is deployed as an ASP.NET Core container service on Vercel. Before the
 > first production start, configure the database and secrets documented in
