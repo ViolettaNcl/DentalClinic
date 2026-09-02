@@ -1,43 +1,41 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Caching.Memory;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using DentalClinic.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DentalClinic.Controllers;
 
 /// <summary>
-/// Общий эндпоинт перевода коротких кусков текста "на лету" — используется
-/// для всего, что хранится в БД на языке автора и не переведено заранее:
-/// имя врача, комментарий к записи и т.п. (для отзывов есть свой похожий
-/// эндпоинт в ReviewController — тут та же логика, но без привязки к ID отзыва).
-/// Сам исходный текст в базе никогда не меняется — перевод только для показа.
+/// Same-origin translation endpoint for short UI/database text. The Gemini key never
+/// leaves the server and cache keys are stable SHA-256 digests rather than GetHashCode.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class TranslateController : ControllerBase
+public sealed class TranslateController : ControllerBase
 {
     private readonly IHttpClientFactory _httpFactory;
     private readonly IConfiguration _config;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TranslateController> _logger;
 
-    // Пробуем несколько вариантов моделей по очереди. "gemini-flash-latest" —
-    // это алиас от Google, который сам всегда указывает на актуальную рабочую
-    // версию Flash (сейчас это Gemini 3.5 Flash) — если конкретные версии вроде
-    // gemini-2.5-flash вернут 404 (модель устарела/недоступна для этого проекта),
-    // этот алиас должен сработать в любом случае.
-    private static readonly string[] TranslateModels = { "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest" };
+    private static readonly string[] TranslateModels =
+        ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest"];
 
-    private static readonly Dictionary<string, string> TargetLangNames = new()
-    {
-        ["ru"] = "Russian (русский)",
-        ["en"] = "English",
-        ["fr"] = "French (français)",
-        ["el"] = "Greek (ελληνικά)",
-        ["ar"] = "Arabic (العربية)"
-    };
+    private static readonly IReadOnlyDictionary<string, string> TargetLangNames =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ru"] = "Russian (русский)",
+            ["en"] = "English",
+            ["fr"] = "French (français)",
+            ["el"] = "Greek (ελληνικά)",
+            ["ar"] = "Arabic (العربية)"
+        };
+
+    private static readonly HashSet<string> AllowedKinds =
+        new(StringComparer.OrdinalIgnoreCase) { "text", "name", "review", "comment" };
 
     public TranslateController(
         IHttpClientFactory httpFactory,
@@ -51,41 +49,45 @@ public class TranslateController : ControllerBase
         _logger = logger;
     }
 
-    public class TranslateRequest
+    public sealed class TranslateRequest
     {
-        public string Text { get; set; } = "";
+        public string Text { get; set; } = string.Empty;
         public string TargetLang { get; set; } = "en";
-        // Необязательная подсказка модели о типе текста — помогает переводить
-        // короче и точнее (например, имя человека переводится/транслитерируется
-        // иначе, чем обычное предложение).
-        public string Kind { get; set; } = "text"; // "text" | "name"
+        public string Kind { get; set; } = "text";
     }
 
     [HttpPost]
     [EnableRateLimiting("translate")]
-    public async Task<IActionResult> Translate([FromBody] TranslateRequest req)
+    public async Task<IActionResult> Translate([FromBody] TranslateRequest req, CancellationToken cancellationToken)
     {
-        var lang = (req.TargetLang ?? "").ToLowerInvariant();
+        if (!IsTrustedCaller())
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Translation endpoint accepts same-origin browser requests only" });
 
         if (string.IsNullOrWhiteSpace(req.Text))
             return Ok(new { text = req.Text });
 
+        var lang = (req.TargetLang ?? string.Empty).Trim().ToLowerInvariant();
         if (!TargetLangNames.TryGetValue(lang, out var langName))
-            return Ok(new { text = req.Text });
+            return BadRequest(new { message = "Unsupported target language" });
 
-        var safeText = req.Text.Length > 1500 ? req.Text[..1500] : req.Text;
-        var cacheKey = $"translate:{req.Kind}:{lang}:{safeText.GetHashCode()}";
+        var kind = AllowedKinds.Contains(req.Kind ?? string.Empty)
+            ? req.Kind.Trim().ToLowerInvariant()
+            : "text";
 
-        if (_cache.TryGetValue(cacheKey, out string? cached) && cached != null)
+        var safeText = req.Text.Trim();
+        if (safeText.Length > 1500)
+            safeText = safeText[..1500];
+
+        var cacheKey = CreateStableCacheKey(kind, lang, safeText);
+        if (_cache.TryGetValue(cacheKey, out string? cached) && !string.IsNullOrWhiteSpace(cached))
             return Ok(new { text = cached });
 
-        var apiKey = _config["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey))
-            return Ok(new { text = req.Text });
+        if (string.IsNullOrWhiteSpace(_config["Gemini:ApiKey"]))
+            return Ok(new { text = safeText });
 
-        var systemPrompt = req.Kind == "name"
-            ? $"Transliterate/render the following person's name in {langName}, the way it would naturally appear to a {langName}-speaking reader (use the standard {langName} script/spelling conventions for foreign names). Reply with ONLY the name, nothing else — no quotes, no explanations."
-            : $"Translate the following text to {langName}. Reply with ONLY the translated text, no quotes, no explanations, no extra formatting. If it's already in the target language, return it unchanged.";
+        var systemPrompt = kind == "name"
+            ? $"Transliterate/render this person's name naturally in {langName}. Reply only with the name, without quotes or explanation."
+            : $"Translate the following text to {langName}. Reply only with the translated text, without quotes, explanations or extra formatting. If already in the target language, return it unchanged.";
 
         var body = JsonSerializer.Serialize(new
         {
@@ -95,16 +97,6 @@ public class TranslateController : ControllerBase
         });
 
         var http = _httpFactory.CreateClient();
-
-        // ВАЖНО: раньше запрос к Gemini уходил напрямую, без прохождения через
-        // GeminiTranslateLimiter — тот класс существовал в проекте, но нигде не
-        // вызывался. Именно это, судя по всему, и было причиной постоянных 429:
-        // при одновременной отрисовке таблицы (перевод сразу нескольких имён и
-        // комментариев) в Gemini улетало сразу много запросов без какой-либо
-        // паузы между ними, а квота ключа — маленькая. Теперь все обращения к
-        // Gemini идут строго по одному, с минимальным интервалом между ними
-        // (см. GeminiTranslateLimiter.cs) — это не увеличивает дневную квоту,
-        // но резко снижает число отказов из-за одновременных запросов.
         var translated = await GeminiTranslateLimiter.RunAsync(async () =>
         {
             foreach (var model in TranslateModels)
@@ -113,49 +105,89 @@ public class TranslateController : ControllerBase
                 {
                     try
                     {
-                        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-                        var response = await http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
+                        // GeminiApiKeyHandler adds x-goog-api-key. Never put a secret in URL/logs.
+                        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+                        using var response = await http.PostAsync(
+                            url,
+                            new StringContent(body, Encoding.UTF8, "application/json"),
+                            cancellationToken);
 
                         if ((int)response.StatusCode == 429)
                         {
-                            // Кратковременная перегрузка — скорее всего несколько переводов
-                            // запустились одновременно. Один раз подождём немного и попробуем
-                            // снова тем же вариантом модели, прежде чем переходить к следующей.
-                            if (attempt == 0) { await Task.Delay(400); continue; }
-                            break; // переходим к следующей модели из списка
+                            if (attempt == 0)
+                            {
+                                await Task.Delay(400, cancellationToken);
+                                continue;
+                            }
+                            break;
                         }
+
                         if ((int)response.StatusCode == 404)
                             break;
 
                         if (!response.IsSuccessStatusCode)
                         {
-                            _logger.LogWarning("Ошибка перевода текста ({Status}) для модели {Model}", (int)response.StatusCode, model);
-                            return req.Text;
+                            _logger.LogWarning("Translation provider returned {Status} for {Model}", (int)response.StatusCode, model);
+                            return safeText;
                         }
 
-                        var raw = await response.Content.ReadAsStringAsync();
-                        using var doc = JsonDocument.Parse(raw);
+                        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
                         var result = doc.RootElement
                             .GetProperty("candidates")[0]
                             .GetProperty("content")
                             .GetProperty("parts")[0]
                             .GetProperty("text")
-                            .GetString()?.Trim() ?? req.Text;
+                            .GetString()?.Trim();
+
+                        if (string.IsNullOrWhiteSpace(result))
+                            return safeText;
 
                         _cache.Set(cacheKey, result, TimeSpan.FromDays(30));
                         return result;
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Не удалось перевести текст (модель {Model})", model);
+                        _logger.LogWarning(ex, "Translation failed for model {Model}", model);
                         break;
                     }
                 }
             }
 
-            return req.Text;
+            return safeText;
         });
 
         return Ok(new { text = translated });
+    }
+
+    private bool IsTrustedCaller()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+            return true;
+
+        var expectedOrigin = $"{Request.Scheme}://{Request.Host}";
+
+        var origin = Request.Headers.Origin.ToString();
+        if (Uri.TryCreate(origin, UriKind.Absolute, out var originUri)
+            && string.Equals(originUri.GetLeftPart(UriPartial.Authority), expectedOrigin, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var referer = Request.Headers.Referer.ToString();
+        if (Uri.TryCreate(referer, UriKind.Absolute, out var refererUri)
+            && string.Equals(refererUri.GetLeftPart(UriPartial.Authority), expectedOrigin, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var fetchSite = Request.Headers["Sec-Fetch-Site"].ToString();
+        return fetchSite.Equals("same-origin", StringComparison.OrdinalIgnoreCase)
+            || fetchSite.Equals("same-site", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string CreateStableCacheKey(string kind, string lang, string text)
+    {
+        var payload = Encoding.UTF8.GetBytes($"v3\n{kind}\n{lang}\n{text}");
+        return $"translate:{Convert.ToHexString(SHA256.HashData(payload))}";
     }
 }
