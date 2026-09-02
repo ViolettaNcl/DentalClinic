@@ -1,27 +1,23 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DentalClinic.Models;
 
-// Лог сообщений AI-чата (Дента) — сохраняется в БД, чтобы админ мог
-// посмотреть, о чём спрашивают пациенты (раздел "Аналитика" → "AI-чат"),
-// и понять какие услуги продвигать. Раньше история чата жила только в
-// браузере пациента и терялась при закрытии вкладки.
 [Table("ChatMessageLogs")]
 public class ChatMessageLog
 {
+    private string? _clientIp;
+
     [Key]
     public int Id { get; set; }
 
-    // Все сообщения одного диалога (в рамках одной открытой сессии чата на
-    // сайте) объединяются одним SessionId, чтобы админ видел переписку целиком
     [Required, StringLength(64)]
     public string SessionId { get; set; } = null!;
 
-    // Если пациент авторизован — привязываем лог к нему (необязательно)
     public int? PatientId { get; set; }
 
-    // "user" — сообщение пациента, "bot" — ответ Денты
     [Required, StringLength(10)]
     public string Role { get; set; } = "user";
 
@@ -33,8 +29,25 @@ public class ChatMessageLog
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // IP используется только для защиты от накрутки статистики ботами,
-    // в интерфейсе админа не показывается
+    // Stage 3 privacy: raw IP addresses are never persisted. The setter accepts
+    // the request IP for backwards-compatible controller code and immediately
+    // replaces it with a fixed-length SHA-256 pseudonym. A retention cleanup
+    // clears even this pseudonym after a short configurable period.
     [StringLength(64)]
-    public string? ClientIp { get; set; }
+    public string? ClientIp
+    {
+        get => _clientIp;
+        set => _clientIp = NormalizeClientIp(value);
+    }
+
+    private static string? NormalizeClientIp(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        // Already-pseudonymized values loaded by EF must remain unchanged.
+        if (value.Length == 64 && value.All(Uri.IsHexDigit))
+            return value.ToLowerInvariant();
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+    }
 }

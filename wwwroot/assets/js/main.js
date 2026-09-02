@@ -5,6 +5,13 @@ import { ChatBot } from '/assets/js/core/chatBot.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 
+// Stage 3: keep booking intent language-neutral. The chat model now returns a
+// structured startBooking flag, while suggestion buttons are still interpreted
+// client-side for backwards compatibility and proactive messages.
+ChatBot.prototype._isBookingIntent = function (text) {
+    return /запис|при[её]м|book|appointment|schedule|rendez[- ]?vous|ραντεβ[οό]ύ|κλείσ|حجز|موعد/i.test(text || '');
+};
+
 async function initializePage() {
     try {
         const response = await fetch('/pages/header.html');
@@ -12,21 +19,14 @@ async function initializePage() {
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
         const headerHTML = doc.querySelector('header').outerHTML;
-        // Колокольчик может отсутствовать в разметке (например, если файл
-        // header.html ещё не обновлён) — не даём этому сломать вставку шапки.
         const bellHTML = doc.querySelector('#notification-bell')?.outerHTML || '';
         const modalsHTML = doc.querySelector('#login-modal').outerHTML +
             doc.querySelector('#signup-modal').outerHTML;
         const footerHTML = doc.querySelector('footer').outerHTML;
 
-        // Колокольчик уведомлений вставляем отдельно от шапки — он плавающий
-        // элемент с fixed-позиционированием и не должен занимать место в хедере.
         document.body.insertAdjacentHTML('afterbegin', headerHTML + bellHTML + modalsHTML);
         document.body.insertAdjacentHTML('beforeend', footerHTML);
 
-        // Дожидаемся загрузки словаря текущего языка ДО того, как остальные
-        // модули начнут генерировать динамический текст (тосты, списки,
-        // подписи кнопок) — иначе первая отрисовка всегда будет на русском.
         await i18nReady;
 
         const auth = new AuthManager();
