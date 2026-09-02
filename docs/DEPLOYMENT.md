@@ -77,12 +77,25 @@ Vercel передаёт `Authorization: Bearer <CRON_SECRET>`. Без корре
 оба endpoint возвращают 401. В Vercel обычные `BackgroundService` отключаются,
 потому что контейнер может приостанавливаться между запросами.
 
-## 5. GitHub Actions
+## 5. GitHub Actions и резервный FTPS
 
 - `.github/workflows/ci.yml` собирает приложение и запускает тесты на push/PR.
 - `.github/workflows/codeql.yml` выполняет анализ C# и JavaScript.
-- `.github/workflows/cd.yml` повторно запускает тесты и публикует Docker-образ в GHCR.
-- FTP-деплой и FTP publish profile удалены.
+- `.github/workflows/cd.yml` повторно запускает тесты, публикует Docker-образ в GHCR
+  и сохраняет резервный FTPS-deploy на Somee.
+- Основной production-хостинг — Vercel. FTPS нужен только как резервный путь публикации,
+  пока переход на Vercel окончательно не проверен.
+
+Для FTPS job используются только GitHub Secrets/Environment Secrets; значения не
+хранятся в репозитории:
+
+- `FTP_SERVER`
+- `FTP_USERNAME`
+- `FTP_PASSWORD`
+- `FTP_SERVER_DIR`
+
+Если хотя бы один из них отсутствует, workflow явно помечает FTPS как пропущенный,
+но CI, Vercel и публикация Docker-образа продолжают работать.
 
 После подключения Git Integration Vercel самостоятельно создаёт Preview для веток
 и Production deployment для `main`.
@@ -116,4 +129,5 @@ docker compose up --build
 - [ ] Cron endpoints без `CRON_SECRET` возвращают 401.
 - [ ] `BackgroundJobs__CleanupEnabled` включён только осознанно.
 - [ ] Резервное копирование новой БД настроено.
+- [ ] Если FTPS backup нужен, все четыре FTP secrets заданы в GitHub.
 - [ ] Аватары перенесены во внешнее object storage либо временно отключены.
