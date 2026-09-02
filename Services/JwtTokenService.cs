@@ -5,8 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DentalClinic.Services;
 
-// Отвечает только за выпуск JWT — проверка токена на входящих запросах
-// настраивается отдельно в Program.cs (AddAuthentication().AddJwtBearer(...)).
 public class JwtTokenService
 {
     private readonly IConfiguration _config;
@@ -16,36 +14,45 @@ public class JwtTokenService
         _config = config;
     }
 
-    /// <summary>
-    /// Выпускает подписанный JWT для авторизованного пользователя (пациент/врач/админ).
-    /// Роль кладём прямо в claims, чтобы [Authorize(Roles = "Admin")] на контроллерах
-    /// проверялся из самого токена — без похода в БД на каждый запрос.
-    /// </summary>
     public string GenerateToken(int id, string email, string name, string role)
     {
+        var now = DateTime.UtcNow;
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, id.ToString()),
-            new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Name, name),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Role, role),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new Claim(JwtRegisteredClaimNames.Iat,
+                new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
         };
 
         var keyValue = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("Jwt:Key не задан в конфигурации");
 
+        if (Encoding.UTF8.GetByteCount(keyValue) < 32)
+            throw new InvalidOperationException("Jwt:Key должен быть не короче 32 байт");
+
+        var issuer = _config["Jwt:Issuer"]
+            ?? throw new InvalidOperationException("Jwt:Issuer не задан в конфигурации");
+        var audience = _config["Jwt:Audience"]
+            ?? throw new InvalidOperationException("Jwt:Audience не задан в конфигурации");
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyValue));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var expiryMinutes = int.TryParse(_config["Jwt:ExpiryMinutes"], out var m) ? m : 120;
+        var configuredExpiry = int.TryParse(_config["Jwt:ExpiryMinutes"], out var minutes)
+            ? minutes
+            : 60;
+        var expiryMinutes = Math.Clamp(configuredExpiry, 5, 480);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: issuer,
+            audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
-            signingCredentials: creds
-        );
+            notBefore: now,
+            expires: now.AddMinutes(expiryMinutes),
+            signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
