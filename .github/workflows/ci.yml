@@ -19,6 +19,11 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Restore dependencies (app)
         run: dotnet restore DentalClinic.csproj
 
@@ -38,5 +43,8 @@ jobs:
       - name: Restore dependencies (tests)
         run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
 
-      - name: Run tests
+      - name: Run API/.NET tests
         run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
+      - name: Run JavaScript unit tests
+        run: npm run test:js
