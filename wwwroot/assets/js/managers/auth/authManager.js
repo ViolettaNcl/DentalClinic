@@ -16,11 +16,11 @@ class AuthManager {
             return;
         }
 
+        // Stage 2 migration: access JWT now lives only in an HttpOnly cookie.
+        sessionStorage.removeItem('authToken');
+
         this.setupEvents();
         this.updateHeader();
-
-        // Кнопка "Выход" рисуется через innerHTML (не через data-i18n), поэтому
-        // при смене языка её нужно перерисовать явно.
         onLanguageChange(() => this.updateHeader());
     }
 
@@ -44,25 +44,17 @@ class AuthManager {
         );
 
         document.addEventListener('click', e => {
-            if (Object.values(this.modals).includes(e.target)) {
-                this.closeAll();
-            }
-
-            if (e.target.closest('.btn-logout')) {
-                this.logout();
-            }
+            if (Object.values(this.modals).includes(e.target)) this.closeAll();
+            if (e.target.closest('.btn-logout')) this.logout();
         });
 
         Object.entries(this.modals).forEach(([key, modal]) => {
-            modal?.querySelector('form')?.addEventListener('submit', e =>
-                this.submitForm(e, key)
-            );
+            modal?.querySelector('form')?.addEventListener('submit', e => this.submitForm(e, key));
         });
     }
 
     async submitForm(e, type) {
         e.preventDefault();
-
         const inputs = Array.from(e.target.querySelectorAll('input'));
 
         if (!inputs.every(i => i.value.trim())) {
@@ -89,8 +81,6 @@ class AuthManager {
                     body: JSON.stringify(data)
                 });
             } else {
-                // Сначала пробуем как пациента; если не подошло — пробуем как администратора.
-                // Так не нужно угадывать роль по email на фронте.
                 try {
                     res = await apiFetch('/auth/login', {
                         method: 'POST',
@@ -105,13 +95,13 @@ class AuthManager {
             }
 
             if (res.id) {
+                // Non-secret display/session metadata only. The signed JWT is set by the
+                // server as HttpOnly and cannot be read by JavaScript.
                 sessionStorage.setItem('patientId', res.id);
                 sessionStorage.setItem('patientName', res.name);
                 sessionStorage.setItem('patientEmail', res.email);
                 sessionStorage.setItem('userRole', res.role);
-                if (res.token) {
-                    sessionStorage.setItem('authToken', res.token);
-                }
+                sessionStorage.removeItem('authToken');
 
                 e.target.reset();
                 this.closeAll();
@@ -130,11 +120,9 @@ class AuthManager {
                     title: isNewAccount ? t('auth_welcome_title', 'Добро пожаловать!') : t('auth_welcome_back_title', 'С возвращением!')
                 });
 
-                if (res.role?.toLowerCase() === 'admin') {
-                    window.location.href = '/pages/admin-dashboard.html';
-                } else {
-                    window.location.href = '/pages/patient-dashboard.html';
-                }
+                window.location.href = isAdmin
+                    ? '/pages/admin-dashboard.html'
+                    : '/pages/patient-dashboard.html';
             }
         } catch (err) {
             showError(err.message || t('auth_error_generic', 'Ошибка авторизации'));
@@ -143,17 +131,12 @@ class AuthManager {
 
     showModal(modal) {
         this.closeAll();
-
-        if (modal) {
-            modal.style.display = 'block';
-        }
+        if (modal) modal.style.display = 'block';
     }
 
     closeAll() {
         Object.values(this.modals).forEach(modal => {
-            if (modal) {
-                modal.style.display = 'none';
-            }
+            if (modal) modal.style.display = 'none';
         });
     }
 
@@ -177,10 +160,18 @@ class AuthManager {
             danger: true,
             icon: '🚪'
         });
-        if (ok) {
-            sessionStorage.clear();
-            window.location.href = '/index.html';
+        if (!ok) return;
+
+        try {
+            await apiFetch('/auth/logout', { method: 'POST' });
+        } catch {
+            // Local session metadata still has to be cleared even if the network is down;
+            // the HttpOnly cookie will expire server-side/on its configured expiry.
         }
+
+        ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken']
+            .forEach(key => sessionStorage.removeItem(key));
+        window.location.href = '/index.html';
     }
 }
 
