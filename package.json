@@ -1,0 +1,10 @@
+{
+  "name":"dental-clinic-quality",
+  "private":true,
+  "type":"module",
+  "scripts":{
+    "test:js":"node --test tests/js/*.test.js",
+    "test:e2e":"playwright test"
+  },
+  "devDependencies":{"@playwright/test":"^1.55.0"}
+}
