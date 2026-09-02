@@ -8,7 +8,7 @@ namespace DentalClinic.Tests.Unit;
 
 public class JwtTokenServiceTests
 {
-    private static JwtTokenService CreateService(int expiryMinutes = 120)
+    private static JwtTokenService CreateService(int expiryMinutes = 60)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -26,52 +26,51 @@ public class JwtTokenServiceTests
     [Fact]
     public void GenerateToken_ReturnsThreePartJwt()
     {
-        var service = CreateService();
-
-        var token = service.GenerateToken(1, "patient@example.com", "Иван", "Patient");
-
+        var token = CreateService().GenerateToken(1, "patient@example.com", "Иван", "Patient");
         Assert.False(string.IsNullOrWhiteSpace(token));
-        Assert.Equal(3, token.Split('.').Length); // header.payload.signature
+        Assert.Equal(3, token.Split('.').Length);
     }
 
     [Fact]
-    public void GenerateToken_EmbedsExpectedClaims()
+    public void GenerateToken_EmbedsMinimalExpectedClaims()
     {
-        var service = CreateService();
-
-        var token = service.GenerateToken(42, "admin@example.com", "Администратор", "Admin");
+        var token = CreateService().GenerateToken(42, "admin@example.com", "Администратор", "Admin");
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
         Assert.Equal("42", jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
-        Assert.Equal("admin@example.com", jwt.Claims.First(c => c.Type == ClaimTypes.Email).Value);
         Assert.Equal("Admin", jwt.Claims.First(c => c.Type == ClaimTypes.Role).Value);
+        Assert.DoesNotContain(jwt.Claims, c => c.Type == ClaimTypes.Email);
+        Assert.False(string.IsNullOrWhiteSpace(jwt.Claims.First(c => c.Type == JwtRegisteredClaimNames.Jti).Value));
         Assert.Equal("TestIssuer", jwt.Issuer);
+        Assert.Contains("TestAudience", jwt.Audiences);
+        Assert.True(jwt.ValidFrom > DateTime.UtcNow.AddMinutes(-1));
     }
 
     [Fact]
     public void GenerateToken_SetsExpiryAccordingToConfig()
     {
-        var service = CreateService(expiryMinutes: 5);
-
         var before = DateTime.UtcNow;
-        var token = service.GenerateToken(1, "a@b.com", "Имя", "Patient");
+        var token = CreateService(expiryMinutes: 5).GenerateToken(1, "a@b.com", "Имя", "Patient");
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
-        // ValidFrom не задаётся явно (нет claim "nbf"), поэтому сравниваем ValidTo
-        // с ожидаемым временем по часам, а не ValidTo - ValidFrom (тот всегда
-        // огромный, т.к. ValidFrom по умолчанию равен DateTime.MinValue).
         var expectedExpiry = before.AddMinutes(5);
         var diff = (jwt.ValidTo - expectedExpiry).Duration();
-        Assert.True(diff < TimeSpan.FromSeconds(10),
-            $"Ожидали истечение около {expectedExpiry:o}, получили {jwt.ValidTo:o}");
+        Assert.True(diff < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public void GenerateToken_ClampsExcessivelyLongExpiry()
+    {
+        var token = CreateService(expiryMinutes: 10000).GenerateToken(1, "a@b.com", "Имя", "Patient");
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+        Assert.True(jwt.ValidTo <= DateTime.UtcNow.AddMinutes(481));
     }
 
     [Fact]
     public void GenerateToken_MissingJwtKey_ThrowsInvalidOperationException()
     {
-        var emptyConfig = new ConfigurationBuilder().Build(); // без Jwt:Key
+        var emptyConfig = new ConfigurationBuilder().Build();
         var service = new JwtTokenService(emptyConfig);
-
         Assert.Throws<InvalidOperationException>(() =>
             service.GenerateToken(1, "a@b.com", "Имя", "Patient"));
     }
