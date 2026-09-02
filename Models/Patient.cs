@@ -1,10 +1,15 @@
-﻿namespace DentalClinic.Models
+using System.ComponentModel.DataAnnotations;
+
+namespace DentalClinic.Models
 {
     public class Patient
     {
         public int Id { get; set; }
         public required string FirstName { get; set; }
+
+        [EmailAddress]
         public required string Email { get; set; }
+
         public string? Phone { get; set; }
         public required string PasswordHash { get; set; }  // Вместо Password
         public string? AvatarUrl { get; set; }
