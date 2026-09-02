@@ -1,9 +1,5 @@
 name: CI
 
-# Простой CI: проверяет, что проект собирается на каждый push и Pull Request.
-# Не деплоит и не трогает базу данных — только компиляция, чтобы сразу видеть
-# сломанную сборку прямо в интерфейсе GitHub (зелёная/красная галочка у коммита).
-
 on:
   push:
     branches: [ "main" ]
@@ -23,11 +19,22 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      - name: Restore local tools
+        run: dotnet tool restore
+
       - name: Restore dependencies (app)
         run: dotnet restore DentalClinic.csproj
 
       - name: Build (app)
         run: dotnet build DentalClinic.csproj --no-restore --configuration Release
+
+      - name: Verify EF Core migrations are discoverable
+        env:
+          ConnectionStrings__DefaultConnection: "Server=localhost;Database=DentalClinicCi;User Id=sa;Password=NotUsed_OnlyForDesignTime_123!;TrustServerCertificate=True"
+          Jwt__Key: "ci-only-jwt-signing-key-at-least-32-bytes-long"
+          Jwt__Issuer: "DentalClinicCI"
+          Jwt__Audience: "DentalClinicCI"
+        run: dotnet ef migrations list --project DentalClinic.csproj --no-build --configuration Release
 
       - name: Restore dependencies (tests)
         run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
