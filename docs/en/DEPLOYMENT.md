@@ -10,7 +10,7 @@ at its proxy and passes the assigned container port through `$PORT`.
 
 Target production domain:
 
-`https://dental-clinic-violettancls-projects.vercel.app`
+`https://dental-clinic-vn.vercel.app`
 
 ## 1. Required production variables
 

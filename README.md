@@ -34,7 +34,7 @@
 
 Целевой production-домен проекта:
 
-### 👉 [dental-clinic-violettancls-projects.vercel.app](https://dental-clinic-violettancls-projects.vercel.app/)
+### 👉 [dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/)
 
 > Сервер разворачивается как ASP.NET Core container service в Vercel. Для первого
 > production-запуска нужно задать БД и секреты из
