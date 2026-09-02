@@ -12,6 +12,14 @@ test('production health and canonical HTTPS are healthy', async ({ page, request
     .toHaveAttribute('href', 'https://dental-clinic-vn.vercel.app/');
 });
 
+test('home loads without browser page errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('public UI has accessible names for visible controls', async ({ page }) => {
   await page.goto('/');
   await page.waitForLoadState('domcontentloaded');
