@@ -228,6 +228,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+
+// Stage 3 structured chat runs after authentication so the HttpOnly JWT session
+// is available as HttpContext.User and client-supplied patient IDs are never trusted.
+app.UseMiddleware<DentalClinic.Middleware.StructuredChatMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();
