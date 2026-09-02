@@ -30,14 +30,15 @@
 
 ---
 
-## 🌐 Живое демо
+## 🌐 Vercel deployment
 
-Сайт опубликован и доступен по адресу:
+Целевой production-домен проекта:
 
-### 👉 [www.dental-clinic.somee.com](http://www.dental-clinic.somee.com/)
+### 👉 [dental-clinic-violettancls-projects.vercel.app](https://dental-clinic-violettancls-projects.vercel.app/)
 
-> ⏳ Хостинг бесплатный (somee.com), поэтому при первом заходе после простоя сайт может
-> "просыпаться" до ~30 секунд — это нормально, не баг.
+> Сервер разворачивается как ASP.NET Core container service в Vercel. Для первого
+> production-запуска нужно задать БД и секреты из
+> [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md); без них приложение намеренно не стартует.
 
 **Тестовые доступы для проверки функциональности:**
 

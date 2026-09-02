@@ -1,139 +1,134 @@
 [⬅ Back to README](../../README.en.md)
 
-# 🚀 Deployment
+# 🚀 Deploying to Vercel
 
 *[🇷🇺 Русская версия](../DEPLOYMENT.md)*
 
-## 1. Publishing a build
+The project runs on Vercel as an ASP.NET Core 9 container service. Its deployment
+configuration lives in `Dockerfile.vercel` and `vercel.json`. Vercel terminates TLS
+at its proxy and passes the assigned container port through `$PORT`.
 
-```bash
-dotnet publish -c Release -o ./publish
-```
+Target production domain:
 
-The `./publish` folder contains everything needed to run the app: the compiled
-application, `wwwroot/` static assets, and `appsettings.json` (don't forget — on the
-server it must contain **real production values**, set not through the file but through
-environment variables — see below).
+`https://dental-clinic-violettancls-projects.vercel.app`
 
-## 2. Configuration via environment variables (recommended for production)
+## 1. Required production variables
 
-ASP.NET Core lets you override any value from `appsettings.json` with an environment
-variable, using `__` instead of `:`, e.g.:
+Add these under Vercel → Project → Settings → Environment Variables for both
+Production and Preview. Never put secrets in `vercel.json` or commit them to Git.
 
-```bash
-export ConnectionStrings__DefaultConnection="Server=...;Database=...;User Id=...;Password=..."
-export Jwt__Key="a-long-random-string-at-least-32-chars"
-export Gemini__ApiKey="..."
-```
-
-This is the safest way to store secrets on a server — they don't sit in a file next to
-the code.
-
-## 3. Hosting options
-
-The project is a standard ASP.NET Core application, so any of these work:
-
-| Option | Notes |
-|---|---|
-| IIS / Windows Server | The classic .NET option, needs the ASP.NET Core Hosting Bundle module |
-| Docker container | Use `dotnet publish` + the official `mcr.microsoft.com/dotnet/aspnet:9.0` image |
-| Linux + Nginx (reverse proxy) | `dotnet DentalClinic.dll` as a systemd service behind Nginx |
-| Managed hosting (Azure App Service, Railway, Render, etc.) | Usually just set environment variables in the hosting panel |
-
-The project already includes a ready-made FTP publish profile
-(`Properties/PublishProfiles/FTPProfile.pubxml`) — used for hosting on `somee.com`.
-**The `FTPProfile.pubxml.user` file may contain saved FTP credentials — check this before
-publishing the repository** (see `docs/en/SECURITY.md`).
-
-## 4. HTTPS/HSTS configuration
-
-In `Program.cs`, `UseHsts()` and `UseHttpsRedirection()` are only enabled outside
-Development mode — on a real server with a valid TLS certificate (e.g. via Let's
-Encrypt / Nginx / your hosting provider) this works out of the box.
-
-## 5. Production database
-
-1. Create the database on your SQL Server (or use a managed service).
-2. Set the connection string via an environment variable (see section 2).
-3. Apply migrations:
-   ```bash
-   dotnet ef database update --connection "your_production_connection_string"
-   ```
-   or run this once locally with a temporarily set production connection string.
-
-## 6. Automated deployment (CI/CD)
-
-Besides `ci.yml` (build + tests on every push/PR), the project has
-`.github/workflows/cd.yml`. It runs automatically after a successful CI run on
-`main` and does three things:
-
-| Job | What it does | Secrets needed (Settings → Secrets and variables → Actions) |
+| Variable | Purpose | Required |
 |---|---|---|
-| `test` | Re-runs `dotnet test` as a safety gate before any deploy — this also protects manual runs (`workflow_dispatch`), which otherwise would skip the CI check entirely | — |
-| `deploy-ftp` | `dotnet publish` + upload over FTPS to the current host (somee.com) | `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_SERVER_DIR` (e.g. `/www.Dental-Clinic.somee.com`) |
-| `docker-image` | Builds a Docker image and publishes it to `ghcr.io/<repo owner>/dentalclinic` | none — uses the built-in `GITHUB_TOKEN` |
+| `ConnectionStrings__DefaultConnection` | External SQL Server connection string | yes |
+| `Jwt__Key` | Random JWT signing key of at least 32 characters | yes |
+| `Jwt__Issuer` | For example, `DentalClinic` | yes |
+| `Jwt__Audience` | For example, `DentalClinicClient` | yes |
+| `CRON_SECRET` | Random secret protecting Vercel Cron endpoints | yes |
+| `Gemini__ApiKey` | Chatbot API key | for AI chat |
+| `ElevenLabs__ApiKey` | Text-to-speech API key | optional |
+| `ElevenLabs__VoiceId` | Voice identifier | optional |
+| `Scheduling__TimeZoneId` | Clinic timezone; defaults to `Europe/Moscow` | recommended |
+| `BackgroundJobs__CleanupEnabled` | Set `true` only when stale-request cancellation is wanted | optional |
 
-`deploy-ftp` and `docker-image` both depend on `test` (`needs: test`) — if tests
-fail, nothing gets deployed or published, regardless of what triggered the run.
-If the FTP secrets aren't set, `deploy-ftp` simply fails at the upload step —
-that's harmless to the repository and the current hosting.
+The frontend and API are same-origin on the default deployment. If another origin
+calls the API, add `AllowedOrigins__0=https://your-domain`.
 
-Run both jobs manually (without waiting for a push) via
-Actions → CD → Run workflow (`workflow_dispatch`).
+## 2. Database and leaving the previous host
 
-## 7. Running via Docker / docker-compose
+Vercel runs the application but does not provide SQL Server inside the container.
+Use an external managed SQL Server such as Azure SQL. To leave the old host while
+preserving data:
 
-The project ships with a `Dockerfile` (multi-stage build) and a
-`docker-compose.yml` that brings up the app together with SQL Server — no need
-to install SQL Server locally.
+1. Back up the current database.
+2. Restore it into the new managed SQL Server.
+3. After taking a backup, run `scripts/sql/20260901_stage1_appointments.sql`.
+4. Set the new connection string in `ConnectionStrings__DefaultConnection`.
+5. Check `GET /health`; it should return HTTP 200 and `"status":"Healthy"`.
+
+The repository does not yet contain a complete EF Core migration history capable of
+creating the entire schema from scratch. `DbSeeder` populates doctors and services but
+expects the tables to exist. Do not point production at an empty database before
+creating or migrating the schema.
+
+## 3. Deploying from GitHub
+
+Recommended permanent workflow:
+
+1. In Vercel, select **New Project → Import Git Repository**.
+2. Connect `ViolettaNcl/DentalClinic`; use `main` as Production Branch and `.` as Root Directory.
+3. Add the variables from section 1.
+4. Create a Preview deployment and verify `/health`, the home page, authentication,
+   appointment creation, and the chatbot microphone.
+5. Promote or create a Production deployment after verification.
+
+`vercel.json` rewrites all traffic to the `app` container service. Vercel provides
+HTTPS automatically. `Program.cs` honors `X-Forwarded-Proto`, avoiding redirect loops
+behind the Vercel proxy.
+
+## 4. Cron jobs
+
+`vercel.json` defines two daily jobs compatible with the Hobby plan:
+
+| Time (UTC) | Endpoint | Purpose |
+|---|---|---|
+| `06:00` | `/api/maintenance/reminders` | Remind patients about the following day's visits |
+| `06:15` | `/api/maintenance/cleanup` | Cancel stale pending requests only when explicitly enabled |
+
+Vercel sends `Authorization: Bearer <CRON_SECRET>`. Both endpoints return 401 when
+the secret is missing or wrong. Regular `BackgroundService` workers are disabled on
+Vercel because containers may suspend between requests.
+
+## 5. GitHub Actions and FTPS backup
+
+- `.github/workflows/ci.yml` builds the app and runs tests on pushes and PRs.
+- `.github/workflows/codeql.yml` analyzes C# and JavaScript.
+- `.github/workflows/cd.yml` repeats the test gate, publishes the Docker image to GHCR,
+  and keeps a backup FTPS deployment path to Somee.
+- Vercel is the primary production host. FTPS is only a fallback while the Vercel
+  migration is being fully verified.
+
+The FTPS job reads only GitHub repository/environment secrets; their values are never
+stored in the repository:
+
+- `FTP_SERVER`
+- `FTP_USERNAME`
+- `FTP_PASSWORD`
+- `FTP_SERVER_DIR`
+
+If any of the four secrets is missing, the workflow reports the FTPS deployment as
+skipped while CI, Vercel, and the GHCR image publication continue normally.
+
+After Git Integration is connected, Vercel creates Preview deployments for branches
+and Production deployments from `main`.
+
+## 6. Local Docker
 
 ```bash
 cp .env.example .env
-# open .env and fill in your values (DB password, JWT key, Gemini API key)
-
+# fill in the DB password, JWT key, and API keys
 docker compose up --build
 ```
 
-The app will be available at `http://localhost:8080`, SQL Server at
-`localhost:1433`.
+The app is available at `http://localhost:8080`; SQL Server at `localhost:1433`.
+Named Docker volumes retain the database and uploads across restarts.
 
-**Important:** there are no EF Core migrations in this project — tables in the
-database are created manually (the same way you already do it for somee.com).
-On first run against an empty database, `DbSeeder` only fills
-`Services`/`Doctors` if the tables already exist — create the schema before
-starting `app` for the first time.
+## 7. File upload limitation
 
-SQL Server data and uploaded avatars are stored in named Docker volumes
-(`dentalclinic-db-data`, `dentalclinic-uploads`) — they survive
-`docker compose down` (but not `docker compose down -v`).
+Avatars are currently written to `wwwroot/uploads/avatars`. A Vercel container's
+filesystem is not persistent storage, so uploaded avatars may disappear after a new
+deployment or instance replacement. Move this feature to Vercel Blob or another object
+store before relying on it in production.
 
-## 8. Monitoring: `/health`
+## 8. Post-deployment checklist
 
-The app exposes `GET /health` — no authentication, no rate limiting, meant
-specifically for external monitoring (UptimeRobot, a Docker/orchestrator
-healthcheck, curl from cron). It checks that the process is alive and that the
-database connection works:
-
-```json
-{
-  "status": "Healthy",
-  "totalDurationMs": 12.4,
-  "checks": [
-    { "name": "db", "status": "Healthy", "durationMs": 12.1, "error": null }
-  ]
-}
-```
-
-`status: "Unhealthy"` and HTTP 503 mean the database is unreachable. Point your
-external monitoring at this endpoint so you find out about downtime before
-your patients do.
-
-## 9. Pre-deployment checklist
-
-- [ ] `appsettings.json` in the repository doesn't contain real secrets (see `docs/en/SECURITY.md`)
-- [ ] `Jwt:Key` in production is a fresh random key, different from the one used in development
-- [ ] `AllowedOrigins` points to the real frontend domain, not `localhost`
-- [ ] `BackgroundJobs:CleanupEnabled` is deliberately enabled/disabled for your process
-- [ ] Database backups are configured on the hosting provider's side
-- [ ] If you use `cd.yml` — the `FTP_SERVER`/`FTP_USERNAME`/`FTP_PASSWORD`/`FTP_SERVER_DIR` secrets are set in Settings → Secrets and variables → Actions
-- [ ] If you use Docker — tables in the container's database are created manually BEFORE the first `app` start (there are no migrations)
+- [ ] The Production deployment is READY.
+- [ ] `/health` returns HTTP 200 and reports a Healthy database.
+- [ ] The home page and static assets load over HTTPS.
+- [ ] Patient/admin sign-in and registration work.
+- [ ] Appointment creation rejects past dates and doctor conflicts.
+- [ ] The microphone requests browser permission and inserts recognized text into chat.
+- [ ] Cron endpoints return 401 without the correct `CRON_SECRET`.
+- [ ] `BackgroundJobs__CleanupEnabled` is enabled only deliberately.
+- [ ] Backups are configured for the new database.
+- [ ] If FTPS backup is required, all four FTP secrets are configured in GitHub.
+- [ ] Avatars use external object storage or the upload feature is temporarily disabled.

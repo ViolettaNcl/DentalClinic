@@ -7,8 +7,7 @@
 ## 1. Requirements
 
 - [.NET SDK 9](https://dotnet.microsoft.com/download) (`dotnet --version` → 9.x)
-- SQL Server (local, in Docker, or cloud-hosted — e.g. [somee.com](https://somee.com),
-  Azure SQL, or local SQL Server Express / LocalDB)
+- SQL Server (local, in Docker, in Azure SQL, or another managed SQL Server)
 - A Google Gemini API key (for the chatbot) — get one at
   [ai.google.dev](https://ai.google.dev)
 - (Optional) an ElevenLabs API key — for voicing the bot's replies

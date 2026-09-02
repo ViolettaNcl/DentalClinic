@@ -29,14 +29,16 @@ a patient dashboard, an admin panel, an AI assistant with voice replies, and a 5
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Vercel deployment
 
-The site is published and available at:
+Target production domain:
 
-### 👉 [www.dental-clinic.somee.com](http://www.dental-clinic.somee.com/)
+### 👉 [dental-clinic-violettancls-projects.vercel.app](https://dental-clinic-violettancls-projects.vercel.app/)
 
-> ⏳ Hosting is on a free tier (somee.com), so on the first visit after a period of
-> inactivity the site may take up to ~30 seconds to "wake up" — that's expected, not a bug.
+> The server is deployed as an ASP.NET Core container service on Vercel. Before the
+> first production start, configure the database and secrets documented in
+> [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md); the app intentionally refuses to
+> start without them.
 
 **Test credentials to try out the functionality:**
 

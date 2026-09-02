@@ -24,6 +24,59 @@ jobs:
       - run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
       - run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
 
+  deploy-ftp:
+    name: Deploy backup (FTPS → Somee)
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+    steps:
+      - name: Check FTP secrets
+        id: ftp
+        shell: bash
+        run: |
+          if [[ -n "$FTP_SERVER" && -n "$FTP_USERNAME" && -n "$FTP_PASSWORD" && -n "$FTP_SERVER_DIR" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "FTPS backup deployment is configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FTPS backup deployment skipped. Configure FTP_SERVER, FTP_USERNAME, FTP_PASSWORD and FTP_SERVER_DIR in the production environment/repository secrets."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.ftp.outputs.configured == 'true'
+        with:
+          ref: main
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.ftp.outputs.configured == 'true'
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish ASP.NET Core app
+        if: steps.ftp.outputs.configured == 'true'
+        run: |
+          dotnet restore DentalClinic.csproj
+          dotnet publish DentalClinic.csproj -c Release -o ./publish --no-restore
+
+      - name: Upload published app over FTPS
+        if: steps.ftp.outputs.configured == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./publish/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/appsettings.Development.json
+            **/*.pdb
+
   docker-image:
     name: Build & push Docker image (GHCR)
     needs: test
