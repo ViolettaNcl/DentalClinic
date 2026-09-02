@@ -23,8 +23,6 @@ namespace DentalClinic.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Email is normalized to lower-case by AuthController. Keep the DB as the final
-            // authority too, so two concurrent registrations cannot create duplicates.
             modelBuilder.Entity<Patient>()
                 .Property(p => p.Email)
                 .HasMaxLength(320);
@@ -39,8 +37,6 @@ namespace DentalClinic.Data
                 .HasIndex(a => a.Email)
                 .IsUnique();
 
-            // Optional links from appointments stay valid when a patient account or doctor
-            // is removed: the historical appointment remains, but the reference becomes null.
             modelBuilder.Entity<AppointmentRequest>()
                 .HasOne<Patient>()
                 .WithMany()
@@ -53,7 +49,9 @@ namespace DentalClinic.Data
                 .HasForeignKey(a => a.DoctorId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Review/notification belong to the patient's account and are removed with it.
+            modelBuilder.Entity<Review>()
+                .Property(r => r.Status)
+                .HasMaxLength(40);
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.Status);
             modelBuilder.Entity<Review>()
@@ -70,8 +68,6 @@ namespace DentalClinic.Data
                 .HasForeignKey(n => n.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Chat logs may outlive account deletion for the configured retention period,
-            // but must not keep a dangling PatientId.
             modelBuilder.Entity<ChatMessageLog>()
                 .HasOne<Patient>()
                 .WithMany()
@@ -81,7 +77,6 @@ namespace DentalClinic.Data
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
 
-            // Supports range locking used by the Serializable scheduling transaction.
             modelBuilder.Entity<AppointmentRequest>()
                 .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
 
