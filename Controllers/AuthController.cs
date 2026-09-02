@@ -1,4 +1,4 @@
-﻿using DentalClinic.Models;
+using DentalClinic.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,6 +13,8 @@ namespace DentalClinic.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
+        private const string AuthCookieName = "dc_auth";
+
         private readonly ApplicationDbContext _db;
         private readonly JwtTokenService _tokens;
         private readonly ILogger<AuthController> _logger;
@@ -26,9 +28,6 @@ namespace DentalClinic.Controllers
             _notifications = notifications;
         }
 
-        // =========================
-        // РЕГИСТРАЦИЯ ПАЦИЕНТА
-        // =========================
         [HttpPost("register")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
@@ -36,26 +35,18 @@ namespace DentalClinic.Controllers
             if (string.IsNullOrWhiteSpace(req.FirstName) ||
                 string.IsNullOrWhiteSpace(req.Email) ||
                 string.IsNullOrWhiteSpace(req.Password))
-            {
                 return BadRequest(new { message = "❌ Все поля обязательны" });
-            }
 
             if (!System.Text.RegularExpressions.Regex.IsMatch(req.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-            {
                 return BadRequest(new { message = "❌ Некорректный формат email" });
-            }
 
             if (req.Password.Length < 6)
-            {
                 return BadRequest(new { message = "❌ Пароль должен быть не короче 6 символов" });
-            }
 
-            var email = req.Email.Trim().ToLower();
+            var email = NormalizeEmail(req.Email);
 
-            if (await _db.Patients.AnyAsync(p => p.Email.ToLower() == email))
-            {
+            if (await _db.Patients.AnyAsync(p => p.Email == email))
                 return BadRequest(new { message = "❌ Email уже зарегистрирован" });
-            }
 
             var patient = new Patient
             {
@@ -65,21 +56,26 @@ namespace DentalClinic.Controllers
             };
 
             _db.Patients.Add(patient);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // The unique DB index is the final guard against two simultaneous
+                // registrations passing the AnyAsync check at the same time.
+                return Conflict(new { message = "❌ Email уже зарегистрирован" });
+            }
 
-            _logger.LogInformation("Зарегистрирован новый пациент {Email} (id={Id})", patient.Email, patient.Id);
+            _logger.LogInformation("Зарегистрирован новый пациент id={Id}", patient.Id);
 
-            // Приветственное уведомление — сразу ложится в БД и толкается через
-            // SignalR. Если пользователь ещё не успел подключиться к хабу (токен
-            // только что выдан в этом же ответе), пуш просто некому доставить —
-            // уведомление всё равно будет в списке при следующей загрузке страницы.
             await _notifications.NotifyAsync(
                 patient.Id,
                 "welcome",
                 $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷",
                 null);
 
-            var token = _tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient");
+            IssueSessionCookie(_tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient"));
 
             return Ok(new
             {
@@ -89,39 +85,30 @@ namespace DentalClinic.Controllers
                 email = patient.Email,
                 avatarUrl = patient.AvatarUrl,
                 role = "patient",
-                token
+                expiresAt = _tokens.GetExpiryUtc()
             });
         }
 
-        // =========================
-        // ВХОД ПАЦИЕНТА
-        // =========================
         [HttpPost("login")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            // req.Email/Password помечены как `required`, но это проверяется только
-            // компилятором при создании объекта — явный null в JSON-теле запроса
-            // всё равно проходит биндинг и раньше падал с 500 на .Trim(), вместо
-            // аккуратного 400 клиенту.
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
-            var email = req.Email.Trim().ToLower();
+            var email = NormalizeEmail(req.Email);
+            var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Email == email);
 
-            var patient = await _db.Patients
-                .FirstOrDefaultAsync(p => p.Email.ToLower() == email);
-
-            if (patient == null ||
-                !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
+            if (patient == null || !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
             {
-                _logger.LogWarning("Неудачная попытка входа пациента: {Email}", email);
+                // Never log the submitted email/phone/password. Authentication logs keep
+                // only coarse event information so production logs do not become a PII store.
+                _logger.LogWarning("Неудачная попытка входа пациента");
                 return Unauthorized(new { message = "❌ Email или пароль неверный" });
             }
 
-            _logger.LogInformation("Вход пациента {Email} (id={Id})", patient.Email, patient.Id);
-
-            var token = _tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient");
+            _logger.LogInformation("Вход пациента id={Id}", patient.Id);
+            IssueSessionCookie(_tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient"));
 
             return Ok(new
             {
@@ -131,13 +118,10 @@ namespace DentalClinic.Controllers
                 email = patient.Email,
                 avatarUrl = patient.AvatarUrl,
                 role = "patient",
-                token
+                expiresAt = _tokens.GetExpiryUtc()
             });
         }
 
-        // =========================
-        // ВХОД АДМИНИСТРАТОРА
-        // =========================
         [HttpPost("admin/login")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> AdminLogin([FromBody] LoginRequest req)
@@ -145,21 +129,17 @@ namespace DentalClinic.Controllers
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
-            var email = req.Email.Trim().ToLower();
+            var email = NormalizeEmail(req.Email);
+            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Email == email);
 
-            var admin = await _db.Admins
-                .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
-
-            if (admin == null ||
-                !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
+            if (admin == null || !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
             {
-                _logger.LogWarning("Неудачная попытка входа администратора: {Email}", email);
+                _logger.LogWarning("Неудачная попытка входа администратора");
                 return Unauthorized(new { message = "❌ Email или пароль неверный" });
             }
 
-            _logger.LogInformation("Вход администратора {Email} (id={Id})", admin.Email, admin.Id);
-
-            var token = _tokens.GenerateToken(admin.Id, admin.Email, "Администратор", "Admin");
+            _logger.LogInformation("Вход администратора id={Id}", admin.Id);
+            IssueSessionCookie(_tokens.GenerateToken(admin.Id, admin.Email, "Администратор", "Admin"));
 
             return Ok(new
             {
@@ -169,13 +149,23 @@ namespace DentalClinic.Controllers
                 email = admin.Email,
                 avatarUrl = admin.AvatarUrl,
                 role = "admin",
-                token
+                expiresAt = _tokens.GetExpiryUtc()
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: получить данные
-        // =========================
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            Response.Cookies.Delete(AuthCookieName, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/"
+            });
+            return Ok(new { message = "Выход выполнен" });
+        }
+
         [HttpGet("profile")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> GetProfile()
@@ -194,9 +184,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ АДМИНИСТРАТОРА: получить данные
-        // =========================
         [HttpGet("admin/profile")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAdminProfile()
@@ -213,9 +200,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: изменить имя и/или телефон
-        // =========================
         [HttpPut("profile")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
@@ -226,12 +210,10 @@ namespace DentalClinic.Controllers
             if (!string.IsNullOrWhiteSpace(req.FirstName))
                 patient.FirstName = req.FirstName.Trim();
 
-            // Телефон можно и очистить, поэтому проверяем на null, а не на пустоту
             if (req.Phone != null)
                 patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
 
             await _db.SaveChangesAsync();
-
             _logger.LogInformation("Пациент {Id} обновил профиль", patient.Id);
 
             return Ok(new
@@ -242,9 +224,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: смена пароля
-        // =========================
         [HttpPut("change-password")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
@@ -253,21 +232,41 @@ namespace DentalClinic.Controllers
             if (patient == null) return NotFound();
 
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
-            {
                 return BadRequest(new { message = "❌ Текущий пароль указан неверно" });
-            }
 
             if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
-            {
                 return BadRequest(new { message = "❌ Новый пароль должен быть не короче 6 символов" });
-            }
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             await _db.SaveChangesAsync();
-
             _logger.LogInformation("Пациент {Id} сменил пароль", patient.Id);
 
-            return Ok(new { message = "✅ Пароль успешно изменён" });
+            // Invalidate the browser's old JWT immediately. The user signs in again and
+            // receives a fresh token after a password change.
+            Response.Cookies.Delete(AuthCookieName, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/"
+            });
+
+            return Ok(new { message = "✅ Пароль успешно изменён. Войдите снова." });
+        }
+
+        private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+        private void IssueSessionCookie(string token)
+        {
+            Response.Cookies.Append(AuthCookieName, token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+                IsEssential = true,
+                Expires = new DateTimeOffset(_tokens.GetExpiryUtc())
+            });
         }
 
         private int GetCurrentUserId()
