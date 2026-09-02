@@ -1,10 +1,13 @@
 {
-  "name":"dental-clinic-quality",
-  "private":true,
-  "type":"module",
-  "scripts":{
-    "test:js":"node --test tests/js/*.test.js",
-    "test:e2e":"playwright test"
+  "name": "dental-clinic-quality",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:js": "node --test tests/js/*.test.js",
+    "test:e2e": "playwright test"
   },
-  "devDependencies":{"@playwright/test":"^1.55.0"}
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.55.0"
+  }
 }
