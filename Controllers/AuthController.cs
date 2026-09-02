@@ -1,4 +1,4 @@
-﻿using DentalClinic.Models;
+using DentalClinic.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -26,9 +26,6 @@ namespace DentalClinic.Controllers
             _notifications = notifications;
         }
 
-        // =========================
-        // РЕГИСТРАЦИЯ ПАЦИЕНТА
-        // =========================
         [HttpPost("register")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
@@ -36,26 +33,17 @@ namespace DentalClinic.Controllers
             if (string.IsNullOrWhiteSpace(req.FirstName) ||
                 string.IsNullOrWhiteSpace(req.Email) ||
                 string.IsNullOrWhiteSpace(req.Password))
-            {
                 return BadRequest(new { message = "❌ Все поля обязательны" });
-            }
 
             if (!System.Text.RegularExpressions.Regex.IsMatch(req.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
-            {
                 return BadRequest(new { message = "❌ Некорректный формат email" });
-            }
 
             if (req.Password.Length < 6)
-            {
                 return BadRequest(new { message = "❌ Пароль должен быть не короче 6 символов" });
-            }
 
-            var email = req.Email.Trim().ToLower();
-
+            var email = req.Email.Trim().ToLowerInvariant();
             if (await _db.Patients.AnyAsync(p => p.Email.ToLower() == email))
-            {
                 return BadRequest(new { message = "❌ Email уже зарегистрирован" });
-            }
 
             var patient = new Patient
             {
@@ -65,14 +53,21 @@ namespace DentalClinic.Controllers
             };
 
             _db.Patients.Add(patient);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                // The unique DB index is the final concurrency guard. Never include
+                // the submitted email or provider exception text in public logs.
+                _logger.LogWarning("Регистрация отклонена из-за конфликта уникальности");
+                _logger.LogDebug(ex, "DB uniqueness conflict during registration");
+                return Conflict(new { message = "❌ Email уже зарегистрирован" });
+            }
 
-            _logger.LogInformation("Зарегистрирован новый пациент {Email} (id={Id})", patient.Email, patient.Id);
+            _logger.LogInformation("Зарегистрирован новый пациент id={Id}", patient.Id);
 
-            // Приветственное уведомление — сразу ложится в БД и толкается через
-            // SignalR. Если пользователь ещё не успел подключиться к хабу (токен
-            // только что выдан в этом же ответе), пуш просто некому доставить —
-            // уведомление всё равно будет в списке при следующей загрузке страницы.
             await _notifications.NotifyAsync(
                 patient.Id,
                 "welcome",
@@ -80,7 +75,6 @@ namespace DentalClinic.Controllers
                 null);
 
             var token = _tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient");
-
             return Ok(new
             {
                 message = "✅ Регистрация успешна!",
@@ -93,36 +87,24 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ВХОД ПАЦИЕНТА
-        // =========================
         [HttpPost("login")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            // req.Email/Password помечены как `required`, но это проверяется только
-            // компилятором при создании объекта — явный null в JSON-теле запроса
-            // всё равно проходит биндинг и раньше падал с 500 на .Trim(), вместо
-            // аккуратного 400 клиенту.
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
-            var email = req.Email.Trim().ToLower();
+            var email = req.Email.Trim().ToLowerInvariant();
+            var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Email.ToLower() == email);
 
-            var patient = await _db.Patients
-                .FirstOrDefaultAsync(p => p.Email.ToLower() == email);
-
-            if (patient == null ||
-                !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
+            if (patient == null || !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
             {
-                _logger.LogWarning("Неудачная попытка входа пациента: {Email}", email);
+                _logger.LogWarning("Неудачная попытка входа пациента");
                 return Unauthorized(new { message = "❌ Email или пароль неверный" });
             }
 
-            _logger.LogInformation("Вход пациента {Email} (id={Id})", patient.Email, patient.Id);
-
+            _logger.LogInformation("Вход пациента id={Id}", patient.Id);
             var token = _tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient");
-
             return Ok(new
             {
                 message = "✅ Вход успешен!",
@@ -135,9 +117,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ВХОД АДМИНИСТРАТОРА
-        // =========================
         [HttpPost("admin/login")]
         [EnableRateLimiting("auth")]
         public async Task<IActionResult> AdminLogin([FromBody] LoginRequest req)
@@ -145,22 +124,17 @@ namespace DentalClinic.Controllers
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
-            var email = req.Email.Trim().ToLower();
+            var email = req.Email.Trim().ToLowerInvariant();
+            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Email.ToLower() == email);
 
-            var admin = await _db.Admins
-                .FirstOrDefaultAsync(a => a.Email.ToLower() == email);
-
-            if (admin == null ||
-                !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
+            if (admin == null || !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
             {
-                _logger.LogWarning("Неудачная попытка входа администратора: {Email}", email);
+                _logger.LogWarning("Неудачная попытка входа администратора");
                 return Unauthorized(new { message = "❌ Email или пароль неверный" });
             }
 
-            _logger.LogInformation("Вход администратора {Email} (id={Id})", admin.Email, admin.Id);
-
+            _logger.LogInformation("Вход администратора id={Id}", admin.Id);
             var token = _tokens.GenerateToken(admin.Id, admin.Email, "Администратор", "Admin");
-
             return Ok(new
             {
                 message = "✅ Вход администратора выполнен",
@@ -173,16 +147,12 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: получить данные
-        // =========================
         [HttpGet("profile")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> GetProfile()
         {
             var patient = await _db.Patients.FindAsync(GetCurrentUserId());
             if (patient == null) return NotFound();
-
             return Ok(new
             {
                 id = patient.Id,
@@ -194,16 +164,12 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ АДМИНИСТРАТОРА: получить данные
-        // =========================
         [HttpGet("admin/profile")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAdminProfile()
         {
             var admin = await _db.Admins.FindAsync(GetCurrentUserId());
             if (admin == null) return NotFound();
-
             return Ok(new
             {
                 id = admin.Id,
@@ -213,9 +179,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: изменить имя и/или телефон
-        // =========================
         [HttpPut("profile")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
@@ -223,17 +186,11 @@ namespace DentalClinic.Controllers
             var patient = await _db.Patients.FindAsync(GetCurrentUserId());
             if (patient == null) return NotFound();
 
-            if (!string.IsNullOrWhiteSpace(req.FirstName))
-                patient.FirstName = req.FirstName.Trim();
-
-            // Телефон можно и очистить, поэтому проверяем на null, а не на пустоту
-            if (req.Phone != null)
-                patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
+            if (!string.IsNullOrWhiteSpace(req.FirstName)) patient.FirstName = req.FirstName.Trim();
+            if (req.Phone != null) patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
 
             await _db.SaveChangesAsync();
-
-            _logger.LogInformation("Пациент {Id} обновил профиль", patient.Id);
-
+            _logger.LogInformation("Пациент id={Id} обновил профиль", patient.Id);
             return Ok(new
             {
                 message = "✅ Профиль обновлён",
@@ -242,9 +199,6 @@ namespace DentalClinic.Controllers
             });
         }
 
-        // =========================
-        // ПРОФИЛЬ ПАЦИЕНТА: смена пароля
-        // =========================
         [HttpPut("change-password")]
         [Authorize(Roles = "Patient")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
@@ -253,20 +207,14 @@ namespace DentalClinic.Controllers
             if (patient == null) return NotFound();
 
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
-            {
                 return BadRequest(new { message = "❌ Текущий пароль указан неверно" });
-            }
 
             if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
-            {
                 return BadRequest(new { message = "❌ Новый пароль должен быть не короче 6 символов" });
-            }
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             await _db.SaveChangesAsync();
-
-            _logger.LogInformation("Пациент {Id} сменил пароль", patient.Id);
-
+            _logger.LogInformation("Пациент id={Id} сменил пароль", patient.Id);
             return Ok(new { message = "✅ Пароль успешно изменён" });
         }
 
