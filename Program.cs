@@ -188,7 +188,9 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // ================= Controllers =================
-builder.Services.AddHttpClient();
+builder.Services.AddTransient<GeminiApiKeyHandler>();
+builder.Services.AddHttpClient(string.Empty)
+    .AddHttpMessageHandler<GeminiApiKeyHandler>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
