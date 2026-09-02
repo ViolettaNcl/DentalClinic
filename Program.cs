@@ -241,7 +241,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (db.Database.IsRelational())
+    if (!isVercel && db.Database.IsRelational())
         await db.Database.MigrateAsync();
     await DentalClinic.Data.DbSeeder.SeedAsync(db);
 }
