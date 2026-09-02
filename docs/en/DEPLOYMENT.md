@@ -78,12 +78,25 @@ Vercel sends `Authorization: Bearer <CRON_SECRET>`. Both endpoints return 401 wh
 the secret is missing or wrong. Regular `BackgroundService` workers are disabled on
 Vercel because containers may suspend between requests.
 
-## 5. GitHub Actions
+## 5. GitHub Actions and FTPS backup
 
 - `.github/workflows/ci.yml` builds the app and runs tests on pushes and PRs.
 - `.github/workflows/codeql.yml` analyzes C# and JavaScript.
-- `.github/workflows/cd.yml` repeats the test gate and publishes the Docker image to GHCR.
-- The FTP deployment and FTP publish profile have been removed.
+- `.github/workflows/cd.yml` repeats the test gate, publishes the Docker image to GHCR,
+  and keeps a backup FTPS deployment path to Somee.
+- Vercel is the primary production host. FTPS is only a fallback while the Vercel
+  migration is being fully verified.
+
+The FTPS job reads only GitHub repository/environment secrets; their values are never
+stored in the repository:
+
+- `FTP_SERVER`
+- `FTP_USERNAME`
+- `FTP_PASSWORD`
+- `FTP_SERVER_DIR`
+
+If any of the four secrets is missing, the workflow reports the FTPS deployment as
+skipped while CI, Vercel, and the GHCR image publication continue normally.
 
 After Git Integration is connected, Vercel creates Preview deployments for branches
 and Production deployments from `main`.
@@ -117,4 +130,5 @@ store before relying on it in production.
 - [ ] Cron endpoints return 401 without the correct `CRON_SECRET`.
 - [ ] `BackgroundJobs__CleanupEnabled` is enabled only deliberately.
 - [ ] Backups are configured for the new database.
+- [ ] If FTPS backup is required, all four FTP secrets are configured in GitHub.
 - [ ] Avatars use external object storage or the upload feature is temporarily disabled.
