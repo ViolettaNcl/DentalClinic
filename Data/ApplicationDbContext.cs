@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using DentalClinic.Models;
 
 namespace DentalClinic.Data
@@ -23,20 +23,25 @@ namespace DentalClinic.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Индекс под модерацию отзывов админом (фильтр "только Pending")
+            // Emails are normalized to lowercase by AuthController. The unique indexes
+            // provide the database-level guarantee needed under concurrent registration.
+            modelBuilder.Entity<Patient>()
+                .HasIndex(p => p.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Admin>()
+                .HasIndex(a => a.Email)
+                .IsUnique();
+
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.Status);
 
-            // Каскадное удаление: если пациент удаляется из БД, его отзывы
-            // не должны оставаться "осиротевшими" записями без владельца
             modelBuilder.Entity<Review>()
                 .HasOne<Patient>()
                 .WithMany()
                 .HasForeignKey(r => r.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Составной индекс под самый частый запрос колокольчика уведомлений:
-            // "непрочитанные уведомления конкретного пациента"
             modelBuilder.Entity<Notification>()
                 .HasIndex(n => new { n.PatientId, n.IsRead });
 
@@ -46,13 +51,23 @@ namespace DentalClinic.Data
                 .HasForeignKey(n => n.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Ускоряет публичную страницу услуг: выборка активных услуг по категории
+            // Appointment history should survive deletion of an account/doctor, while
+            // avoiding dangling foreign keys. The nullable IDs are cleared instead.
+            modelBuilder.Entity<AppointmentRequest>()
+                .HasOne<Patient>()
+                .WithMany()
+                .HasForeignKey(a => a.PatientId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<AppointmentRequest>()
+                .HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(a => a.DoctorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
 
-            // Индекс нужен не только для календаря врача, но и для диапазонной
-            // проверки конфликтов под Serializable-транзакцией. Благодаря ему
-            // SQL Server блокирует узкий диапазон слотов конкретного врача.
             modelBuilder.Entity<AppointmentRequest>()
                 .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
 
@@ -61,8 +76,6 @@ namespace DentalClinic.Data
                     "CK_AppointmentRequests_Status",
                     "[Status] IN ('pending', 'confirmed', 'cancelled', 'completed')"));
 
-            // SessionId — быстрый поиск истории конкретного диалога с ботом;
-            // CreatedAt — под очистку/выборку логов чата по дате (см. Stalependingcleanupservice)
             modelBuilder.Entity<ChatMessageLog>()
                 .HasIndex(c => c.SessionId);
 
