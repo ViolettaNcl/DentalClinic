@@ -4,9 +4,10 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace DentalClinic.HealthChecks;
 
 /// <summary>
-/// Отдаёт /health не голым текстом ("Healthy"), а компактным JSON —
-/// удобно для скриптов мониторинга и для UptimeRobot/Grafana и т.п.,
-/// плюс сразу видно, какая именно проверка не прошла (например "db").
+/// Public machine-readable health response. It intentionally exposes only the
+/// check name/status/duration: provider exception messages can contain database
+/// host names, connection details or other infrastructure metadata and must not
+/// be returned by an unauthenticated endpoint.
 /// </summary>
 public static class HealthCheckJsonWriter
 {
@@ -22,8 +23,7 @@ public static class HealthCheckJsonWriter
             {
                 name = e.Key,
                 status = e.Value.Status.ToString(),
-                durationMs = e.Value.Duration.TotalMilliseconds,
-                error = e.Value.Exception?.Message
+                durationMs = e.Value.Duration.TotalMilliseconds
             })
         };
 
