@@ -77,6 +77,16 @@ public class AppointmentSchedulingGuardTests : IClassFixture<CustomWebApplicatio
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task DoctorAvailability_WithoutAdminAuthentication_ReturnsUnauthorized()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync(
+            "/api/doctorschedule/availability?doctorId=1&from=2026-09-07&to=2026-09-13");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private static string UniquePhone() => $"+7998{Random.Shared.Next(1000000, 9999999)}";
 
     private static DateTime NextOpenDayAt(int hour, int minute)

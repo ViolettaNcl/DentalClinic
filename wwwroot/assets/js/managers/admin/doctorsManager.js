@@ -1,5 +1,6 @@
 ﻿import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
+import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
 
 class DoctorsManager {
     constructor() {
@@ -165,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const manager = new DoctorsManager();
     manager.init();
     window.DoctorsManagerInstance = manager;
+    installDoctorCalendarAvailability();
 });
 
 export { DoctorsManager };
