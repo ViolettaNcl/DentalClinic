@@ -6,7 +6,8 @@ namespace DentalClinic.Services;
 
 /// <summary>
 /// Задачи обслуживания записей. Их вызывает либо обычный BackgroundService,
-/// либо Vercel Cron, где постоянно работающий фоновый поток не гарантируется.
+/// либо cron/maintenance endpoint там, где постоянно работающий фоновый поток
+/// не гарантируется.
 /// </summary>
 public sealed class AppointmentMaintenanceService
 {
@@ -44,8 +45,9 @@ public sealed class AppointmentMaintenanceService
     }
 
     /// <summary>
-    /// Суточный cron Vercel запускается один раз утром и выбирает все записи
-    /// следующего календарного дня в часовом поясе клиники.
+    /// Daily maintenance path: selects all appointments on the next clinic-local
+    /// calendar day. The reminder itself includes the exact date/time rather than
+    /// saying "tomorrow", so the same copy is correct for hourly and daily runs.
     /// </summary>
     public Task<int> SendTomorrowRemindersAsync(CancellationToken cancellationToken)
     {
@@ -102,32 +104,36 @@ public sealed class AppointmentMaintenanceService
         DateTime windowEnd,
         CancellationToken cancellationToken)
     {
+        if (windowEnd <= windowStart)
+            throw new ArgumentOutOfRangeException(nameof(windowEnd), "Reminder window end must be after its start.");
+
         var due = await _db.AppointmentRequests
-            .Where(r => r.PatientId != null
-                     && r.Status == AppointmentStatuses.Confirmed
-                     && !r.ReminderSent
-                     && r.AppointmentDate != null
-                     && r.AppointmentDate >= windowStart
-                     && r.AppointmentDate < windowEnd)
+            .Where(AppointmentReminderPolicy.DueBetween(windowStart, windowEnd))
+            .OrderBy(r => r.AppointmentDate)
+            .ThenBy(r => r.Id)
             .ToListAsync(cancellationToken);
 
         foreach (var request in due)
         {
-            var dateText = request.AppointmentDate!.Value.ToString("dd.MM.yyyy HH:mm");
-            // NotificationService использует тот же scoped DbContext и сохраняет
-            // уведомление вместе с флагом. Так повтор cron не создаст дубль.
+            // NotificationService uses this same scoped DbContext. Marking the
+            // appointment before NotifyAsync means the flag and notification are
+            // persisted together by its SaveChanges call; a later run will skip it.
             request.ReminderSent = true;
             await _notifications.NotifyAsync(
                 request.PatientId!.Value,
                 "appointment_reminder",
-                $"Напоминаем: завтра у вас приём в клинике ({dateText}) 🦷",
+                AppointmentReminderPolicy.BuildMessage(request.AppointmentDate!.Value),
                 request.Id);
         }
 
         if (due.Count > 0)
             await _db.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Отправлено напоминаний о приёме: {Count}", due.Count);
+        _logger.LogInformation(
+            "Отправлено напоминаний о приёме: {Count}; окно {Start}–{End}",
+            due.Count,
+            windowStart,
+            windowEnd);
         return due.Count;
     }
 }
