@@ -12,6 +12,29 @@ test('production health and canonical HTTPS are healthy', async ({ page, request
     .toHaveAttribute('href', 'https://dental-clinic-vn.vercel.app/');
 });
 
+test('all sitemap public routes return HTML with matching canonical URLs', async ({ request }) => {
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.ok()).toBeTruthy();
+  const xml = await sitemap.text();
+
+  const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+  expect(urls.length, 'sitemap should contain the complete public route set').toBeGreaterThanOrEqual(13);
+
+  for (const absoluteUrl of urls) {
+    const url = new URL(absoluteUrl);
+    expect(url.origin).toBe('https://dental-clinic-vn.vercel.app');
+
+    const response = await request.get(`${url.pathname}${url.search}`);
+    expect(response.ok(), `${url.pathname} should return 2xx`).toBeTruthy();
+    expect(response.headers()['content-type'] || '', `${url.pathname} should return HTML`).toContain('text/html');
+
+    const html = await response.text();
+    const escaped = absoluteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(html, `${url.pathname} should publish its canonical URL`)
+      .toMatch(new RegExp(`<link\\s+rel=["']canonical["']\\s+href=["']${escaped}["']`, 'i'));
+  }
+});
+
 test('home loads without browser page errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
