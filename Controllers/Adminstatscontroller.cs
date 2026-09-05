@@ -8,9 +8,7 @@ using DentalClinic.Services;
 namespace DentalClinic.Controllers;
 
 /// <summary>
-/// Экспорт данных для вкладки "Аналитика" в админке (сами графики уже считаются
-/// на фронте в AnalyticsManager из /api/appointmentrequest/admin/all — это отдельно
-/// не трогаем, тут только выгрузка в файл).
+/// Аналитика и экспорт для панели администратора.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -19,12 +17,25 @@ public class AdminStatsController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly ClinicClock _clock;
+    private readonly AdminAnalyticsService _analytics;
 
-    public AdminStatsController(ApplicationDbContext db, ClinicClock clock)
+    public AdminStatsController(
+        ApplicationDbContext db,
+        ClinicClock clock,
+        AdminAnalyticsService analytics)
     {
         _db = db;
         _clock = clock;
+        _analytics = analytics;
     }
+
+    // GET api/adminstats/summary
+    // Единый серверный источник KPI и данных основных графиков. В отличие от
+    // клиентского пересчёта из полного CRM-списка, правила статусов и источников
+    // теперь можно менять централизованно и покрывать тестами.
+    [HttpGet("summary")]
+    public async Task<ActionResult<AdminAnalyticsSummary>> GetSummary(CancellationToken cancellationToken)
+        => Ok(await _analytics.GetSummaryAsync(cancellationToken));
 
     // GET api/adminstats/export/xlsx?from=2026-06-01&to=2026-07-01
     [HttpGet("export/xlsx")]
