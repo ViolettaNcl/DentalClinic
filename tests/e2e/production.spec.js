@@ -22,19 +22,44 @@ test('home loads without browser page errors', async ({ page }) => {
 
 test('public UI has accessible names for visible controls', async ({ page }) => {
   await page.goto('/');
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('networkidle');
 
-  const controls = page.locator('button:visible,input:visible,textarea:visible,select:visible');
-  const count = await controls.count();
-  for (let i = 0; i < count; i++) {
-    const el = controls.nth(i);
-    const name = (await el.getAttribute('aria-label'))
-      || (await el.getAttribute('title'))
-      || (await el.getAttribute('placeholder'))
-      || (await el.textContent())
-      || '';
-    expect(name.trim().length, `visible control ${i} should have an accessible label`).toBeGreaterThan(0);
-  }
+  // Snapshot the currently visible controls in one browser-side pass. The page
+  // injects header/chat/review controls dynamically, so iterating a live :visible
+  // locator by count/nth can race with DOM/visibility changes and time out on an
+  // index that no longer exists. This still validates the same accessibility
+  // requirement, while reporting concrete details if a real unnamed control exists.
+  const unnamed = await page.evaluate(() => {
+    const controls = [...document.querySelectorAll('button,input,textarea,select')]
+      .filter(el => {
+        const style = getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return style.display !== 'none'
+          && style.visibility !== 'hidden'
+          && rect.width > 0
+          && rect.height > 0;
+      });
+
+    return controls
+      .map((el, index) => {
+        const name = el.getAttribute('aria-label')
+          || el.getAttribute('title')
+          || el.getAttribute('placeholder')
+          || el.textContent
+          || '';
+
+        if (name.trim()) return null;
+        return {
+          index,
+          tag: el.tagName.toLowerCase(),
+          id: el.id || null,
+          className: typeof el.className === 'string' ? el.className : null,
+        };
+      })
+      .filter(Boolean);
+  });
+
+  expect(unnamed, JSON.stringify(unnamed, null, 2)).toEqual([]);
 });
 
 test('home has no serious or critical automated accessibility violations', async ({ page }) => {
