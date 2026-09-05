@@ -33,15 +33,19 @@ public class DentaStructuredResponseTests
             .GetProperty("content").GetProperty("parts")[0]
             .GetProperty("text").GetString()!;
 
-        Assert.Contains(expected, legacy, StringComparison.Ordinal);
-
         var marker = "SUGGESTIONS:";
         var linksMarker = "\nLINKS:";
         var start = legacy.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
         var end = legacy.IndexOf(linksMarker, StringComparison.Ordinal);
         var suggestionsJson = legacy[start..end];
         using var suggestionsDoc = JsonDocument.Parse(suggestionsJson);
-        Assert.True(suggestionsDoc.RootElement.GetArrayLength() <= 3);
+        var suggestions = suggestionsDoc.RootElement.EnumerateArray()
+            .Select(x => x.GetString())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+
+        Assert.Contains(expected, suggestions);
+        Assert.True(suggestions.Length <= 3);
     }
 
     [Fact]
