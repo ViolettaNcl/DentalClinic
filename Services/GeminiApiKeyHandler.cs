@@ -65,7 +65,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         var synthesizeSse = isDentaChat && request.RequestUri!.AbsolutePath.Contains(":streamGenerateContent", StringComparison.Ordinal);
         if (synthesizeSse)
         {
-            var builder = new UriBuilder(request.RequestUri);
+            var builder = new UriBuilder(request.RequestUri!);
             builder.Path = builder.Path.Replace(":streamGenerateContent", ":generateContent", StringComparison.Ordinal);
             builder.Query = string.Join("&", builder.Query.TrimStart('?')
                 .Split('&', StringSplitOptions.RemoveEmptyEntries)
