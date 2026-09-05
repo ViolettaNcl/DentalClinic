@@ -47,6 +47,82 @@ public class AppointmentRequestControllerTests : IClassFixture<CustomWebApplicat
     }
 
     [Fact]
+    public async Task Create_WithoutPhone_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/AppointmentRequest", new
+        {
+            firstName = "Тест",
+            appointmentDate = NextOpenDayAt(10, 0)
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_WithInvalidPhone_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/AppointmentRequest", new
+        {
+            firstName = "Тест",
+            phone = "not-a-phone",
+            appointmentDate = NextOpenDayAt(10, 0)
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_WithDoctorButWithoutDate_ReturnsBadRequest()
+    {
+        int doctorId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var doctor = new Doctor
+            {
+                FullName = $"Тестовый врач {Guid.NewGuid():N}",
+                IsActive = true
+            };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+            doctorId = doctor.Id;
+        }
+
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/AppointmentRequest", new
+        {
+            firstName = "Тест",
+            phone = UniquePhone(),
+            doctorId
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedBookingEndpoints_WithoutAuthentication_ReturnUnauthorized()
+    {
+        var client = _factory.CreateClient();
+
+        var patientHistory = await client.GetAsync("/api/AppointmentRequest/patient/1");
+        var adminList = await client.GetAsync("/api/AppointmentRequest/admin/all");
+        var cancel = await client.PutAsync("/api/AppointmentRequest/1/cancel", null);
+        var reschedule = await client.PutAsJsonAsync("/api/AppointmentRequest/1/reschedule", new
+        {
+            appointmentDate = NextOpenDayAt(12, 0)
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, patientHistory.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, adminList.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, cancel.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, reschedule.StatusCode);
+    }
+
+    [Fact]
     public async Task Create_WithPastDate_ReturnsBadRequest()
     {
         var client = _factory.CreateClient();
