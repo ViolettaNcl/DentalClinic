@@ -33,6 +33,14 @@ public sealed class MaintenanceController : ControllerBase
         return Ok(new { processed });
     }
 
+    [HttpGet("follow-ups")]
+    public async Task<IActionResult> SendFollowUps(CancellationToken cancellationToken)
+    {
+        if (!HasValidCronSecret()) return Unauthorized();
+        var processed = await _maintenance.SendPostVisitFollowUpsAsync(cancellationToken);
+        return Ok(new { processed });
+    }
+
     [HttpGet("cleanup")]
     public async Task<IActionResult> Cleanup(CancellationToken cancellationToken)
     {
