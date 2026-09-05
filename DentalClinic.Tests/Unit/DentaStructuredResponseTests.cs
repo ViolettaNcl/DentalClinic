@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using DentalClinic.Services;
 using Microsoft.Extensions.Configuration;
+using Xunit;
 
 namespace DentalClinic.Tests.Unit;
 
