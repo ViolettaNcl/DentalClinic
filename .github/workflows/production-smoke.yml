@@ -41,6 +41,82 @@ jobs:
           done
           echo "Production did not become healthy/current before timeout." >&2
           exit 1
+
+      - name: Verify all primary page shells and service pages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pages=(
+            "/"
+            "/pages/about.html"
+            "/pages/contact.html"
+            "/pages/doctors.html"
+            "/pages/services.html"
+            "/pages/patient-dashboard.html"
+            "/pages/admin-dashboard.html"
+            "/pages/services/bridges.html"
+            "/pages/services/cosmetic-treatments.html"
+            "/pages/services/crowns.html"
+            "/pages/services/extractions.html"
+            "/pages/services/fillings.html"
+            "/pages/services/implants.html"
+            "/pages/services/prosthetics.html"
+            "/pages/services/root-canal.html"
+          )
+
+          for path in "${pages[@]}"; do
+            echo "Checking ${path}"
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            curl --silent --show-error --fail --max-time 20 \
+              --dump-header "$headers" \
+              --output "$body" \
+              "${PRODUCTION_ORIGIN}${path}"
+
+            grep -qi '<html' "$body" || {
+              echo "${path} did not return an HTML page." >&2
+              cat "$body" >&2
+              exit 1
+            }
+
+            grep -qi '^x-content-type-options:[[:space:]]*nosniff' "$headers" || {
+              echo "${path} is missing X-Content-Type-Options: nosniff." >&2
+              cat "$headers" >&2
+              exit 1
+            }
+
+            grep -qi '^x-frame-options:[[:space:]]*SAMEORIGIN' "$headers" || {
+              echo "${path} is missing X-Frame-Options: SAMEORIGIN." >&2
+              cat "$headers" >&2
+              exit 1
+            }
+
+            grep -qi '^referrer-policy:[[:space:]]*strict-origin-when-cross-origin' "$headers" || {
+              echo "${path} is missing the expected Referrer-Policy." >&2
+              cat "$headers" >&2
+              exit 1
+            }
+
+            rm -f "$headers" "$body"
+          done
+
+          echo "All primary page shells and service pages are reachable with the expected browser security headers."
+
+      - name: Verify public API surface remains reachable
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in "/api/service" "/api/doctor"; do
+            echo "Checking ${path}"
+            body="$(curl --silent --show-error --fail --max-time 20 "${PRODUCTION_ORIGIN}${path}")"
+            printf '%s' "$body" | grep -Eq '^\s*[\[{]' || {
+              echo "${path} did not return JSON-like content." >&2
+              printf '%s\n' "$body" >&2
+              exit 1
+            }
+          done
+
       - name: Verify HTTP redirects to HTTPS
         shell: bash
         run: |
