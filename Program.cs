@@ -28,6 +28,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ClinicClock>();
 builder.Services.AddScoped<AppointmentSchedulingService>();
 builder.Services.AddScoped<AppointmentMaintenanceService>();
+builder.Services.AddScoped<AdminAnalyticsService>();
 var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
 
 if (!isVercel)
