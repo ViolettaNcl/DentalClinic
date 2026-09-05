@@ -1,4 +1,5 @@
 ﻿using DentalClinic.Data;
+using DentalClinic.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -42,6 +43,21 @@ namespace DentalClinic.Controllers
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!AllowedExtensions.Contains(ext))
                 return BadRequest(new { message = "❌ Разрешены только изображения JPG, PNG или WEBP" });
+
+            // Расширение файла контролируется пользователем, поэтому само по себе
+            // не доказывает, что это изображение. Проверяем сигнатуру содержимого
+            // до записи в wwwroot, чтобы произвольный HTML/скрипт с именем .png
+            // не оказался среди публично доступных загрузок.
+            await using (var validationStream = file.OpenReadStream())
+            {
+                if (!await ImageUploadValidator.MatchesExtensionAsync(
+                        validationStream,
+                        ext,
+                        HttpContext.RequestAborted))
+                {
+                    return BadRequest(new { message = "❌ Содержимое файла не соответствует формату изображения" });
+                }
+            }
 
             var (role, id) = GetCurrentUser();
             if (id == null) return Unauthorized();
