@@ -65,7 +65,7 @@ public sealed class DentaProactiveSafetyFilter : IAsyncActionFilter
                 buffer.Position = 0;
                 using var reader = new StreamReader(buffer, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
                 var payload = await reader.ReadToEndAsync();
-                var safePayload = Sanitize(payload);
+                var safePayload = SanitizeSse(payload);
                 response.Body = originalBody;
                 await originalBody.WriteAsync(Encoding.UTF8.GetBytes(safePayload));
             }
@@ -95,6 +95,46 @@ public sealed class DentaProactiveSafetyFilter : IAsyncActionFilter
         foreach (var pair in SafeMessages)
             text = text.Replace(pair.Key, pair.Value, StringComparison.Ordinal);
         return text;
+    }
+
+    public static string SanitizeSse(string payload)
+    {
+        var lines = payload.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var output = new StringBuilder(payload.Length + 64);
+
+        foreach (var line in lines)
+        {
+            if (!line.StartsWith("data: ", StringComparison.Ordinal))
+            {
+                output.Append(line).Append('\n');
+                continue;
+            }
+
+            var json = line[6..];
+            try
+            {
+                var node = JsonNode.Parse(json);
+                if (node is JsonObject obj && obj["delta"] is JsonValue deltaNode
+                    && deltaNode.TryGetValue<string>(out var delta))
+                {
+                    obj["delta"] = Sanitize(delta);
+                    output.Append("data: ").Append(obj.ToJsonString()).Append('\n');
+                    continue;
+                }
+            }
+            catch (JsonException)
+            {
+                // Keep malformed/non-JSON SSE lines untouched; the chat controller
+                // owns the transport contract and this guard must never break it.
+            }
+
+            output.Append(line).Append('\n');
+        }
+
+        if (!payload.EndsWith('\n') && output.Length > 0)
+            output.Length--;
+
+        return output.ToString();
     }
 
     private static bool TryGetProactiveMessage(ActionExecutingContext context, out string message)
