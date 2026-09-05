@@ -63,7 +63,10 @@ public sealed class AdminAnalyticsService
 
         var monthStart = new DateTime(clinicNow.Year, clinicNow.Month, 1);
         var nextMonth = monthStart.AddMonths(1);
-        var thisMonth = rows.Count(r => r.AppointmentDate is >= var d && d >= monthStart && d < nextMonth);
+        var thisMonth = rows.Count(r =>
+            r.AppointmentDate.HasValue
+            && r.AppointmentDate.Value >= monthStart
+            && r.AppointmentDate.Value < nextMonth);
 
         var registered = 0;
         var guest = 0;
