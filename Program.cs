@@ -2,6 +2,7 @@ using DentalClinic.BackgroundJobs;
 using DentalClinic.Data;
 using DentalClinic.HealthChecks;
 using DentalClinic.Hubs;
+using DentalClinic.Middleware;
 using DentalClinic.Services;
 using DentalClinic.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -190,6 +191,8 @@ var app = builder.Build();
 
 if (isVercel)
     app.UseForwardedHeaders();
+
+app.UseSecurityResponseHeaders();
 
 app.UseExceptionHandler(errApp =>
 {
