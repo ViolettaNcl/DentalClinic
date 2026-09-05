@@ -10,7 +10,7 @@ namespace DentalClinic.Tests;
 /// <summary>
 /// Поднимает всё приложение (Program.cs) в памяти для интеграционных тестов:
 ///   - подменяет SQL Server на EF Core InMemory (реальная БД не нужна);
-///   - подставляет тестовые значения Jwt:* через переменные окружения.
+///   - подставляет тестовые значения Jwt:* и maintenance secret через переменные окружения.
 ///
 /// ВАЖНО #1: Program.cs читает Jwt:Key из конфигурации ДО builder.Build() —
 /// а WebApplicationFactory встраивает свои настройки только В МОМЕНТ вызова
@@ -31,6 +31,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"dentalclinic-tests-{Guid.NewGuid()}";
 
+    public const string CronSecret = "integration-test-cron-secret";
+
     public CustomWebApplicationFactory()
     {
         Environment.SetEnvironmentVariable("Jwt__Key", "integration-test-signing-key-32-chars-minimum");
@@ -39,6 +41,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("Jwt__ExpiryMinutes", "120");
         Environment.SetEnvironmentVariable("AllowedOrigins__0", "http://localhost");
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", "Server=unused;Database=unused;");
+        Environment.SetEnvironmentVariable("CRON_SECRET", CronSecret);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -6,7 +6,7 @@ namespace DentalClinic.Models;
 /// <summary>
 /// Уведомление для пациента (колокольчик в личном кабинете).
 /// Type: appointment_confirmed | appointment_cancelled | appointment_completed |
-///       appointment_reminder | review_approved | review_rejected
+///       appointment_reminder | appointment_followup | review_approved | review_rejected
 /// </summary>
 [Table("Notifications")]
 public class Notification

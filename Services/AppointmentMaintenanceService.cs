@@ -55,6 +55,54 @@ public sealed class AppointmentMaintenanceService
         return SendRemindersInWindowAsync(tomorrow, tomorrow.AddDays(1), cancellationToken);
     }
 
+    /// <summary>
+    /// Sends one post-visit review prompt to registered patients after a completed
+    /// appointment. Existing notifications act as the idempotency marker, avoiding
+    /// a schema change while ensuring routine repeated maintenance runs stay quiet.
+    /// </summary>
+    public async Task<int> SendPostVisitFollowUpsAsync(CancellationToken cancellationToken)
+    {
+        var delayHours = Math.Clamp(
+            _configuration.GetValue<int?>("BackgroundJobs:FollowUpDelayHours") ?? 6,
+            1,
+            168);
+        var lookbackDays = Math.Clamp(
+            _configuration.GetValue<int?>("BackgroundJobs:FollowUpLookbackDays") ?? 7,
+            1,
+            30);
+
+        var now = _clock.Now;
+        var windowStart = now.AddDays(-lookbackDays);
+        var windowEnd = now.AddHours(-delayHours);
+        if (windowEnd <= windowStart) return 0;
+
+        var due = await _db.AppointmentRequests
+            .Where(AppointmentFollowUpPolicy.DueBetween(windowStart, windowEnd))
+            .Where(request => !_db.Notifications.Any(notification =>
+                notification.PatientId == request.PatientId
+                && notification.Type == AppointmentFollowUpPolicy.NotificationType
+                && notification.RelatedId == request.Id))
+            .OrderBy(request => request.AppointmentDate)
+            .ThenBy(request => request.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var request in due)
+        {
+            await _notifications.NotifyAsync(
+                request.PatientId!.Value,
+                AppointmentFollowUpPolicy.NotificationType,
+                AppointmentFollowUpPolicy.BuildMessage(request.AppointmentDate!.Value),
+                request.Id);
+        }
+
+        _logger.LogInformation(
+            "Отправлено post-visit follow-up уведомлений: {Count}; окно {Start}–{End}",
+            due.Count,
+            windowStart,
+            windowEnd);
+        return due.Count;
+    }
+
     public async Task<int> CleanupStaleRequestsAsync(CancellationToken cancellationToken)
     {
         // Отмена заявок — потенциально разрушительная операция, поэтому без
