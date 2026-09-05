@@ -1,6 +1,9 @@
 ﻿import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
 import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
+import { installAdminLogoutGuard } from './adminLogoutGuard.js';
+
+installAdminLogoutGuard();
 
 class DoctorsManager {
     constructor() {
