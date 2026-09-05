@@ -186,6 +186,13 @@ public class AppointmentRequestController : ControllerBase
         var reactivating = previousStatus != AppointmentStatuses.Pending
             && nextStatus == AppointmentStatuses.Pending;
 
+        // DoctorId is a scheduled resource assignment, not just CRM metadata.
+        // Never persist a doctor without an actual appointment date/time: that state
+        // cannot be represented correctly in the availability calendar and later
+        // confirmation would inherit an incomplete schedule.
+        if (nextDoctorId.HasValue && !nextDate.HasValue)
+            return BadRequest(new { message = "Для выбора врача укажите время приёма" });
+
         if (nextStatus == AppointmentStatuses.Confirmed && (!nextDate.HasValue || !nextDoctorId.HasValue))
             return BadRequest(new { message = "Для подтверждения укажите врача и время приёма" });
 
