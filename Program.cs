@@ -1,5 +1,6 @@
 using DentalClinic.BackgroundJobs;
 using DentalClinic.Data;
+using DentalClinic.Filters;
 using DentalClinic.HealthChecks;
 using DentalClinic.Hubs;
 using DentalClinic.Middleware;
@@ -173,7 +174,10 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddTransient<GeminiApiKeyHandler>();
 builder.Services.AddHttpClient(string.Empty)
     .AddHttpMessageHandler<GeminiApiKeyHandler>();
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<DentaProactiveSafetyFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
