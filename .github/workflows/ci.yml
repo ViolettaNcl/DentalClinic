@@ -30,6 +30,9 @@ jobs:
       - name: Build (app)
         run: dotnet build DentalClinic.csproj --no-restore --configuration Release
 
+      - name: Build Vercel container image
+        run: docker build --file Dockerfile.vercel --tag dental-clinic:ci .
+
       - name: Verify EF Core migrations are discoverable
         env:
           ConnectionStrings__DefaultConnection: "Server=(localdb)\\mssqllocaldb;Database=DentalClinicCi;Trusted_Connection=True;"

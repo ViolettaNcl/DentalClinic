@@ -19,6 +19,14 @@ const LANGUAGES = [
     { code: 'ar', label: 'ع', full: 'العربية' },
 ];
 
+const ATTRIBUTE_TRANSLATIONS = [
+    ['data-i18n-placeholder', 'placeholder'],
+    ['data-i18n-aria-label', 'aria-label'],
+    ['data-i18n-title', 'title'],
+    ['data-i18n-alt', 'alt'],
+    ['data-i18n-value', 'value'],
+];
+
 class LanguageSwitcher {
     constructor() {
         this.currentLang = getLang();
@@ -99,12 +107,16 @@ class LanguageSwitcher {
             }
         });
 
-        // Атрибут placeholder у инпутов
-        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-            const key = el.dataset.i18nPlaceholder;
-            if (dict[key] !== undefined) {
-                el.setAttribute('placeholder', dict[key]);
-            }
+        // Переводимые атрибуты: placeholder + accessibility/tooltip/media labels.
+        // Новые data-i18n-* атрибуты можно добавлять постепенно без изменения
+        // поведения существующей разметки.
+        ATTRIBUTE_TRANSLATIONS.forEach(([dataAttribute, targetAttribute]) => {
+            document.querySelectorAll(`[${dataAttribute}]`).forEach(el => {
+                const key = el.getAttribute(dataAttribute);
+                if (key && dict[key] !== undefined) {
+                    el.setAttribute(targetAttribute, dict[key]);
+                }
+            });
         });
     }
 }

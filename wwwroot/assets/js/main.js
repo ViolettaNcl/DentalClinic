@@ -3,10 +3,12 @@ import { NavigationManager } from '/assets/js/core/navigationManager.js';
 import { LanguageSwitcher } from '/assets/js/core/languageSwitcher.js';
 import { ChatBot } from '/assets/js/core/chatBot.js';
 import { isBookingIntent } from '/assets/js/core/bookingIntent.js';
+import { installDentaSafetyGuard } from '/assets/js/core/dentaSafetyGuard.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 
 ChatBot.prototype._isBookingIntent = isBookingIntent;
+installDentaSafetyGuard(ChatBot);
 
 async function initializePage() {
     try {
