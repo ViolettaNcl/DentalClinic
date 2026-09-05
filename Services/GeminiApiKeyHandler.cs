@@ -9,6 +9,7 @@ namespace DentalClinic.Services;
 /// Central compatibility/security layer for Gemini calls.
 /// - sends the key in x-goog-api-key and strips legacy ?key=;
 /// - removes a duplicate trailing user message;
+/// - upgrades Denta's legacy model aliases to current stable Flash models;
 /// - for Denta chat requests, asks Gemini for schema-constrained JSON instead of
 ///   free-form marker text, then converts the structured result back to the
 ///   legacy controller contract so the existing UI keeps working unchanged.
@@ -49,6 +50,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
                 {
                     dentaLanguage = DetectDentaLanguage(root);
                     EnforceStructuredChatResponse(root);
+                    UpgradeDentaModel(request);
                 }
 
                 request.Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json");
@@ -112,6 +114,20 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         }
     }
 
+    private static void UpgradeDentaModel(HttpRequestMessage request)
+    {
+        if (request.RequestUri == null) return;
+        var builder = new UriBuilder(request.RequestUri);
+        var path = builder.Path
+            .Replace("/models/gemini-2.5-flash-lite:", "/models/gemini-3.5-flash-lite:", StringComparison.Ordinal)
+            .Replace("/models/gemini-2.5-flash:", "/models/gemini-3.8-flash:", StringComparison.Ordinal);
+        if (!string.Equals(path, builder.Path, StringComparison.Ordinal))
+        {
+            builder.Path = path;
+            request.RequestUri = builder.Uri;
+        }
+    }
+
     private static bool IsDentaChatRequest(JsonNode root)
     {
         var prompt = root["system_instruction"]?["parts"]?[0]?["text"]?.GetValue<string>() ?? "";
@@ -150,6 +166,18 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         }
 
         var generation = root["generationConfig"] as JsonObject ?? new JsonObject();
+
+        // Gemini 3.x is optimized for default sampling. Remove older tuning fields
+        // while keeping deterministic behavior through the strict response schema
+        // and explicit system rules.
+        generation.Remove("temperature");
+        generation.Remove("topP");
+        generation.Remove("topK");
+        generation.Remove("top_p");
+        generation.Remove("top_k");
+        generation.Remove("candidateCount");
+        generation.Remove("candidate_count");
+
         generation["responseMimeType"] = "application/json";
         generation["responseSchema"] = JsonNode.Parse("""
         {
