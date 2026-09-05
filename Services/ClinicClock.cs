@@ -38,4 +38,26 @@ public sealed class ClinicClock
 
         return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
     }
+
+    /// <summary>
+    /// Converts a clinic-local wall-clock value to UTC. The input is deliberately
+    /// treated as Unspecified so container/server local timezone never affects it.
+    /// </summary>
+    public DateTime ToUtc(DateTime clinicLocal)
+    {
+        var unspecified = DateTime.SpecifyKind(clinicLocal, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(unspecified, TimeZone);
+    }
+
+    /// <summary>
+    /// Converts a UTC database timestamp to clinic-local wall-clock time without
+    /// depending on the operating system's local timezone.
+    /// </summary>
+    public DateTime FromUtc(DateTime utc)
+    {
+        var normalizedUtc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+        return DateTime.SpecifyKind(
+            TimeZoneInfo.ConvertTimeFromUtc(normalizedUtc, TimeZone),
+            DateTimeKind.Unspecified);
+    }
 }

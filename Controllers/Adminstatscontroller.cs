@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Globalization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DentalClinic.Data;
@@ -17,8 +18,13 @@ namespace DentalClinic.Controllers;
 public class AdminStatsController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
+    private readonly ClinicClock _clock;
 
-    public AdminStatsController(ApplicationDbContext db) => _db = db;
+    public AdminStatsController(ApplicationDbContext db, ClinicClock clock)
+    {
+        _db = db;
+        _clock = clock;
+    }
 
     // GET api/adminstats/export/xlsx?from=2026-06-01&to=2026-07-01
     [HttpGet("export/xlsx")]
@@ -29,7 +35,7 @@ public class AdminStatsController : ControllerBase
 
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"zayavki_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+            $"zayavki_{_clock.Now:yyyyMMdd_HHmm}.xlsx");
     }
 
     // GET api/adminstats/export/report?from=2026-06-01&to=2026-07-01
@@ -44,21 +50,19 @@ public class AdminStatsController : ControllerBase
 
     private async Task<(List<string> headers, List<IReadOnlyList<string>> rows, string periodLabel)> BuildAppointmentsTable(string? from, string? to)
     {
-        // БАГ (исправлено): admin выбирает даты в своём локальном календаре
-        // (как и везде в проекте — см. AppointmentReminderService/DoctorScheduleController),
-        // а CreatedAt в БД всегда хранится в UTC. Раньше границы дат сравнивались
-        // с CreatedAt напрямую, без конвертации — из-за разницы поясов заявки
-        // у самого края диапазона могли попасть не в тот день отчёта (или выпасть
-        // из него). Теперь границы явно переводятся из локального времени в UTC
-        // перед сравнением с CreatedAt.
-        var fromLocal = DateTime.TryParse(from, out var f) ? f.Date : DateTime.Now.AddDays(-30).Date;
-        var toLocal = DateTime.TryParse(to, out var t) ? t.Date : DateTime.Now.Date;
+        // CreatedAt хранится в UTC, а фильтр отчёта задаётся календарными днями
+        // клиники. На Vercel локальный часовой пояс контейнера может быть UTC,
+        // поэтому DateTime.ToLocalTime() здесь использовать нельзя: границы и
+        // отображаемое время должны всегда считаться через ClinicClock.
+        var clinicToday = DateOnly.FromDateTime(_clock.Now);
+        var fromLocal = ParseDate(from, clinicToday.AddDays(-30));
+        var toLocal = ParseDate(to, clinicToday);
 
-        var fromDate = DateTime.SpecifyKind(fromLocal, DateTimeKind.Local).ToUniversalTime();
-        var toDate = DateTime.SpecifyKind(toLocal.AddDays(1).AddTicks(-1), DateTimeKind.Local).ToUniversalTime();
+        var fromUtc = _clock.ToUtc(fromLocal.ToDateTime(TimeOnly.MinValue));
+        var toUtcExclusive = _clock.ToUtc(toLocal.AddDays(1).ToDateTime(TimeOnly.MinValue));
 
         var data = await _db.AppointmentRequests
-            .Where(a => a.CreatedAt >= fromDate && a.CreatedAt <= toDate)
+            .Where(a => a.CreatedAt >= fromUtc && a.CreatedAt < toUtcExclusive)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
 
@@ -68,9 +72,7 @@ public class AdminStatsController : ControllerBase
         var rows = data.Select(a => (IReadOnlyList<string>)new List<string>
         {
             a.Id.ToString(),
-            // CreatedAt хранится в UTC — для отчёта конвертируем в локальное
-            // время, иначе админ видит время на несколько часов "не то"
-            DateTime.SpecifyKind(a.CreatedAt, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+            _clock.FromUtc(a.CreatedAt).ToString("dd.MM.yyyy HH:mm"),
             a.FirstName ?? "",
             a.Phone ?? "",
             a.Status ?? "",
@@ -79,9 +81,12 @@ public class AdminStatsController : ControllerBase
             a.Comment ?? ""
         }).ToList();
 
-        // periodLabel — из fromLocal/toLocal, а не из fromDate/toDate: в заголовке
-        // отчёта должны быть даты, которые реально ввёл админ, а не их UTC-эквивалент
         var periodLabel = $"{fromLocal:dd.MM.yyyy} – {toLocal:dd.MM.yyyy}";
         return (headers, rows, periodLabel);
     }
+
+    private static DateOnly ParseDate(string? value, DateOnly fallback) =>
+        DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
+            : fallback;
 }
