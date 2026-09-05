@@ -16,6 +16,7 @@ public class TranslateController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TranslateController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     private static readonly string[] TranslateModels = { "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest" };
     private static readonly HashSet<string> AllowedKinds = new(StringComparer.OrdinalIgnoreCase) { "text", "name" };
@@ -25,12 +26,18 @@ public class TranslateController : ControllerBase
         ["el"] = "Greek (ελληνικά)", ["ar"] = "Arabic (العربية)"
     };
 
-    public TranslateController(IHttpClientFactory httpFactory, IConfiguration config, IMemoryCache cache, ILogger<TranslateController> logger)
+    public TranslateController(
+        IHttpClientFactory httpFactory,
+        IConfiguration config,
+        IMemoryCache cache,
+        ILogger<TranslateController> logger,
+        IWebHostEnvironment environment)
     {
         _httpFactory = httpFactory;
         _config = config;
         _cache = cache;
         _logger = logger;
+        _environment = environment;
     }
 
     public class TranslateRequest
@@ -44,9 +51,9 @@ public class TranslateController : ControllerBase
     [EnableRateLimiting("translate")]
     public async Task<IActionResult> Translate([FromBody] TranslateRequest req)
     {
-        // This endpoint must stay available to guests because public doctor/review
-        // pages use it. Protect it from cross-site API-key abuse by accepting only
-        // same-origin browser calls (non-browser tests/local tools may omit Origin).
+        // The endpoint stays available to guests because public doctor/review pages
+        // use it. In production, only same-origin browser requests are accepted so
+        // third-party scripts cannot spend the clinic's Gemini quota by omitting Origin.
         if (!IsAllowedOrigin())
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Cross-origin translation is not allowed" });
 
@@ -132,7 +139,15 @@ public class TranslateController : ControllerBase
     private bool IsAllowedOrigin()
     {
         var origin = Request.Headers.Origin.ToString();
-        if (string.IsNullOrWhiteSpace(origin)) return true;
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            // Browser same-origin fetches can be identified even when a user agent
+            // omits Origin. Direct tools/curl without browser metadata are allowed
+            // only in local/test environments.
+            var fetchSite = Request.Headers["Sec-Fetch-Site"].ToString();
+            if (string.Equals(fetchSite, "same-origin", StringComparison.OrdinalIgnoreCase)) return true;
+            return _environment.IsDevelopment() || _environment.IsEnvironment("Testing");
+        }
 
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri)) return false;
         return string.Equals(originUri.Scheme, Request.Scheme, StringComparison.OrdinalIgnoreCase)
