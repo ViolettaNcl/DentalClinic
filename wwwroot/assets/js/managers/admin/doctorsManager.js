@@ -3,9 +3,11 @@ import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
 import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
 import { installAdminLogoutGuard } from './adminLogoutGuard.js';
 import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
+import { installServiceKnowledgeManager } from './serviceKnowledgeManager.js';
 
 installAdminLogoutGuard();
 installAdminAnalyticsSummary();
+installServiceKnowledgeManager();
 
 class DoctorsManager {
     constructor() {

@@ -14,6 +14,9 @@ public class UpdateServiceRequest
     public string? Description { get; set; }
     public decimal? PriceFrom { get; set; }
     public decimal? PriceTo { get; set; }
+    // JSON null и отсутствующее nullable-поле неотличимы при обычном model binding,
+    // поэтому очистка верхней границы цены задаётся явно.
+    public bool? ClearPriceTo { get; set; }
     public string? Unit { get; set; }
     public string? Keywords { get; set; }
     public string? PageUrl { get; set; }

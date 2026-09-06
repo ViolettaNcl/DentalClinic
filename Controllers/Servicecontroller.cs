@@ -57,8 +57,11 @@ public class ServiceController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.Category) || string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Укажите категорию и название услуги" });
 
-        if (req.PriceFrom < 0)
-            return BadRequest(new { message = "Цена не может быть отрицательной" });
+        if (!ServiceCatalogPolicy.IsValidPriceRange(req.PriceFrom, req.PriceTo))
+            return BadRequest(new { message = "Проверьте диапазон цен: значения не могут быть отрицательными, а цена 'до' не может быть ниже цены 'от'" });
+
+        if (!ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
+            return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
 
         var service = new Service
         {
@@ -90,23 +93,25 @@ public class ServiceController : ControllerBase
         var service = await _db.Services.FindAsync(id);
         if (service == null) return NotFound();
 
-        // БАГ (исправлено): раньше сюда принималась целая сущность Service.
-        // decimal PriceFrom не nullable — если клиент не передавал это поле
-        // в JSON вообще, оно десериализовалось в 0, а проверка "req.PriceFrom >= 0"
-        // пропускала 0 как валидное значение и молча обнуляла цену услуги
-        // при любом частичном обновлении (например, если бы фронт присылал
-        // только изменённое название). Теперь PriceFrom nullable в DTO,
-        // и мы трогаем цену, только если она реально была передана.
+        // Рассчитываем будущий диапазон заранее, чтобы частичное обновление не
+        // могло оставить PriceTo ниже PriceFrom.
+        var nextPriceFrom = req.PriceFrom ?? service.PriceFrom;
+        var nextPriceTo = req.ClearPriceTo == true
+            ? null
+            : req.PriceTo ?? service.PriceTo;
+
+        if (!ServiceCatalogPolicy.IsValidPriceRange(nextPriceFrom, nextPriceTo))
+            return BadRequest(new { message = "Проверьте диапазон цен: значения не могут быть отрицательными, а цена 'до' не может быть ниже цены 'от'" });
+
+        if (req.PageUrl != null && !ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
+            return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
+
         if (!string.IsNullOrWhiteSpace(req.Category)) service.Category = req.Category.Trim();
         if (!string.IsNullOrWhiteSpace(req.Name)) service.Name = req.Name.Trim();
         if (req.Description != null) service.Description = req.Description.Trim();
-        if (req.PriceFrom.HasValue)
-        {
-            if (req.PriceFrom.Value < 0)
-                return BadRequest(new { message = "Цена не может быть отрицательной" });
-            service.PriceFrom = req.PriceFrom.Value;
-        }
-        if (req.PriceTo.HasValue) service.PriceTo = req.PriceTo;
+        if (req.PriceFrom.HasValue) service.PriceFrom = req.PriceFrom.Value;
+        if (req.ClearPriceTo == true) service.PriceTo = null;
+        else if (req.PriceTo.HasValue) service.PriceTo = req.PriceTo.Value;
         if (req.Unit != null) service.Unit = req.Unit.Trim();
         if (req.Keywords != null) service.Keywords = req.Keywords.Trim();
         if (req.PageUrl != null) service.PageUrl = req.PageUrl.Trim();
