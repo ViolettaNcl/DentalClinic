@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
 using DentalClinic.Models;
 using DentalClinic.Data;
 using DentalClinic.Services;
+using System.Data;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -25,6 +27,7 @@ public class ReviewController : ControllerBase
     private readonly ILogger<ReviewController> _logger;
     private readonly IWebHostEnvironment _environment;
 
+    private static readonly SemaphoreSlim ProcessModerationGate = new(1, 1);
     private static readonly string[] TranslateModels = { "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest" };
 
     private static readonly Dictionary<string, string> TargetLangNames = new()
@@ -335,61 +338,127 @@ public class ReviewController : ControllerBase
 
     [HttpPut("admin/{id:int}/moderate")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Moderate(int id, [FromBody] ModerateReviewRequest dto)
+    public async Task<IActionResult> Moderate(
+        int id,
+        [FromBody] ModerateReviewRequest dto,
+        CancellationToken cancellationToken)
     {
-        var review = await _context.Reviews.FindAsync(id);
-        if (review == null) return NotFound();
-
-        var status = dto.Status?.Trim().ToLowerInvariant();
-        if (status != "approved" && status != "rejected")
-            return BadRequest(new { message = "❌ Статус должен быть 'approved' или 'rejected'" });
-
-        var rejectionReason = status == "rejected" ? dto.RejectionReason?.Trim() : null;
-        if (status == "rejected" && string.IsNullOrWhiteSpace(rejectionReason))
-            return BadRequest(new { message = "❌ Укажите причину отклонения отзыва" });
-
-        var currentStatus = review.Status?.Trim().ToLowerInvariant();
-        var currentReason = currentStatus == "rejected" ? review.RejectionReason?.Trim() : null;
-
-        // Replaying the same moderation action must not create a second durable
-        // notification, move ModeratedAt, or make an already-seen result unread again.
-        // This covers double-clicks and ordinary HTTP retries after a slow response.
-        if (string.Equals(currentStatus, status, StringComparison.Ordinal)
-            && string.Equals(currentReason, rejectionReason, StringComparison.Ordinal))
+        // The original replay check was enough for sequential retries, but two
+        // instances could still read the same old state before either saved and
+        // create duplicate durable notifications. Serialize the full state transition
+        // in-process and, on SQL Server, across instances with a transaction-owned
+        // application lock scoped to this review id.
+        await ProcessModerationGate.WaitAsync(cancellationToken);
+        try
         {
+            await using var transaction = await BeginModerationTransactionAsync(id, cancellationToken);
+
+            var review = await _context.Reviews
+                .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+            if (review == null) return NotFound();
+
+            var status = dto.Status?.Trim().ToLowerInvariant();
+            if (status != "approved" && status != "rejected")
+                return BadRequest(new { message = "❌ Статус должен быть 'approved' или 'rejected'" });
+
+            var rejectionReason = status == "rejected" ? dto.RejectionReason?.Trim() : null;
+            if (status == "rejected" && string.IsNullOrWhiteSpace(rejectionReason))
+                return BadRequest(new { message = "❌ Укажите причину отклонения отзыва" });
+
+            var currentStatus = review.Status?.Trim().ToLowerInvariant();
+            var currentReason = currentStatus == "rejected" ? review.RejectionReason?.Trim() : null;
+
+            // Replaying the same moderation action must not create a second durable
+            // notification, move ModeratedAt, or make an already-seen result unread again.
+            if (string.Equals(currentStatus, status, StringComparison.Ordinal)
+                && string.Equals(currentReason, rejectionReason, StringComparison.Ordinal))
+            {
+                if (transaction != null)
+                    await transaction.CommitAsync(cancellationToken);
+
+                return Ok(new
+                {
+                    review.Id,
+                    review.Status,
+                    review.RejectionReason,
+                    idempotent = true
+                });
+            }
+
+            review.Status = status;
+            review.RejectionReason = rejectionReason;
+            review.ModeratedAt = DateTime.UtcNow;
+            review.IsNotificationRead = false;
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var message = status == "approved"
+                ? "Ваш отзыв одобрен и опубликован на сайте 🎉"
+                : $"Ваш отзыв отклонён. Причина: {review.RejectionReason}";
+
+            // NotificationService uses the same scoped DbContext, so on relational
+            // providers both the moderation state and durable patient notification
+            // participate in this transaction. Realtime delivery remains best-effort.
+            await _notifications.NotifyAsync(
+                review.PatientId,
+                status == "approved" ? "review_approved" : "review_rejected",
+                message,
+                review.Id,
+                cancellationToken);
+
+            if (transaction != null)
+                await transaction.CommitAsync(cancellationToken);
+
             return Ok(new
             {
                 review.Id,
                 review.Status,
                 review.RejectionReason,
-                idempotent = true
+                idempotent = false
             });
         }
-
-        review.Status = status;
-        review.RejectionReason = rejectionReason;
-        review.ModeratedAt = DateTime.UtcNow;
-        review.IsNotificationRead = false;
-
-        await _context.SaveChangesAsync();
-
-        var message = status == "approved"
-            ? "Ваш отзыв одобрен и опубликован на сайте 🎉"
-            : $"Ваш отзыв отклонён. Причина: {review.RejectionReason}";
-
-        await _notifications.NotifyAsync(
-            review.PatientId,
-            status == "approved" ? "review_approved" : "review_rejected",
-            message,
-            review.Id);
-
-        return Ok(new
+        finally
         {
-            review.Id,
-            review.Status,
-            review.RejectionReason,
-            idempotent = false
-        });
+            ProcessModerationGate.Release();
+        }
+    }
+
+    private async Task<IDbContextTransaction?> BeginModerationTransactionAsync(
+        int reviewId,
+        CancellationToken cancellationToken)
+    {
+        if (!_context.Database.IsRelational())
+            return null;
+
+        var isolationLevel = _context.Database.IsSqlServer()
+            ? IsolationLevel.ReadCommitted
+            : IsolationLevel.Serializable;
+        var transaction = await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
+
+        try
+        {
+            if (_context.Database.IsSqlServer())
+            {
+                var resource = $"dental-review-moderation:{reviewId}";
+                await _context.Database.ExecuteSqlInterpolatedAsync($$"""
+DECLARE @lockResult int;
+EXEC @lockResult = sys.sp_getapplock
+    @Resource={{resource}},
+    @LockMode='Exclusive',
+    @LockOwner='Transaction',
+    @LockTimeout=5000;
+IF @lockResult < 0
+    THROW 51000, 'Unable to acquire review moderation lock', 1;
+""", cancellationToken);
+            }
+
+            return transaction;
+        }
+        catch
+        {
+            await transaction.DisposeAsync();
+            throw;
+        }
     }
 
     private int GetCurrentUserId()
