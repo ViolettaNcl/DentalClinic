@@ -538,24 +538,38 @@ namespace DentalClinic.Controllers
         //  Админ: аналитика по чату — видно о чём спрашивают пациенты
         // ═══════════════════════════════════════════════════════════
 
-        // Последние диалоги целиком, сгруппированные по сессии
+        // Последние диалоги целиком, сгруппированные по сессии. Сессии выбираются
+        // по последней активности, а не по времени первого сообщения: иначе старый
+        // диалог, в который пациент вернулся сегодня, мог оказаться ниже более нового,
+        // но уже неактивного диалога или вообще выпасть из take.
         [HttpGet("admin/sessions")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetRecentSessions([FromQuery] int take = 50)
+        public async Task<IActionResult> GetRecentSessions(
+            [FromQuery] int take = 50,
+            CancellationToken cancellationToken = default)
         {
             take = Math.Clamp(take, 1, 200);
 
             var recentSessionIds = await _db.ChatMessageLogs
-                .OrderByDescending(m => m.CreatedAt)
-                .Select(m => m.SessionId)
-                .Distinct()
+                .AsNoTracking()
+                .GroupBy(m => m.SessionId)
+                .Select(g => new
+                {
+                    SessionId = g.Key,
+                    LastActivityAt = g.Max(m => m.CreatedAt)
+                })
+                .OrderByDescending(s => s.LastActivityAt)
+                .ThenBy(s => s.SessionId)
                 .Take(take)
-                .ToListAsync();
+                .Select(s => s.SessionId)
+                .ToListAsync(cancellationToken);
 
             var logs = await _db.ChatMessageLogs
+                .AsNoTracking()
                 .Where(m => recentSessionIds.Contains(m.SessionId))
                 .OrderBy(m => m.CreatedAt)
-                .ToListAsync();
+                .ThenBy(m => m.Id)
+                .ToListAsync(cancellationToken);
 
             var sessions = logs
                 .GroupBy(m => m.SessionId)
@@ -563,12 +577,17 @@ namespace DentalClinic.Controllers
                 {
                     sessionId = g.Key,
                     startedAt = g.Min(m => m.CreatedAt),
+                    lastActivityAt = g.Max(m => m.CreatedAt),
                     patientId = g.FirstOrDefault(m => m.PatientId != null)?.PatientId,
                     messageCount = g.Count(),
                     preview = g.FirstOrDefault(m => m.Role == "user")?.Text ?? g.First().Text,
-                    messages = g.Select(m => new { m.Role, m.Text, m.CreatedAt })
+                    messages = g
+                        .OrderBy(m => m.CreatedAt)
+                        .ThenBy(m => m.Id)
+                        .Select(m => new { m.Role, m.Text, m.CreatedAt })
                 })
-                .OrderByDescending(s => s.startedAt)
+                .OrderByDescending(s => s.lastActivityAt)
+                .ThenBy(s => s.sessionId)
                 .ToList();
 
             return Ok(sessions);
