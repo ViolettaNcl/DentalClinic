@@ -261,6 +261,32 @@ app.UseResponseCompression();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.Use(async (context, next) =>
+{
+    if (string.Equals(context.Request.Path.Value, "/api/chat/tts", StringComparison.OrdinalIgnoreCase))
+    {
+        var allowDirectRequests = app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing");
+        var allowed = PaidApiOriginPolicy.IsAllowed(
+            context.Request.Headers.Origin.ToString(),
+            context.Request.Headers["Sec-Fetch-Site"].ToString(),
+            context.Request.Scheme,
+            context.Request.Host.Host,
+            context.Request.Host.Port,
+            allowDirectRequests);
+
+        if (!allowed)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"message\":\"Cross-origin TTS is not allowed\"}");
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.UseCors("AllowFrontend");
 
 if (!app.Environment.IsDevelopment())
