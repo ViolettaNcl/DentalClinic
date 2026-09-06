@@ -2,6 +2,7 @@ import { getLang, onLanguageChange } from '../../core/i18n.js';
 import {
     bookingLabel,
     doctorExperienceText,
+    doctorExperienceYears,
     doctorInitials,
     findDoctorByRenderedName,
     localizedDoctorName,
@@ -39,8 +40,8 @@ function hydrateStaticCard(card, doctor, language) {
     const image = card.querySelector('.doctor-card__photo img');
     if (image && name) image.alt = name;
 
-    const years = Number(doctor.experienceYears);
-    if (Number.isInteger(years) && years >= 0) {
+    const years = doctorExperienceYears(doctor);
+    if (years !== null) {
         const firstStat = card.querySelector('.stat-number');
         if (firstStat) firstStat.textContent = `${years}+`;
     }
@@ -83,7 +84,7 @@ function createDynamicCard(doctor, language, reverse) {
         item.className = 'stat-item';
         const number = document.createElement('div');
         number.className = 'stat-number';
-        number.textContent = `${Number(doctor.experienceYears)}+`;
+        number.textContent = `${doctorExperienceYears(doctor)}+`;
         const label = document.createElement('div');
         label.className = 'stat-label';
         label.textContent = experience.replace(/^\d+\+\s*/, '');
@@ -173,12 +174,16 @@ function reconcile(language = getLang()) {
     });
 
     const unmatched = activeDoctors.filter(doctor => !matchedIds.has(String(doctor.id)));
+    let visibleCount = staticCards.filter(card => !card.hidden).length;
     unmatched.forEach((doctor, index) => {
-        const divider = document.createElement('div');
-        divider.className = 'section-divider';
-        divider.dataset.dynamicDoctorDivider = '1';
-        container.append(divider);
-        container.append(createDynamicCard(doctor, language, index % 2 === 1));
+        if (visibleCount > 0) {
+            const divider = document.createElement('div');
+            divider.className = 'section-divider';
+            divider.dataset.dynamicDoctorDivider = '1';
+            container.append(divider);
+        }
+        container.append(createDynamicCard(doctor, language, (visibleCount + index) % 2 === 1));
+        visibleCount += 1;
     });
 }
 
