@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -27,25 +27,38 @@ namespace DentalClinic.Controllers
         private static readonly string[] GeminiModels =
             { "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash" };
 
-        private static readonly Dictionary<string[], (string url, string name)> PageKeywords = new()
+        // Fallback links are intentionally multilingual. Structured Gemini links are
+        // preferred, but when the provider returns none this table must work for all
+        // five supported UI languages rather than silently becoming Russian-only.
+        private static readonly Dictionary<string[], (string url, Dictionary<string, string> names)> PageKeywords = new()
         {
-            { new[]{"имплант","all-on"}, ("/pages/services/implants.html", "Подробнее об имплантах →") },
-            { new[]{"коронк"}, ("/pages/services/crowns.html", "Подробнее о коронках →") },
-            { new[]{"пломб"}, ("/pages/services/fillings.html", "Подробнее о пломбах →") },
-            { new[]{"канал","нерв","эндодонт"}, ("/pages/services/root-canal.html", "Лечение каналов →") },
-            { new[]{"удален","экстракц","зуб мудрост"}, ("/pages/services/extractions.html", "Удаление зубов →") },
-            { new[]{"мост"}, ("/pages/services/bridges.html", "Подробнее о мостах →") },
-            { new[]{"протез"}, ("/pages/services/prosthetics.html", "Подробнее о протезах →") },
-            { new[]{"косметик","отбелив","винир","улыбк"}, ("/pages/services/cosmetic-treatments.html", "Косметические процедуры →") },
-            { new[]{"врач","доктор","специалист"}, ("/pages/doctors.html", "Наши врачи →") },
-            { new[]{"записат","контакт","приём"}, ("/pages/contact.html", "Записаться онлайн →") },
-            { new[]{"о клинике","сертифик","философ"}, ("/pages/about.html", "О клинике →") },
+            { new[]{"имплант","all-on","implant","implantologie","εμφύτευμ","زراع","غرس"}, ("/pages/services/implants.html", new()
+                { ["ru"]="Подробнее об имплантах →", ["en"]="Implants →", ["fr"]="Implants →", ["el"]="Εμφυτεύματα →", ["ar"]="زراعة الأسنان ←" }) },
+            { new[]{"коронк","crown","couronn","στεφάν","تاج","تيجان"}, ("/pages/services/crowns.html", new()
+                { ["ru"]="Подробнее о коронках →", ["en"]="Crowns →", ["fr"]="Couronnes →", ["el"]="Στεφάνες →", ["ar"]="تيجان الأسنان ←" }) },
+            { new[]{"пломб","filling","plombage","σφράγισ","حشو"}, ("/pages/services/fillings.html", new()
+                { ["ru"]="Подробнее о пломбах →", ["en"]="Fillings →", ["fr"]="Plombages →", ["el"]="Σφραγίσματα →", ["ar"]="حشوات الأسنان ←" }) },
+            { new[]{"канал","нерв","эндодонт","root canal","endodont","traitement de canal","ρίζ","ενδοδοντ","قناة الجذر","عصب"}, ("/pages/services/root-canal.html", new()
+                { ["ru"]="Лечение каналов →", ["en"]="Root canal treatment →", ["fr"]="Traitement de canal →", ["el"]="Ενδοδοντική θεραπεία →", ["ar"]="علاج قناة الجذر ←" }) },
+            { new[]{"удален","экстракц","зуб мудрост","extract","tooth removal","extraction","εξαγωγ","خلع"}, ("/pages/services/extractions.html", new()
+                { ["ru"]="Удаление зубов →", ["en"]="Tooth extraction →", ["fr"]="Extraction dentaire →", ["el"]="Εξαγωγή δοντιού →", ["ar"]="خلع الأسنان ←" }) },
+            { new[]{"мост","bridge","pont dentaire","γέφυρ","جسر"}, ("/pages/services/bridges.html", new()
+                { ["ru"]="Подробнее о мостах →", ["en"]="Dental bridges →", ["fr"]="Bridges dentaires →", ["el"]="Οδοντικές γέφυρες →", ["ar"]="جسور الأسنان ←" }) },
+            { new[]{"протез","denture","prosthet","prothès","οδοντοστοιχ","προσθετ","طقم","أطقم"}, ("/pages/services/prosthetics.html", new()
+                { ["ru"]="Подробнее о протезах →", ["en"]="Dentures & prosthetics →", ["fr"]="Prothèses dentaires →", ["el"]="Οδοντικές προσθέσεις →", ["ar"]="أطقم وتعويضات الأسنان ←" }) },
+            { new[]{"косметик","отбелив","винир","улыбк","cosmetic","whitening","veneer","smile design","esthétique","blanchiment","facette","sourire","αισθητικ","λεύκαν","όψ","تجميل","تبييض","قشور","ابتسامة"}, ("/pages/services/cosmetic-treatments.html", new()
+                { ["ru"]="Косметические процедуры →", ["en"]="Cosmetic dentistry →", ["fr"]="Dentisterie esthétique →", ["el"]="Αισθητική οδοντιατρική →", ["ar"]="طب الأسنان التجميلي ←" }) },
+            { new[]{"врач","доктор","специалист","doctor","dentist","specialist","médecin","dentiste","spécialiste","γιατρ","οδοντίατρ","طبيب","دكتور","أخصائي"}, ("/pages/doctors.html", new()
+                { ["ru"]="Наши врачи →", ["en"]="Our doctors →", ["fr"]="Nos médecins →", ["el"]="Οι γιατροί μας →", ["ar"]="أطباؤنا ←" }) },
+            { new[]{"записат","контакт","приём","book","appointment","contact","rendez-vous","rendez vous","ραντεβ","επικοινων","حجز","موعد","تواصل"}, ("/pages/contact.html", new()
+                { ["ru"]="Записаться онлайн →", ["en"]="Book online →", ["fr"]="Prendre rendez-vous →", ["el"]="Κλείστε ραντεβού →", ["ar"]="احجز موعدًا ←" }) },
+            { new[]{"о клинике","сертифик","философ","about clinic","certificate","philosophy","clinique","certificat","philosophie","κλινικ","πιστοποι","φιλοσοφ","عيادة","شهادة","فلسفة"}, ("/pages/about.html", new()
+                { ["ru"]="О клинике →", ["en"]="About the clinic →", ["fr"]="À propos de la clinique →", ["el"]="Σχετικά με την κλινική →", ["ar"]="عن العيادة ←" }) },
         };
 
         // Проактивные сообщения — бот сам инициирует разговор.
-        // Раньше это был Dictionary<string,string> только с русским текстом,
-        // из-за чего проактивные сообщения всегда приходили на русском независимо
-        // от языка сайта. Теперь это словарь словарей: ключ триггера → язык → текст.
+        // Формулировки здесь уже безопасные сами по себе; runtime-фильтр остаётся
+        // как защита для старых/кэшированных payload во время rolling deployments.
         private static readonly Dictionary<string, Dictionary<string, string>> ProactiveMessages = new()
         {
             ["__proactive_implants__"] = new()
@@ -74,19 +87,19 @@ namespace DentalClinic.Controllers
             },
             ["__proactive_canal__"] = new()
             {
-                ["ru"] = "Вижу, вы на странице о лечении каналов. Это звучит страшно, но у нас это абсолютно безболезненно 🤍 Есть вопросы?",
-                ["en"] = "I see you're on our root canal treatment page. It may sound scary, but with us it's completely painless 🤍 Any questions?",
-                ["fr"] = "Je vois que vous êtes sur notre page de traitement de canal. Cela peut sembler effrayant, mais chez nous c'est totalement indolore 🤍 Des questions ?",
-                ["el"] = "Βλέπω ότι είστε στη σελίδα για τη θεραπεία ρίζας. Ίσως ακούγεται τρομακτικό, αλλά με εμάς είναι εντελώς ανώδυνο 🤍 Έχετε ερωτήσεις;",
-                ["ar"] = "أرى أنك في صفحة علاج قناة الجذر. قد يبدو الأمر مخيفًا، لكنه غير مؤلم تمامًا لدينا 🤍 هل لديك أسئلة؟",
+                ["ru"] = "Вижу, вы на странице о лечении каналов. Это может тревожить, но врач заранее обсудит обезболивание и способы сделать лечение максимально комфортным 🤍 Есть вопросы?",
+                ["en"] = "I see you're on our root canal treatment page. It can sound worrying, but the dentist will discuss anesthesia and comfort options with you beforehand 🤍 Any questions?",
+                ["fr"] = "Je vois que vous êtes sur notre page de traitement de canal. Cela peut sembler inquiétant, mais le dentiste vous expliquera à l’avance les options d’anesthésie et de confort 🤍 Des questions ?",
+                ["el"] = "Βλέπω ότι είστε στη σελίδα για τη θεραπεία ρίζας. Μπορεί να ακούγεται ανησυχητικό, αλλά ο οδοντίατρος θα συζητήσει εκ των προτέρων τις επιλογές αναισθησίας και άνεσης 🤍 Έχετε ερωτήσεις;",
+                ["ar"] = "أرى أنك في صفحة علاج قناة الجذر. قد يبدو الأمر مقلقًا، لكن طبيب الأسنان سيناقش معك مسبقًا خيارات التخدير والراحة 🤍 هل لديك أسئلة؟",
             },
             ["__proactive_extraction__"] = new()
             {
-                ["ru"] = "Изучаете удаление зубов? Расскажу чего ожидать и как проходит процедура без боли и страха.",
-                ["en"] = "Looking into tooth extraction? I can tell you what to expect and how the procedure goes without pain or fear.",
-                ["fr"] = "Vous vous renseignez sur l'extraction dentaire ? Je peux vous expliquer à quoi vous attendre et comment se déroule la procédure sans douleur ni crainte.",
-                ["el"] = "Εξετάζετε την εξαγωγή δοντιού; Μπορώ να σας πω τι να περιμένετε και πώς γίνεται η διαδικασία χωρίς πόνο και φόβο.",
-                ["ar"] = "هل تبحث عن خلع الأسنان؟ يمكنني إخبارك بما يمكن توقعه وكيف يتم الإجراء دون ألم أو خوف.",
+                ["ru"] = "Изучаете удаление зубов? Расскажу, чего ожидать от процедуры и как обычно контролируют боль и тревогу.",
+                ["en"] = "Looking into tooth extraction? I can tell you what to expect and how pain and anxiety are typically managed.",
+                ["fr"] = "Vous vous renseignez sur l'extraction dentaire ? Je peux vous expliquer à quoi vous attendre et comment la douleur et l’anxiété sont habituellement prises en charge.",
+                ["el"] = "Εξετάζετε την εξαγωγή δοντιού; Μπορώ να σας πω τι να περιμένετε και πώς συνήθως αντιμετωπίζονται ο πόνος και το άγχος.",
+                ["ar"] = "هل تبحث عن خلع الأسنان؟ يمكنني إخبارك بما يمكن توقعه وكيف تتم عادةً السيطرة على الألم والقلق.",
             },
             ["__proactive_bridges__"] = new()
             {
@@ -181,6 +194,14 @@ namespace DentalClinic.Controllers
             ["ar"] = "арабском (العربية)"
         };
 
+        private const string SymptomSafetyPrompt =
+            "СИМПТОМЫ — если пациент описывает боль или проблему:\n" +
+            "1. Коротко прояви эмпатию.\n" +
+            "2. При необходимости задай не больше одного полезного уточняющего вопроса.\n" +
+            "3. Не связывай симптом с конкретным диагнозом или процедурой. Объясняй только возможные категории причин и подчёркивай, что решение принимает стоматолог после осмотра.\n" +
+            "4. Не назначай лекарства и дозировки и не обещай безболезненность или результат лечения.\n" +
+            "5. При затруднённом дыхании или глотании, быстро растущем отёке лица/шеи, неконтролируемом кровотечении или серьёзной травме рекомендуй срочную очную/экстренную помощь.\n";
+
         private static string L(Dictionary<string, string> d, string lang) => d.TryGetValue(lang, out var v) ? v : d["ru"];
         private static string[] L(Dictionary<string, string[]> d, string lang) => d.TryGetValue(lang, out var v) ? v : d["ru"];
 
@@ -220,9 +241,7 @@ namespace DentalClinic.Controllers
             // ── Проактивное сообщение — отвечаем напрямую без AI ──
             if (ProactiveMessages.TryGetValue(req.Message, out var proMsgByLang))
             {
-                // Ссылки определяются по ключевым словам в русском варианте текста —
-                // так автоопределение страницы работает независимо от языка ответа.
-                var proLinks = AutoLinks(L(proMsgByLang, "ru").ToLower());
+                var proLinks = AutoLinks(L(proMsgByLang, "ru"), lang);
                 return Ok(new
                 {
                     reply = L(proMsgByLang, lang),
@@ -261,9 +280,11 @@ namespace DentalClinic.Controllers
                     .GetString() ?? "";
 
                 var (reply, suggestions, links) = ParseModelOutput(fullText);
-                var combined = (req.Message + " " + reply).ToLower();
-                var startBooking = combined.Contains("записат") || combined.Contains("приём") || combined.Contains("запись");
-                if (links.Count == 0) links = AutoLinks(combined);
+                var combined = req.Message + " " + reply;
+                var startBooking = combined.Contains("записат", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("приём", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("запись", StringComparison.OrdinalIgnoreCase);
+                if (links.Count == 0) links = AutoLinks(combined, lang);
 
                 await LogExchangeAsync(req, lang, reply);
 
@@ -320,9 +341,7 @@ namespace DentalClinic.Controllers
                 {
                     done = true,
                     suggestions = L(ProactiveSuggestions, lang),
-                    // Ссылки определяются по ключевым словам в русском варианте текста —
-                    // так автоопределение страницы работает независимо от языка ответа.
-                    links = AutoLinks(L(proMsgByLang, "ru").ToLower()),
+                    links = AutoLinks(L(proMsgByLang, "ru"), lang),
                     startBooking = false
                 });
                 return;
@@ -437,9 +456,11 @@ namespace DentalClinic.Controllers
                 if (!markerFound && reply.Length > sentLength)
                     await SendAsync(new { delta = reply[sentLength..] });
 
-                var combined = (req.Message + " " + reply).ToLower();
-                var startBooking = combined.Contains("записат") || combined.Contains("приём") || combined.Contains("запись");
-                if (links.Count == 0) links = AutoLinks(combined);
+                var combined = req.Message + " " + reply;
+                var startBooking = combined.Contains("записат", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("приём", StringComparison.OrdinalIgnoreCase)
+                    || combined.Contains("запись", StringComparison.OrdinalIgnoreCase);
+                if (links.Count == 0) links = AutoLinks(combined, lang);
 
                 await SendAsync(new { done = true, suggestions, links, startBooking });
                 await LogExchangeAsync(req, lang, reply);
@@ -577,8 +598,8 @@ namespace DentalClinic.Controllers
             var topics = PageKeywords
                 .Select(kv => new
                 {
-                    topic = kv.Value.name.Replace(" →", ""),
-                    count = userMessages.Count(m => kv.Key.Any(kw => m.Text.ToLower().Contains(kw)))
+                    topic = kv.Value.names["ru"].Replace(" →", ""),
+                    count = userMessages.Count(m => kv.Key.Any(kw => m.Text.Contains(kw, StringComparison.OrdinalIgnoreCase)))
                 })
                 .Where(t => t.count > 0)
                 .OrderByDescending(t => t.count)
@@ -652,12 +673,7 @@ namespace DentalClinic.Controllers
                 "СТИЛЬ: коротко (2-3 предложения), тепло, по делу.\n" +
                 $"ЯЗЫК: отвечай ТОЛЬКО на {langName}. Кнопки SUGGESTIONS тоже на {langName}.\n" +
                 "\n" +
-                "АНАЛИЗ СИМПТОМОВ — если пациент описывает боль или проблему:\n" +
-                "1. Посочувствуй коротко\n" +
-                "2. Задай 1 уточняющий вопрос (давно? острая/тупая? температурная реакция?)\n" +
-                "3. После уточнения — порекомендуй услугу\n" +
-                "Примеры: боль при жевании → вероятно кариес/пломба; боль от холодного → каналы; опухоль → срочно к врачу\n" +
-                "Никогда не ставь диагноз — только рекомендуй обратиться!\n" +
+                SymptomSafetyPrompt +
                 "\n" +
                 "ЗАПИСЬ: если пациент хочет записаться — добавь startBooking:true в ответ (отдельным полем)\n" +
                 "\n" +
@@ -722,15 +738,16 @@ namespace DentalClinic.Controllers
             return (reply, suggestions, links);
         }
 
-        // Страховка: авто-ссылки по ключевым словам, когда модель сама не вернула LINKS
-        private static List<Dictionary<string, string>> AutoLinks(string combinedLower)
+        // Страховка: авто-ссылки по ключевым словам, когда модель сама не вернула LINKS.
+        // Matching and labels both respect every supported language.
+        private static List<Dictionary<string, string>> AutoLinks(string combinedText, string lang = "ru")
         {
             var links = new List<Dictionary<string, string>>();
             var addedUrls = new HashSet<string>();
             foreach (var kv in PageKeywords)
-                if (kv.Key.Any(kw => combinedLower.Contains(kw)) && addedUrls.Add(kv.Value.url))
+                if (kv.Key.Any(kw => combinedText.Contains(kw, StringComparison.OrdinalIgnoreCase)) && addedUrls.Add(kv.Value.url))
                 {
-                    links.Add(new() { ["text"] = kv.Value.name, ["url"] = kv.Value.url });
+                    links.Add(new() { ["text"] = L(kv.Value.names, lang), ["url"] = kv.Value.url });
                     if (links.Count >= 2) break;
                 }
             return links;
