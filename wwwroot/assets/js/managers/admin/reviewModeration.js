@@ -18,6 +18,7 @@ class ReviewModerationManager {
         };
         this._data = { pending: [], approved: [], rejected: [] };
         this._page = { pending: 1, approved: 1, rejected: 1 };
+        this._total = { pending: 0, approved: 0, rejected: 0 };
 
         this.modal = {
             wrap: document.getElementById('reject-review-modal'),
@@ -36,29 +37,35 @@ class ReviewModerationManager {
         this.modal.close?.addEventListener('click', () => this._hideModal());
         this.modal.cancel?.addEventListener('click', () => this._hideModal());
 
-        this.loadAll();
+        this.loadAll({ reset: true });
     }
 
-    async loadAll() {
+    async loadAll({ reset = false } = {}) {
+        if (reset) this._page = { pending: 1, approved: 1, rejected: 1 };
+
         await Promise.all([
-            this._loadTab('pending', '/review/admin/pending'),
-            this._loadTab('approved', '/review/admin/approved'),
-            this._loadTab('rejected', '/review/admin/rejected'),
+            this._loadTab('pending', this._page.pending),
+            this._loadTab('approved', this._page.approved),
+            this._loadTab('rejected', this._page.rejected),
         ]);
     }
 
-    async _loadTab(key, endpoint) {
+    async _loadTab(key, page = 1) {
         const tbody = this.tbody[key];
         if (!tbody) return;
 
+        tbody.innerHTML = `<tr><td colspan="6">Загрузка...</td></tr>`;
+
         try {
-            const data = await apiFetch(endpoint);
-            this._data[key] = data;
-            this._page[key] = 1;
+            const result = await apiFetch(`/review/admin/list/${encodeURIComponent(key)}?page=${page}&pageSize=${PAGE_SIZE}`);
+            this._data[key] = Array.isArray(result?.items) ? result.items : [];
+            this._page[key] = Number(result?.page) || 1;
+            this._total[key] = Number(result?.total) || 0;
             this._render(key);
         } catch (err) {
             console.error(`ReviewModeration [${key}] error:`, err);
             tbody.innerHTML = `<tr><td colspan="6" class="panel-error">Ошибка загрузки</td></tr>`;
+            if (this.paginationEl[key]) this.paginationEl[key].innerHTML = '';
         }
     }
 
@@ -66,18 +73,14 @@ class ReviewModerationManager {
         const tbody = this.tbody[key];
         if (!tbody) return;
 
-        const all = this._data[key] || [];
+        const data = this._data[key] || [];
+        const total = this._total[key] || 0;
 
-        if (!all.length) {
+        if (!data.length) {
             tbody.innerHTML = `<tr><td colspan="6" class="panel-empty">Отзывов нет</td></tr>`;
             if (this.paginationEl[key]) this.paginationEl[key].innerHTML = '';
             return;
         }
-
-        const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
-        if (this._page[key] > totalPages) this._page[key] = totalPages;
-        const start = (this._page[key] - 1) * PAGE_SIZE;
-        const data = all.slice(start, start + PAGE_SIZE);
 
         const buildStars = (rating) => {
             let filled = '';
@@ -127,9 +130,9 @@ class ReviewModerationManager {
 
         renderPagination(this.paginationEl[key], {
             page: this._page[key],
-            totalItems: all.length,
+            totalItems: total,
             pageSize: PAGE_SIZE,
-            onPageChange: (p) => { this._page[key] = p; this._render(key); }
+            onPageChange: (p) => this._loadTab(key, p)
         });
     }
 
@@ -151,7 +154,7 @@ class ReviewModerationManager {
                 body: JSON.stringify({ status: 'approved' })
             });
             showSuccess('Отзыв одобрен и опубликован');
-            this.loadAll();
+            await this.loadAll();
         } catch (err) {
             showError(err.message || 'Не удалось одобрить отзыв');
         }
@@ -184,7 +187,7 @@ class ReviewModerationManager {
             });
             this._hideModal();
             showSuccess('Отзыв отклонён, пациент увидит причину в личном кабинете');
-            this.loadAll();
+            await this.loadAll();
         } catch (err) {
             showError(err.message || 'Не удалось отклонить отзыв');
         }

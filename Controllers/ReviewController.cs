@@ -20,6 +20,10 @@ namespace DentalClinic.Controllers;
 public class ReviewController : ControllerBase
 {
     private const int PublicReviewLimit = 100;
+    private const int PatientReviewCompatibilityLimit = 200;
+    private const int AdminReviewCompatibilityLimit = 200;
+    private const int DefaultAdminPageSize = 15;
+    private const int MaxAdminPageSize = 100;
 
     private readonly ApplicationDbContext _context;
     private readonly NotificationService _notifications;
@@ -255,36 +259,45 @@ public class ReviewController : ControllerBase
 
     [HttpGet("patient/{patientId:int}")]
     [Authorize]
-    public async Task<IActionResult> GetByPatient(int patientId)
+    public async Task<IActionResult> GetByPatient(int patientId, CancellationToken cancellationToken)
     {
         if (!IsOwnerOrAdmin(patientId)) return Forbid();
 
         var reviews = await _context.Reviews
+            .AsNoTracking()
             .Where(r => r.PatientId == patientId)
             .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+            .ThenByDescending(r => r.Id)
+            .Take(PatientReviewCompatibilityLimit + 1)
+            .ToListAsync(cancellationToken);
+
+        if (reviews.Count > PatientReviewCompatibilityLimit)
+        {
+            reviews.RemoveAt(reviews.Count - 1);
+            Response.Headers["X-Result-Truncated"] = "true";
+        }
 
         return Ok(reviews);
     }
 
     [HttpPost("{id:int}/mark-read")]
     [Authorize]
-    public async Task<IActionResult> MarkNotificationRead(int id)
+    public async Task<IActionResult> MarkNotificationRead(int id, CancellationToken cancellationToken)
     {
-        var review = await _context.Reviews.FindAsync(id);
+        var review = await _context.Reviews.FindAsync([id], cancellationToken);
         if (review == null) return NotFound();
 
         if (!IsOwnerOrAdmin(review.PatientId)) return Forbid();
 
         review.IsNotificationRead = true;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         return Ok(new { review.Id, review.IsNotificationRead });
     }
 
     [HttpPost]
     [Authorize(Roles = "Patient")]
-    public async Task<IActionResult> Create([FromBody] CreateReviewRequest req)
+    public async Task<IActionResult> Create([FromBody] CreateReviewRequest req, CancellationToken cancellationToken)
     {
         var patientId = GetCurrentUserId();
 
@@ -304,7 +317,7 @@ public class ReviewController : ControllerBase
         };
 
         _context.Reviews.Add(review);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         await _notifications.NotifyAdminsAsync(
             "new_review",
@@ -318,27 +331,37 @@ public class ReviewController : ControllerBase
         });
     }
 
-    [HttpGet("admin/pending")]
+    // Server-side moderation pagination. The admin UI uses this endpoint so loading a
+    // tab never materializes the complete lifetime review history in EF or the browser.
+    [HttpGet("admin/list/{status}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetPending()
-        => Ok(await _AdminQuery("pending"));
-
-    [HttpGet("admin/approved")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetApprovedAdmin()
-        => Ok(await _AdminQuery("approved"));
-
-    [HttpGet("admin/rejected")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetRejectedAdmin()
-        => Ok(await _AdminQuery("rejected"));
-
-    private async Task<object> _AdminQuery(string status)
+    public async Task<IActionResult> GetAdminPage(
+        string status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = DefaultAdminPageSize,
+        CancellationToken cancellationToken = default)
     {
-        return await _context.Reviews
-            .Where(r => r.Status == status)
+        status = (status ?? string.Empty).Trim().ToLowerInvariant();
+        if (status is not ("pending" or "approved" or "rejected"))
+            return BadRequest(new { message = "Недопустимый статус отзывов" });
+
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, MaxAdminPageSize);
+
+        var query = _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.Status == status);
+
+        var total = await query.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        page = Math.Min(page, totalPages);
+
+        var items = await query
             .OrderByDescending(r => r.CreatedAt)
-            .Join(_context.Patients,
+            .ThenByDescending(r => r.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Join(_context.Patients.AsNoTracking(),
                 r => r.PatientId,
                 p => p.Id,
                 (r, p) => new
@@ -354,7 +377,60 @@ public class ReviewController : ControllerBase
                     r.CreatedAt,
                     r.ModeratedAt
                 })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
+
+        return Ok(new { items, page, pageSize, total, totalPages });
+    }
+
+    // Legacy array routes are retained for compatibility, but are now strictly bounded.
+    [HttpGet("admin/pending")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPending(CancellationToken cancellationToken)
+        => Ok(await AdminCompatibilityQuery("pending", cancellationToken));
+
+    [HttpGet("admin/approved")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetApprovedAdmin(CancellationToken cancellationToken)
+        => Ok(await AdminCompatibilityQuery("approved", cancellationToken));
+
+    [HttpGet("admin/rejected")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetRejectedAdmin(CancellationToken cancellationToken)
+        => Ok(await AdminCompatibilityQuery("rejected", cancellationToken));
+
+    private async Task<object> AdminCompatibilityQuery(string status, CancellationToken cancellationToken)
+    {
+        var rows = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.Status == status)
+            .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .Take(AdminReviewCompatibilityLimit + 1)
+            .Join(_context.Patients.AsNoTracking(),
+                r => r.PatientId,
+                p => p.Id,
+                (r, p) => new
+                {
+                    r.Id,
+                    r.PatientId,
+                    PatientName = p.FirstName,
+                    PatientEmail = p.Email,
+                    r.Rating,
+                    r.Text,
+                    r.Status,
+                    r.RejectionReason,
+                    r.CreatedAt,
+                    r.ModeratedAt
+                })
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count > AdminReviewCompatibilityLimit)
+        {
+            rows.RemoveAt(rows.Count - 1);
+            Response.Headers["X-Result-Truncated"] = "true";
+        }
+
+        return rows;
     }
 
     [HttpPut("admin/{id:int}/moderate")]
