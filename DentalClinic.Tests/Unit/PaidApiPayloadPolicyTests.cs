@@ -5,13 +5,18 @@ namespace DentalClinic.Tests.Unit;
 
 public class PaidApiPayloadPolicyTests
 {
+    [Fact]
+    public void UnknownContentLength_IsNotRejectedByPrecheck()
+    {
+        Assert.False(PaidApiPayloadPolicy.IsKnownLengthTooLarge(null));
+    }
+
     [Theory]
-    [InlineData(null, false)]
-    [InlineData(0, false)]
-    [InlineData(65535, false)]
-    [InlineData(65536, false)]
-    [InlineData(65537, true)]
-    public void KnownContentLength_IsBounded(long? contentLength, bool expectedTooLarge)
+    [InlineData(0L, false)]
+    [InlineData(65535L, false)]
+    [InlineData(65536L, false)]
+    [InlineData(65537L, true)]
+    public void KnownContentLength_IsBounded(long contentLength, bool expectedTooLarge)
     {
         Assert.Equal(expectedTooLarge, PaidApiPayloadPolicy.IsKnownLengthTooLarge(contentLength));
     }
