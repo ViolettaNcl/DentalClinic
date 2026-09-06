@@ -112,5 +112,79 @@ public class MaintenanceFollowUpTests : IClassFixture<CustomWebApplicationFactor
         var notification = Assert.Single(notifications);
         Assert.Contains("отзыв", notification.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal($"appointment-followup:{appointmentId}", notification.IdempotencyKey);
+        Assert.True((await verifyDb.AppointmentRequests.FindAsync(appointmentId))!.FollowUpSent);
+    }
+
+    [Fact]
+    public async Task FollowUps_DeletingPatientNotification_DoesNotMakeAppointmentEligibleAgain()
+    {
+        var client = _factory.CreateClient();
+        int appointmentId;
+        int patientId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var clock = scope.ServiceProvider.GetRequiredService<ClinicClock>();
+            var suffix = Guid.NewGuid().ToString("N");
+            var patient = new Patient
+            {
+                FirstName = "DeleteFollowUp",
+                Email = $"followup-delete-{suffix}@example.test",
+                Phone = "+7 900 000 00 02",
+                PasswordHash = "test-hash"
+            };
+            db.Patients.Add(patient);
+            await db.SaveChangesAsync();
+            patientId = patient.Id;
+
+            var appointment = new AppointmentRequest
+            {
+                PatientId = patient.Id,
+                FirstName = patient.FirstName,
+                Phone = patient.Phone!,
+                AppointmentDate = clock.Now.AddDays(-1),
+                Status = AppointmentStatuses.Completed,
+                CreatedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            db.AppointmentRequests.Add(appointment);
+            await db.SaveChangesAsync();
+            appointmentId = appointment.Id;
+        }
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CustomWebApplicationFactory.CronSecret);
+
+        var first = await client.GetAsync("/api/maintenance/follow-ups");
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        using (var deleteScope = _factory.Services.CreateScope())
+        {
+            var db = deleteScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var notification = await db.Notifications.SingleAsync(n =>
+                n.PatientId == patientId
+                && n.Type == AppointmentFollowUpPolicy.NotificationType
+                && n.RelatedId == appointmentId);
+            db.Notifications.Remove(notification);
+            await db.SaveChangesAsync();
+
+            var appointment = await db.AppointmentRequests.FindAsync(appointmentId);
+            Assert.NotNull(appointment);
+            Assert.True(appointment!.FollowUpSent);
+        }
+
+        var second = await client.GetAsync("/api/maintenance/follow-ups");
+        var secondJson = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal(0, secondJson.RootElement.GetProperty("processed").GetInt32());
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.False(await verifyDb.Notifications.AnyAsync(n =>
+            n.PatientId == patientId
+            && n.Type == AppointmentFollowUpPolicy.NotificationType
+            && n.RelatedId == appointmentId));
+        Assert.True((await verifyDb.AppointmentRequests.FindAsync(appointmentId))!.FollowUpSent);
     }
 }
