@@ -47,11 +47,14 @@ test('edit payload can explicitly clear an existing upper price', () => {
     assert.equal('priceTo' in result.payload, false);
 });
 
-test('rejects invalid price ranges and external or traversal links', () => {
+test('rejects invalid price ranges, links and sort orders', () => {
     assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '-1' }).ok, false);
     assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', priceTo: '99' }).ok, false);
     assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', pageUrl: 'https://evil.example/x' }).ok, false);
     assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', pageUrl: '/pages/../secret' }).ok, false);
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', sortOrder: '-1' }).ok, false);
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', sortOrder: '1.5' }).ok, false);
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', sortOrder: 'abc' }).ok, false);
 });
 
 test('formats single and ranged prices for the admin table', () => {
