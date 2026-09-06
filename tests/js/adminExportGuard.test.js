@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { requestAdminExport } from '../../wwwroot/assets/js/managers/admin/adminExportGuard.js';
+
+const storageValues = new Map();
+globalThis.localStorage = {
+    getItem: key => storageValues.has(key) ? storageValues.get(key) : null,
+    setItem: (key, value) => storageValues.set(key, String(value)),
+    removeItem: key => storageValues.delete(key),
+    clear: () => storageValues.clear()
+};
+
+const { requestAdminExport } = await import(
+    '../../wwwroot/assets/js/managers/admin/adminExportGuard.js'
+);
 
 test('admin exports rely on same-origin cookie without Authorization header', async () => {
     const calls = [];
