@@ -63,6 +63,10 @@ namespace DentalClinic.Data
             modelBuilder.Entity<Notification>()
                 .HasIndex(n => new { n.PatientId, n.IsRead });
             modelBuilder.Entity<Notification>()
+                .HasIndex(n => n.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
+            modelBuilder.Entity<Notification>()
                 .HasOne<Patient>()
                 .WithMany()
                 .HasForeignKey(n => n.PatientId)
