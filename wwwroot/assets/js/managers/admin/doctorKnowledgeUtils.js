@@ -1,10 +1,20 @@
 // Pure helpers for the admin doctor/Denta knowledge editor.
 // Kept browser-independent so validation can be covered by Node tests.
 
+const LOCALIZED_NAME_FIELDS = ['fullNameEn', 'fullNameFr', 'fullNameEl', 'fullNameAr'];
+
 export function buildDoctorPayload(values = {}, { edit = false } = {}) {
     const fullName = String(values.fullName || '').trim();
     if (!fullName) return { ok: false, error: 'Укажите ФИО врача' };
     if (fullName.length > 150) return { ok: false, error: 'ФИО врача слишком длинное' };
+
+    const localizedNames = {};
+    for (const field of LOCALIZED_NAME_FIELDS) {
+        const value = String(values[field] || '').trim();
+        if (value.length > 150)
+            return { ok: false, error: 'Локализованное имя врача слишком длинное' };
+        localizedNames[field] = value;
+    }
 
     const specialization = String(values.specialization || '').trim();
     if (specialization.length > 300)
@@ -24,6 +34,7 @@ export function buildDoctorPayload(values = {}, { edit = false } = {}) {
 
     const payload = {
         fullName,
+        ...localizedNames,
         specialization,
         experienceYears,
         bio,
