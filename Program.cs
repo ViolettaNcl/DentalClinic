@@ -264,7 +264,7 @@ app.UseRouting();
 
 app.Use(async (context, next) =>
 {
-    if (string.Equals(context.Request.Path.Value, "/api/chat/tts", StringComparison.OrdinalIgnoreCase))
+    if (PaidApiRoutePolicy.RequiresSameOrigin(context.Request.Method, context.Request.Path.Value))
     {
         var allowDirectRequests = app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing");
         var allowed = PaidApiOriginPolicy.IsAllowed(
@@ -279,7 +279,7 @@ app.Use(async (context, next) =>
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync("{\"message\":\"Cross-origin TTS is not allowed\"}");
+            await context.Response.WriteAsync("{\"message\":\"Cross-origin AI requests are not allowed\"}");
             return;
         }
     }
