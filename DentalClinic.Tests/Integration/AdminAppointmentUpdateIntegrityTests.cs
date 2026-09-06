@@ -116,6 +116,160 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
         Assert.Equal(AppointmentStatuses.Pending, saved.Status);
     }
 
+    [Fact]
+    public async Task Update_ExplicitNulls_ClearPendingScheduleAndComment()
+    {
+        int appointmentId;
+        var appointmentDate = NextOpenDayAt(15, 0);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var doctor = new Doctor
+            {
+                FullName = $"CRM clear doctor {Guid.NewGuid():N}",
+                IsActive = true
+            };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+
+            var appointment = new AppointmentRequest
+            {
+                FirstName = "CRM clear test",
+                Phone = UniquePhone(),
+                Comment = "remove me",
+                Status = AppointmentStatuses.Pending,
+                AppointmentDate = appointmentDate,
+                DoctorId = doctor.Id,
+                ReminderSent = true
+            };
+
+            db.AppointmentRequests.Add(appointment);
+            await db.SaveChangesAsync();
+            appointmentId = appointment.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/AppointmentRequest/{appointmentId}", new
+        {
+            doctorId = (int?)null,
+            appointmentDate = (DateTime?)null,
+            comment = (string?)null
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.AppointmentRequests.FindAsync(appointmentId);
+
+        Assert.NotNull(saved);
+        Assert.Null(saved!.DoctorId);
+        Assert.Null(saved.AppointmentDate);
+        Assert.Null(saved.Comment);
+        Assert.False(saved.ReminderSent);
+        Assert.Equal(AppointmentStatuses.Pending, saved.Status);
+    }
+
+    [Fact]
+    public async Task Update_OmittedNullableFields_PreserveExistingValues()
+    {
+        int appointmentId;
+        int doctorId;
+        var appointmentDate = NextOpenDayAt(15, 0);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var doctor = new Doctor
+            {
+                FullName = $"CRM preserve doctor {Guid.NewGuid():N}",
+                IsActive = true
+            };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+            doctorId = doctor.Id;
+
+            var appointment = new AppointmentRequest
+            {
+                FirstName = "CRM preserve test",
+                Phone = UniquePhone(),
+                Comment = "keep me",
+                Status = AppointmentStatuses.Pending,
+                AppointmentDate = appointmentDate,
+                DoctorId = doctorId
+            };
+
+            db.AppointmentRequests.Add(appointment);
+            await db.SaveChangesAsync();
+            appointmentId = appointment.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/AppointmentRequest/{appointmentId}", new { });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.AppointmentRequests.FindAsync(appointmentId);
+
+        Assert.NotNull(saved);
+        Assert.Equal(doctorId, saved!.DoctorId);
+        Assert.Equal(appointmentDate, saved.AppointmentDate);
+        Assert.Equal("keep me", saved.Comment);
+    }
+
+    [Fact]
+    public async Task Update_ClearingDateWhileDoctorRemains_ReturnsBadRequestAndPreservesSchedule()
+    {
+        int appointmentId;
+        int doctorId;
+        var appointmentDate = NextOpenDayAt(15, 0);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var doctor = new Doctor
+            {
+                FullName = $"CRM invalid clear doctor {Guid.NewGuid():N}",
+                IsActive = true
+            };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+            doctorId = doctor.Id;
+
+            var appointment = new AppointmentRequest
+            {
+                FirstName = "CRM invalid clear test",
+                Phone = UniquePhone(),
+                Status = AppointmentStatuses.Pending,
+                AppointmentDate = appointmentDate,
+                DoctorId = doctorId
+            };
+
+            db.AppointmentRequests.Add(appointment);
+            await db.SaveChangesAsync();
+            appointmentId = appointment.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/AppointmentRequest/{appointmentId}", new
+        {
+            appointmentDate = (DateTime?)null
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.AppointmentRequests.FindAsync(appointmentId);
+
+        Assert.NotNull(saved);
+        Assert.Equal(doctorId, saved!.DoctorId);
+        Assert.Equal(appointmentDate, saved.AppointmentDate);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedAdminClientAsync()
     {
         var email = $"admin-crm-{Guid.NewGuid():N}@example.com";

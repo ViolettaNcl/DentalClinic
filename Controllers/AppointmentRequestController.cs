@@ -176,11 +176,16 @@ public class AppointmentRequestController : ControllerBase
                 return BadRequest(new { message = $"Переход статуса {previousStatus} → {nextStatus} запрещён" });
         }
 
-        var nextDate = dto.AppointmentDate.HasValue
-            ? _scheduling.Normalize(dto.AppointmentDate.Value)
+        // Explicit JSON null now means "clear this field", while an omitted property
+        // means "leave it unchanged". UpdateAppointmentRequest tracks property presence
+        // in its setters, which preserves partial-update semantics for nullable values.
+        var nextDate = dto.AppointmentDateSpecified
+            ? dto.AppointmentDate.HasValue
+                ? _scheduling.Normalize(dto.AppointmentDate.Value)
+                : null
             : request.AppointmentDate;
-        var nextDoctorId = dto.DoctorId ?? request.DoctorId;
-        var scheduleChanged = dto.AppointmentDate.HasValue || dto.DoctorId.HasValue;
+        var nextDoctorId = dto.DoctorIdSpecified ? dto.DoctorId : request.DoctorId;
+        var scheduleChanged = dto.AppointmentDateSpecified || dto.DoctorIdSpecified;
         var becomingConfirmed = previousStatus != AppointmentStatuses.Confirmed
             && nextStatus == AppointmentStatuses.Confirmed;
         var reactivating = previousStatus != AppointmentStatuses.Pending
@@ -207,15 +212,18 @@ public class AppointmentRequestController : ControllerBase
             if (!validation.IsValid) return SchedulingError(validation);
         }
 
-        if (dto.AppointmentDate.HasValue)
+        if (dto.AppointmentDateSpecified)
         {
             request.AppointmentDate = nextDate;
             request.ReminderSent = false;
         }
-        if (!string.IsNullOrWhiteSpace(dto.Comment)) request.Comment = dto.Comment;
+
+        if (dto.CommentSpecified)
+            request.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
+
         request.Status = nextStatus;
 
-        if (dto.DoctorId.HasValue)
+        if (dto.DoctorIdSpecified)
         {
             request.DoctorId = dto.DoctorId;
             request.ReminderSent = false;
