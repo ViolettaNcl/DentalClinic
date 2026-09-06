@@ -21,6 +21,14 @@ test('realtime never exposes JWT in JavaScript or SignalR query string', async (
     assert.match(text, /sessionStorage\.getItem\('userRole'\)/);
 });
 
+test('server authentication never accepts JWT from query strings', async () => {
+    const text = await source('Program.cs');
+
+    assert.doesNotMatch(text, /Request\.Query\["access_token"\]/);
+    assert.doesNotMatch(text, /context\.Token\s*=\s*accessToken/);
+    assert.match(text, /Request\.Cookies\.TryGetValue\("dc_auth"/);
+});
+
 test('avatar mutations rely on same-origin HttpOnly cookie', async () => {
     const text = await source('wwwroot/assets/js/services/avatarService.js');
 
