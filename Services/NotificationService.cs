@@ -2,6 +2,7 @@
 using DentalClinic.Hubs;
 using DentalClinic.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace DentalClinic.Services;
 
@@ -23,45 +24,79 @@ public class NotificationService
 
     public async Task NotifyAsync(int patientId, string type, string message, int? relatedId = null)
     {
-        if (message.Length > 550)
-            message = message[..547] + "...";
-
-        var notification = new Notification
-        {
-            PatientId = patientId,
-            Type = type,
-            Message = message,
-            RelatedId = relatedId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey: null);
 
         // Persistence is the durable source of truth for patient notifications.
         // Realtime delivery is only an optimization for an already-open browser tab.
-        // Do not let a transient SignalR failure turn a successfully committed
-        // appointment/review operation into an HTTP 500 that the user may retry.
         _db.Notifications.Add(notification);
         await _db.SaveChangesAsync();
+        await DeliverPatientRealtimeBestEffortAsync(notification);
+    }
+
+    /// <summary>
+    /// Persist an identified notification at most once across multiple app instances.
+    /// The preliminary lookup keeps routine repeated maintenance runs cheap; the
+    /// database unique filtered index is the actual cross-instance race guarantee.
+    /// Returns true only when this call created the durable notification.
+    /// </summary>
+    public async Task<bool> NotifyOnceAsync(
+        int patientId,
+        string type,
+        string message,
+        int? relatedId,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        idempotencyKey = idempotencyKey?.Trim() ?? string.Empty;
+        if (idempotencyKey.Length == 0 || idempotencyKey.Length > 120)
+            throw new ArgumentOutOfRangeException(nameof(idempotencyKey), "Idempotency key must contain 1–120 characters.");
+
+        if (await _db.Notifications
+            .AsNoTracking()
+            .AnyAsync(n => n.IdempotencyKey == idempotencyKey, cancellationToken))
+        {
+            // Maintenance callers can set durable state (notably ReminderSent)
+            // immediately before calling us. Even when the notification already
+            // exists, persist that tracked state so this worker does not select the
+            // same appointment again on its next pass.
+            if (_db.ChangeTracker.HasChanges())
+                await _db.SaveChangesAsync(cancellationToken);
+            return false;
+        }
+
+        var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey);
+        _db.Notifications.Add(notification);
 
         try
         {
-            await _hub.Clients.Group($"patient-{patientId}").SendAsync("ReceiveNotification", new
-            {
-                notification.Id,
-                notification.Type,
-                notification.Message,
-                notification.RelatedId,
-                notification.IsRead,
-                notification.CreatedAt
-            });
+            // SaveChanges may also persist tracked maintenance state such as
+            // AppointmentRequest.ReminderSent, keeping the winning path consistent.
+            await _db.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (DbUpdateException)
         {
-            _logger.LogWarning(
-                ex,
-                "Realtime delivery failed for persisted notification {NotificationId} to patient {PatientId}",
-                notification.Id,
-                patientId);
+            // Another instance may have inserted the same key after our initial
+            // lookup. Detach only our losing notification, confirm that exact key
+            // now exists, then persist any other tracked state (e.g. ReminderSent).
+            _db.Entry(notification).State = EntityState.Detached;
+
+            var wonElsewhere = await _db.Notifications
+                .AsNoTracking()
+                .AnyAsync(n => n.IdempotencyKey == idempotencyKey, cancellationToken);
+
+            if (!wonElsewhere)
+                throw;
+
+            if (_db.ChangeTracker.HasChanges())
+                await _db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "Skipped duplicate durable notification with idempotency key {IdempotencyKey}",
+                idempotencyKey);
+            return false;
         }
+
+        await DeliverPatientRealtimeBestEffortAsync(notification, cancellationToken);
+        return true;
     }
 
     /// <summary>
@@ -88,6 +123,56 @@ public class NotificationService
                 "Realtime admin notification delivery failed for type {Type} and related id {RelatedId}",
                 type,
                 relatedId);
+        }
+    }
+
+    private static Notification CreateNotification(
+        int patientId,
+        string type,
+        string message,
+        int? relatedId,
+        string? idempotencyKey)
+    {
+        if (message.Length > 550)
+            message = message[..547] + "...";
+
+        return new Notification
+        {
+            PatientId = patientId,
+            Type = type,
+            Message = message,
+            RelatedId = relatedId,
+            IdempotencyKey = idempotencyKey,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    private async Task DeliverPatientRealtimeBestEffortAsync(
+        Notification notification,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _hub.Clients.Group($"patient-{notification.PatientId}").SendAsync(
+                "ReceiveNotification",
+                new
+                {
+                    notification.Id,
+                    notification.Type,
+                    notification.Message,
+                    notification.RelatedId,
+                    notification.IsRead,
+                    notification.CreatedAt
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Realtime delivery failed for persisted notification {NotificationId} to patient {PatientId}",
+                notification.Id,
+                notification.PatientId);
         }
     }
 }

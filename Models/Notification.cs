@@ -28,6 +28,13 @@ public class Notification
     // Ссылка на связанную запись (заявку на приём или отзыв) — необязательно
     public int? RelatedId { get; set; }
 
+    // Для фоновых/cron-операций, которые могут выполняться одновременно на
+    // нескольких инстансах. Nullable сохраняет прежнюю семантику обычных
+    // уведомлений, а уникальный filtered index делает именованные операции
+    // атомарно "at most once" на уровне общей SQL-базы.
+    [StringLength(120)]
+    public string? IdempotencyKey { get; set; }
+
     public bool IsRead { get; set; } = false;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
