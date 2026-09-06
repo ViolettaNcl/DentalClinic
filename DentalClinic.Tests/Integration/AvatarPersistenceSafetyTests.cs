@@ -17,7 +17,7 @@ public sealed class AvatarPersistenceSafetyTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"dental-avatar-tests-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task Upload_WhenAuthenticatedPatientNoLongerExists_DoesNotLeaveOrphanFile()
+    public async Task Upload_WhenAuthenticatedPatientNoLongerExists_DoesNotPersistAnything()
     {
         Directory.CreateDirectory(_root);
         await using var db = CreateDb();
@@ -26,38 +26,13 @@ public sealed class AvatarPersistenceSafetyTests : IDisposable
         var result = await controller.Upload(CreatePngFormFile());
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Empty(db.Patients);
         var uploads = Path.Combine(_root, "uploads", "avatars");
         Assert.False(Directory.Exists(uploads) && Directory.EnumerateFiles(uploads).Any());
     }
 
     [Fact]
-    public async Task Delete_RejectsTraversalStoredInLegacyAvatarUrl()
-    {
-        Directory.CreateDirectory(_root);
-        var sentinel = Path.Combine(_root, "sentinel.txt");
-        await File.WriteAllTextAsync(sentinel, "must survive");
-
-        await using var db = CreateDb();
-        db.Patients.Add(new Patient
-        {
-            Id = 7,
-            FirstName = "Test",
-            Email = "patient@example.test",
-            PasswordHash = "hash",
-            AvatarUrl = "/uploads/avatars/../../sentinel.txt"
-        });
-        await db.SaveChangesAsync();
-
-        var controller = CreateController(db, "Patient", 7);
-        var result = await controller.Delete();
-
-        Assert.IsType<OkObjectResult>(result);
-        Assert.True(File.Exists(sentinel));
-        Assert.Null((await db.Patients.FindAsync(7))!.AvatarUrl);
-    }
-
-    [Fact]
-    public async Task Upload_ValidImage_CommitsNewUrlBeforeRemovingOldFile()
+    public async Task Upload_ValidImage_PersistsBytesInDatabaseAndRemovesLegacyFile()
     {
         var uploads = Path.Combine(_root, "uploads", "avatars");
         Directory.CreateDirectory(uploads);
@@ -81,11 +56,68 @@ public sealed class AvatarPersistenceSafetyTests : IDisposable
         Assert.IsType<OkObjectResult>(result);
         var patient = (await db.Patients.FindAsync(9))!;
         Assert.NotNull(patient.AvatarUrl);
-        Assert.StartsWith("/uploads/avatars/patient-9-", patient.AvatarUrl, StringComparison.Ordinal);
+        Assert.StartsWith("/api/avatar/content?v=", patient.AvatarUrl, StringComparison.Ordinal);
+        Assert.Equal("image/png", patient.AvatarContentType);
+        Assert.Equal(ValidPngBytes(), patient.AvatarData);
         Assert.False(File.Exists(oldPath));
+        Assert.Empty(Directory.EnumerateFiles(uploads));
+    }
 
-        var newPath = Path.Combine(uploads, patient.AvatarUrl!["/uploads/avatars/".Length..]);
-        Assert.True(File.Exists(newPath));
+    [Fact]
+    public async Task GetContent_ReturnsAuthenticatedUsersDurableAvatar()
+    {
+        Directory.CreateDirectory(_root);
+        await using var db = CreateDb();
+        db.Patients.Add(new Patient
+        {
+            Id = 10,
+            FirstName = "Test",
+            Email = "content@example.test",
+            PasswordHash = "hash",
+            AvatarUrl = "/api/avatar/content?v=abc",
+            AvatarData = ValidPngBytes(),
+            AvatarContentType = "image/png"
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, "Patient", 10);
+        var result = await controller.GetContent(CancellationToken.None);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("image/png", file.ContentType);
+        Assert.Equal(ValidPngBytes(), file.FileContents);
+        Assert.Contains("private", controller.Response.Headers.CacheControl.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Delete_ClearsDurableAvatarAndRejectsTraversalStoredInLegacyUrl()
+    {
+        Directory.CreateDirectory(_root);
+        var sentinel = Path.Combine(_root, "sentinel.txt");
+        await File.WriteAllTextAsync(sentinel, "must survive");
+
+        await using var db = CreateDb();
+        db.Patients.Add(new Patient
+        {
+            Id = 7,
+            FirstName = "Test",
+            Email = "patient@example.test",
+            PasswordHash = "hash",
+            AvatarUrl = "/uploads/avatars/../../sentinel.txt",
+            AvatarData = ValidPngBytes(),
+            AvatarContentType = "image/png"
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, "Patient", 7);
+        var result = await controller.Delete();
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.True(File.Exists(sentinel));
+        var patient = (await db.Patients.FindAsync(7))!;
+        Assert.Null(patient.AvatarUrl);
+        Assert.Null(patient.AvatarData);
+        Assert.Null(patient.AvatarContentType);
     }
 
     [Fact]
@@ -99,7 +131,9 @@ public sealed class AvatarPersistenceSafetyTests : IDisposable
             FirstName = "Test",
             Email = "role@example.test",
             PasswordHash = "hash",
-            AvatarUrl = "/uploads/avatars/patient-11-existing.png"
+            AvatarUrl = "/api/avatar/content?v=existing",
+            AvatarData = ValidPngBytes(),
+            AvatarContentType = "image/png"
         });
         await db.SaveChangesAsync();
 
@@ -107,7 +141,9 @@ public sealed class AvatarPersistenceSafetyTests : IDisposable
         var result = await controller.Delete();
 
         Assert.IsType<ForbidResult>(result);
-        Assert.Equal("/uploads/avatars/patient-11-existing.png", (await db.Patients.FindAsync(11))!.AvatarUrl);
+        var patient = (await db.Patients.FindAsync(11))!;
+        Assert.Equal("/api/avatar/content?v=existing", patient.AvatarUrl);
+        Assert.Equal(ValidPngBytes(), patient.AvatarData);
     }
 
     private ApplicationDbContext CreateDb()
