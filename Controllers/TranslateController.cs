@@ -49,7 +49,9 @@ public class TranslateController : ControllerBase
 
     [HttpPost]
     [EnableRateLimiting("translate")]
-    public async Task<IActionResult> Translate([FromBody] TranslateRequest req)
+    public async Task<IActionResult> Translate(
+        [FromBody] TranslateRequest req,
+        CancellationToken cancellationToken = default)
     {
         // The endpoint stays available to guests because public doctor/review pages
         // use it. In production, only same-origin browser requests are accepted so
@@ -95,11 +97,18 @@ public class TranslateController : ControllerBase
                         // GeminiApiKeyHandler removes this compatibility query key
                         // and sends the real secret in x-goog-api-key.
                         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
-                        var response = await http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
+                        using var response = await http.PostAsync(
+                            url,
+                            new StringContent(body, Encoding.UTF8, "application/json"),
+                            cancellationToken);
 
                         if ((int)response.StatusCode == 429)
                         {
-                            if (attempt == 0) { await Task.Delay(400); continue; }
+                            if (attempt == 0)
+                            {
+                                await Task.Delay(400, cancellationToken);
+                                continue;
+                            }
                             break;
                         }
                         if ((int)response.StatusCode == 404) break;
@@ -109,13 +118,17 @@ public class TranslateController : ControllerBase
                             return req.Text;
                         }
 
-                        var raw = await response.Content.ReadAsStringAsync();
+                        var raw = await response.Content.ReadAsStringAsync(cancellationToken);
                         using var doc = JsonDocument.Parse(raw);
                         var result = doc.RootElement.GetProperty("candidates")[0]
                             .GetProperty("content").GetProperty("parts")[0]
                             .GetProperty("text").GetString()?.Trim() ?? req.Text;
                         _cache.Set(cacheKey, result, TimeSpan.FromDays(30));
                         return result;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -125,7 +138,7 @@ public class TranslateController : ControllerBase
                 }
             }
             return req.Text;
-        });
+        }, cancellationToken);
 
         return Ok(new { text = translated });
     }
