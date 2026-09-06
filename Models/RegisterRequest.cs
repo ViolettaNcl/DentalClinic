@@ -5,7 +5,7 @@ namespace DentalClinic.Models
     public class RegisterRequest
     {
         [Required]
-        [StringLength(100, MinimumLength = 2)]
+        [StringLength(100)]
         public required string FirstName { get; set; }
 
         [Required]
