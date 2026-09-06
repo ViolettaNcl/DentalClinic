@@ -10,6 +10,8 @@ namespace DentalClinic.Services;
 /// - sends the key in x-goog-api-key and strips legacy ?key=;
 /// - removes a duplicate trailing user message;
 /// - upgrades Denta's legacy model aliases to current stable Flash models;
+/// - links provider work to the current ASP.NET request lifetime so abandoned
+///   browser requests stop consuming upstream resources;
 /// - for Denta chat requests, asks Gemini for schema-constrained JSON instead of
 ///   free-form marker text, then converts the structured result back to the
 ///   legacy controller contract so the existing UI keeps working unchanged.
@@ -17,10 +19,14 @@ namespace DentalClinic.Services;
 public sealed class GeminiApiKeyHandler : DelegatingHandler
 {
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public GeminiApiKeyHandler(IConfiguration configuration)
+    public GeminiApiKeyHandler(
+        IConfiguration configuration,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
         _configuration = configuration;
+        _httpContextAccessor = httpContextAccessor ?? new HttpContextAccessor();
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -31,6 +37,10 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         if (uri == null || !uri.Host.Equals("generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase))
             return await base.SendAsync(request, cancellationToken);
 
+        var requestAborted = _httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
+        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, requestAborted);
+        var effectiveCancellation = linkedCancellation.Token;
+
         ApplyApiKey(request);
 
         var isDentaChat = false;
@@ -38,7 +48,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         if (request.Content != null &&
             string.Equals(request.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
         {
-            var raw = await request.Content.ReadAsStringAsync(cancellationToken);
+            var raw = await request.Content.ReadAsStringAsync(effectiveCancellation);
             JsonNode? root = null;
             try { root = JsonNode.Parse(raw); } catch { }
 
@@ -75,11 +85,11 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             request.RequestUri = builder.Uri;
         }
 
-        var response = await base.SendAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, effectiveCancellation);
         if (!isDentaChat || !response.IsSuccessStatusCode)
             return response;
 
-        var responseRaw = await response.Content.ReadAsStringAsync(cancellationToken);
+        var responseRaw = await response.Content.ReadAsStringAsync(effectiveCancellation);
         if (!TryConvertStructuredCandidate(responseRaw, dentaLanguage, out var convertedJson))
             return response;
 
