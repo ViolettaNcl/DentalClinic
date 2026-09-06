@@ -1,6 +1,7 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, showConfirm, queueToast } from '../../services/ui.js';
 import { t, onLanguageChange } from '../../core/i18n.js';
+import { terminateCookieSession } from '../../core/sessionTermination.js';
 import { shouldTryAdminFallback } from './authLoginPolicy.js';
 
 class AuthManager {
@@ -169,15 +170,20 @@ class AuthManager {
         if (!ok) return;
 
         try {
-            await apiFetch('/auth/logout', { method: 'POST' });
-        } catch {
-            // Local session metadata still has to be cleared even if the network is down;
-            // the HttpOnly cookie will expire server-side/on its configured expiry.
+            await terminateCookieSession({
+                requestLogout: () => apiFetch('/auth/logout', { method: 'POST' }),
+                clearSession: () => {
+                    ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken']
+                        .forEach(key => sessionStorage.removeItem(key));
+                },
+                redirect: url => window.location.replace(url)
+            });
+        } catch (err) {
+            // The cookie is HttpOnly, so a failed server logout means the authenticated
+            // session may still be alive. Keep local metadata intact and do not redirect.
+            console.error('Patient logout failed:', err?.message || err);
+            showError(t('auth_error_generic', 'Не удалось завершить сеанс. Проверьте соединение и попробуйте ещё раз.'));
         }
-
-        ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken']
-            .forEach(key => sessionStorage.removeItem(key));
-        window.location.href = '/index.html';
     }
 }
 
