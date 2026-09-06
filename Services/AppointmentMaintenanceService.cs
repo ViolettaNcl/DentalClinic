@@ -57,8 +57,9 @@ public sealed class AppointmentMaintenanceService
 
     /// <summary>
     /// Sends one post-visit review prompt to registered patients after a completed
-    /// appointment. Existing notifications act as the idempotency marker, avoiding
-    /// a schema change while ensuring routine repeated maintenance runs stay quiet.
+    /// appointment. The legacy notification lookup avoids resending prompts created
+    /// before durable keys existed; NotifyOnceAsync + the unique database index is
+    /// the cross-instance race guarantee for all new maintenance runs.
     /// </summary>
     public async Task<int> SendPostVisitFollowUpsAsync(CancellationToken cancellationToken)
     {
@@ -86,21 +87,28 @@ public sealed class AppointmentMaintenanceService
             .ThenBy(request => request.Id)
             .ToListAsync(cancellationToken);
 
+        var createdCount = 0;
         foreach (var request in due)
         {
-            await _notifications.NotifyAsync(
+            if (await _notifications.NotifyOnceAsync(
                 request.PatientId!.Value,
                 AppointmentFollowUpPolicy.NotificationType,
                 AppointmentFollowUpPolicy.BuildMessage(request.AppointmentDate!.Value),
-                request.Id);
+                request.Id,
+                $"appointment-followup:{request.Id}",
+                cancellationToken))
+            {
+                createdCount++;
+            }
         }
 
         _logger.LogInformation(
-            "Отправлено post-visit follow-up уведомлений: {Count}; окно {Start}–{End}",
+            "Создано post-visit follow-up уведомлений: {Count}; кандидатов {Candidates}; окно {Start}–{End}",
+            createdCount,
             due.Count,
             windowStart,
             windowEnd);
-        return due.Count;
+        return createdCount;
     }
 
     public async Task<int> CleanupStaleRequestsAsync(CancellationToken cancellationToken)
@@ -132,11 +140,16 @@ public sealed class AppointmentMaintenanceService
 
             if (request.PatientId.HasValue)
             {
-                await _notifications.NotifyAsync(
+                // This path can also be invoked by a background worker and by a
+                // maintenance endpoint at the same time. Use a durable key so the
+                // cancellation itself may be replayed but the patient alert is not.
+                await _notifications.NotifyOnceAsync(
                     request.PatientId.Value,
                     "appointment_cancelled",
                     "Ваша заявка на приём была автоматически отменена — она долго ждала подтверждения. Пожалуйста, запишитесь ещё раз или позвоните нам.",
-                    request.Id);
+                    request.Id,
+                    $"appointment-auto-cancel:{request.Id}",
+                    cancellationToken);
             }
         }
 
@@ -161,27 +174,35 @@ public sealed class AppointmentMaintenanceService
             .ThenBy(r => r.Id)
             .ToListAsync(cancellationToken);
 
+        var createdCount = 0;
         foreach (var request in due)
         {
-            // NotificationService uses this same scoped DbContext. Marking the
-            // appointment before NotifyAsync means the flag and notification are
-            // persisted together by its SaveChanges call; a later run will skip it.
+            // Mark before the durable notification save. NotifyOnceAsync uses this
+            // same scoped DbContext, so either the winning insert or the duplicate
+            // path also persists ReminderSent. The unique key prevents two workers
+            // that selected the row concurrently from creating two notifications.
             request.ReminderSent = true;
-            await _notifications.NotifyAsync(
+            if (await _notifications.NotifyOnceAsync(
                 request.PatientId!.Value,
                 "appointment_reminder",
                 AppointmentReminderPolicy.BuildMessage(request.AppointmentDate!.Value),
-                request.Id);
+                request.Id,
+                $"appointment-reminder:{request.Id}",
+                cancellationToken))
+            {
+                createdCount++;
+            }
         }
 
         if (due.Count > 0)
             await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Отправлено напоминаний о приёме: {Count}; окно {Start}–{End}",
+            "Создано напоминаний о приёме: {Count}; кандидатов {Candidates}; окно {Start}–{End}",
+            createdCount,
             due.Count,
             windowStart,
             windowEnd);
-        return due.Count;
+        return createdCount;
     }
 }
