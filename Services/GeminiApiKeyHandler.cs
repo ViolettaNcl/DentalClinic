@@ -53,7 +53,9 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
                     UpgradeDentaModel(request);
                 }
 
+                var originalContent = request.Content;
                 request.Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json");
+                originalContent.Dispose();
             }
         }
 
@@ -81,6 +83,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         if (!TryConvertStructuredCandidate(responseRaw, dentaLanguage, out var convertedJson))
             return response;
 
+        var originalResponseContent = response.Content;
         if (synthesizeSse)
         {
             var sse = $"data: {convertedJson}\n\n";
@@ -90,6 +93,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         {
             response.Content = new StringContent(convertedJson, Encoding.UTF8, "application/json");
         }
+        originalResponseContent.Dispose();
 
         return response;
     }
