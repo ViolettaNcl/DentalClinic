@@ -30,9 +30,9 @@ public class PaidApiOriginPolicyTests
     }
 
     [Fact]
-    public void SameOriginBrowserMetadataWithoutOrigin_IsAllowed()
+    public void SpoofedSameOriginFetchMetadataWithoutOrigin_IsRejectedInProduction()
     {
-        Assert.True(PaidApiOriginPolicy.IsAllowed(
+        Assert.False(PaidApiOriginPolicy.IsAllowed(
             null,
             "same-origin",
             "https",
@@ -53,12 +53,15 @@ public class PaidApiOriginPolicyTests
             allowDirectRequests: false));
     }
 
-    [Fact]
-    public void MissingBrowserMetadata_CanBeAllowedForLocalAndTestTools()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("same-origin")]
+    [InlineData("cross-site")]
+    public void MissingOrigin_CanBeAllowedForLocalAndTestTools(string? fetchSite)
     {
         Assert.True(PaidApiOriginPolicy.IsAllowed(
             null,
-            null,
+            fetchSite,
             "http",
             "localhost",
             5000,
