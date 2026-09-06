@@ -4,6 +4,7 @@ import { LanguageSwitcher } from '/assets/js/core/languageSwitcher.js';
 import { ChatBot } from '/assets/js/core/chatBot.js';
 import { isBookingIntent } from '/assets/js/core/bookingIntent.js';
 import { installDentaSafetyGuard } from '/assets/js/core/dentaSafetyGuard.js';
+import { installChatBookingCookieTransport } from '/assets/js/core/chatBookingTransport.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 import { installServiceDetailPriceManager } from '/assets/js/managers/public/serviceDetailPriceManager.js';
@@ -11,6 +12,7 @@ import { installPublicDoctorCatalogSync } from '/assets/js/managers/public/publi
 
 ChatBot.prototype._isBookingIntent = isBookingIntent;
 installDentaSafetyGuard(ChatBot);
+installChatBookingCookieTransport(ChatBot);
 installServiceDetailPriceManager();
 installPublicDoctorCatalogSync();
 
