@@ -4,11 +4,6 @@ import { t, onLanguageChange } from '../core/i18n.js';
 const AVATAR_ENDPOINT = '/api/avatar';
 const MAX_SIZE = 3 * 1024 * 1024; // 3 МБ
 
-function authHeaders() {
-    const token = sessionStorage.getItem('authToken');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 async function parseJsonOrThrow(response) {
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
@@ -20,13 +15,16 @@ async function parseJsonOrThrow(response) {
 /**
  * Загружает файл аватара на сервер (multipart/form-data — поэтому не через
  * apiFetch, который всегда шлёт Content-Type: application/json).
+ * Авторизация выполняется только через HttpOnly dc_auth cookie: браузер
+ * отправляет её на same-origin запрос автоматически, а JavaScript не имеет
+ * доступа к JWT.
  */
 export async function uploadAvatar(file) {
     const formData = new FormData();
     formData.append('file', file);
     const response = await fetch(AVATAR_ENDPOINT, {
         method: 'POST',
-        headers: authHeaders(),
+        credentials: 'same-origin',
         body: formData
     });
     return parseJsonOrThrow(response);
@@ -35,7 +33,7 @@ export async function uploadAvatar(file) {
 export async function deleteAvatar() {
     const response = await fetch(AVATAR_ENDPOINT, {
         method: 'DELETE',
-        headers: authHeaders()
+        credentials: 'same-origin'
     });
     return parseJsonOrThrow(response);
 }
