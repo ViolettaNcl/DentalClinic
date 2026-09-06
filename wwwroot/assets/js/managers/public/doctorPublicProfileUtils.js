@@ -1,4 +1,5 @@
 const NAME_FIELDS = Object.freeze(['fullName', 'fullNameEn', 'fullNameFr', 'fullNameEl', 'fullNameAr']);
+const DOCTOR_PREFIX = /^(dr\.?|д-?р\.?|доктор|δρ\.?|د\.?|دكتور)\s+/iu;
 
 const EXPERIENCE_LABELS = Object.freeze({
     ru: 'лет опыта',
@@ -31,7 +32,7 @@ export function normalizeDoctorName(value) {
     return String(value || '')
         .normalize('NFKC')
         .toLocaleLowerCase()
-        .replace(/^(dr\.?|д-?р\.?|доктор|δρ\.?|د\.?|دكتور)\s+/iu, '')
+        .replace(DOCTOR_PREFIX, '')
         .replace(/[\p{P}\p{S}]+/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -46,9 +47,16 @@ export function findDoctorByRenderedName(renderedName, doctors = []) {
     )) || null;
 }
 
+export function doctorExperienceYears(doctor = {}) {
+    const raw = doctor.experienceYears;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const years = Number(raw);
+    return Number.isInteger(years) && years >= 0 ? years : null;
+}
+
 export function doctorExperienceText(doctor = {}, language = 'ru') {
-    const years = Number(doctor.experienceYears);
-    if (!Number.isInteger(years) || years < 0) return '';
+    const years = doctorExperienceYears(doctor);
+    if (years === null) return '';
     const label = EXPERIENCE_LABELS[language] || EXPERIENCE_LABELS.ru;
     return `${years}+ ${label}`;
 }
@@ -58,7 +66,7 @@ export function bookingLabel(language = 'ru') {
 }
 
 export function doctorInitials(doctor = {}, language = 'ru') {
-    const name = localizedDoctorName(doctor, language);
+    const name = localizedDoctorName(doctor, language).replace(DOCTOR_PREFIX, '');
     return name
         .split(/\s+/)
         .map(part => part.replace(/[^\p{L}\p{N}]/gu, ''))
