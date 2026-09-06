@@ -26,13 +26,26 @@ public class ServiceController : ControllerBase
         _logger = logger;
     }
 
-    // Публично: только активные услуги, сгруппированные по категориям
+    // Публично: только активные услуги и только поля, необходимые каталогу/ценам.
+    // Keywords и другие внутренние поля остаются доступны администратору и Денте,
+    // но не публикуются автоматически в unauthenticated API.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var services = await _db.Services
+            .AsNoTracking()
             .Where(s => s.IsActive)
             .OrderBy(s => s.Category).ThenBy(s => s.SortOrder).ThenBy(s => s.Id)
+            .Select(s => new PublicServiceDto(
+                s.Id,
+                s.Category,
+                s.Name,
+                s.Description,
+                s.PriceFrom,
+                s.PriceTo,
+                s.Unit,
+                s.PageUrl,
+                s.SortOrder))
             .ToListAsync();
 
         return Ok(services);
