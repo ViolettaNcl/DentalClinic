@@ -46,12 +46,28 @@ public class TranslateOriginSecurityTests
     }
 
     [Fact]
-    public async Task ProductionBrowserRequest_WithSameOriginFetchMetadata_IsAllowed()
+    public async Task ProductionRequest_WithSpoofableSameOriginFetchMetadataButNoOrigin_IsRejected()
     {
         var controller = CreateController("Production");
         var context = NewHttpsContext();
         context.Request.Headers["Sec-Fetch-Site"] = "same-origin";
         controller.ControllerContext = new ControllerContext { HttpContext = context };
+
+        var result = await controller.Translate(new TranslateController.TranslateRequest
+        {
+            Text = "hello",
+            TargetLang = "fr"
+        });
+
+        var status = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task TestingRequest_WithoutOrigin_RemainsAllowedForDirectTestTools()
+    {
+        var controller = CreateController("Testing");
+        controller.ControllerContext = new ControllerContext { HttpContext = NewHttpsContext() };
 
         var result = await controller.Translate(new TranslateController.TranslateRequest
         {
