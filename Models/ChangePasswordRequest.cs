@@ -1,10 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace DentalClinic.Models
 {
     public class ChangePasswordRequest
     {
         [Required]
+        [StringLength(512, MinimumLength = 1)]
         public required string CurrentPassword { get; set; }
 
         [Required]
