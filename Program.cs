@@ -51,6 +51,7 @@ if (isVercel)
 }
 
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ChatKnowledgeService>();
 builder.Services.AddSignalR();
 
