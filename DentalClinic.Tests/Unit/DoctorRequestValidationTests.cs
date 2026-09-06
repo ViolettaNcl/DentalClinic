@@ -12,6 +12,10 @@ public class DoctorRequestValidationTests
         var request = new CreateDoctorRequest
         {
             FullName = "Dr. Анна Тестова",
+            FullNameEn = "Dr. Anna Testova",
+            FullNameFr = "Dr Anna Testova",
+            FullNameEl = "Δρ. Άννα Τέστοβα",
+            FullNameAr = "د. آنا تيستوفا",
             Specialization = "Имплантология, хирургия",
             ExperienceYears = 12,
             Bio = "Практикующий стоматолог-хирург."
@@ -41,12 +45,14 @@ public class DoctorRequestValidationTests
         var request = new CreateDoctorRequest
         {
             FullName = new string('N', 151),
+            FullNameEn = new string('E', 151),
             Specialization = new string('S', 301),
             Bio = new string('B', 501)
         };
 
         var results = Validate(request);
         Assert.Contains(results, result => result.MemberNames.Contains(nameof(CreateDoctorRequest.FullName)));
+        Assert.Contains(results, result => result.MemberNames.Contains(nameof(CreateDoctorRequest.FullNameEn)));
         Assert.Contains(results, result => result.MemberNames.Contains(nameof(CreateDoctorRequest.Specialization)));
         Assert.Contains(results, result => result.MemberNames.Contains(nameof(CreateDoctorRequest.Bio)));
     }
@@ -60,6 +66,20 @@ public class DoctorRequestValidationTests
         var emptyName = new UpdateDoctorRequest { FullName = "" };
         Assert.Contains(Validate(emptyName), result =>
             result.MemberNames.Contains(nameof(UpdateDoctorRequest.FullName)));
+    }
+
+    [Fact]
+    public void UpdateDoctorRequest_AllowsClearingLocalizedNames()
+    {
+        var request = new UpdateDoctorRequest
+        {
+            FullNameEn = "",
+            FullNameFr = "",
+            FullNameEl = "",
+            FullNameAr = ""
+        };
+
+        Assert.Empty(Validate(request));
     }
 
     private static List<ValidationResult> Validate(object model)
