@@ -1,5 +1,6 @@
 using System.Reflection;
 using DentalClinic.Controllers;
+using Xunit;
 
 namespace DentalClinic.Tests.Unit;
 
