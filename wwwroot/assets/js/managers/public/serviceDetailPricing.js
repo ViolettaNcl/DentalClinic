@@ -52,23 +52,30 @@ export function buildDetailPriceSlots(services = [], pageUrl = '', maxSlots = Nu
         .map(([slotIndex, service]) => ({ slotIndex, service }));
 }
 
-export function formatDetailServicePrice(service = {}, lang = 'ru') {
+export function formatDetailServicePriceParts(service = {}, lang = 'ru') {
     const priceFrom = Number(service.priceFrom);
-    if (!Number.isFinite(priceFrom) || priceFrom < 0) return '';
+    if (!Number.isFinite(priceFrom) || priceFrom < 0) return null;
 
     const rawTo = service.priceTo;
     const priceTo = rawTo === null || rawTo === undefined || rawTo === '' ? null : Number(rawTo);
-    if (priceTo !== null && (!Number.isFinite(priceTo) || priceTo < priceFrom)) return '';
+    if (priceTo !== null && (!Number.isFinite(priceTo) || priceTo < priceFrom)) return null;
 
     const normalizedLang = Object.hasOwn(LOCALES, lang) ? lang : 'ru';
     const formatter = new Intl.NumberFormat(LOCALES[normalizedLang], { maximumFractionDigits: 2 });
     const from = formatter.format(priceFrom);
 
-    if (priceTo !== null && priceTo > priceFrom)
-        return `${from}–${formatter.format(priceTo)} ₽`;
+    if (priceTo !== null && priceTo > priceFrom) {
+        return { amount: `${from}–${formatter.format(priceTo)}`, currency: '₽' };
+    }
 
-    if (priceTo === priceFrom)
-        return `${from} ₽`;
+    if (priceTo === priceFrom) {
+        return { amount: from, currency: '₽' };
+    }
 
-    return `${FROM_LABELS[normalizedLang]} ${from} ₽`;
+    return { amount: `${FROM_LABELS[normalizedLang]} ${from}`, currency: '₽' };
+}
+
+export function formatDetailServicePrice(service = {}, lang = 'ru') {
+    const parts = formatDetailServicePriceParts(service, lang);
+    return parts ? `${parts.amount} ${parts.currency}` : '';
 }
