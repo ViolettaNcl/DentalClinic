@@ -55,6 +55,12 @@ public class NotificationService
             .AsNoTracking()
             .AnyAsync(n => n.IdempotencyKey == idempotencyKey, cancellationToken))
         {
+            // Maintenance callers can set durable state (notably ReminderSent)
+            // immediately before calling us. Even when the notification already
+            // exists, persist that tracked state so this worker does not select the
+            // same appointment again on its next pass.
+            if (_db.ChangeTracker.HasChanges())
+                await _db.SaveChangesAsync(cancellationToken);
             return false;
         }
 
@@ -81,7 +87,8 @@ public class NotificationService
             if (!wonElsewhere)
                 throw;
 
-            await _db.SaveChangesAsync(cancellationToken);
+            if (_db.ChangeTracker.HasChanges())
+                await _db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation(
                 "Skipped duplicate durable notification with idempotency key {IdempotencyKey}",
                 idempotencyKey);
