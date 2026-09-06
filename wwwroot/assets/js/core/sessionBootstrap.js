@@ -1,10 +1,25 @@
-import { apiFetch } from '../services/apiClient.js';
-
 const SESSION_KEYS = ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken'];
 let currentSessionPromise = null;
 
 function getDefaultStorage() {
     return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+}
+
+async function requestServerSession() {
+    const response = await fetch('/api/auth/session', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+    });
+
+    if (response.status === 401 || response.status === 403) return null;
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const error = new Error(payload.message || `Ошибка ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
+
+    return response.json();
 }
 
 export function clearSessionMetadata(storage = getDefaultStorage()) {
@@ -25,22 +40,18 @@ export function syncSessionMetadata(session, storage = getDefaultStorage()) {
 
 export async function getServerSession({
     force = false,
-    request = apiFetch,
+    request = requestServerSession,
     storage = getDefaultStorage()
 } = {}) {
     if (!force && currentSessionPromise) return currentSessionPromise;
 
     const task = (async () => {
-        try {
-            const session = await request('/auth/session');
-            return syncSessionMetadata(session, storage);
-        } catch (error) {
-            if (error?.status === 401 || error?.status === 403) {
-                clearSessionMetadata(storage);
-                return null;
-            }
-            throw error;
+        const session = await request();
+        if (!session) {
+            clearSessionMetadata(storage);
+            return null;
         }
+        return syncSessionMetadata(session, storage);
     })();
 
     currentSessionPromise = task;
@@ -48,7 +59,7 @@ export async function getServerSession({
 }
 
 export async function requireServerSession(expectedRole, {
-    request = apiFetch,
+    request = requestServerSession,
     storage = getDefaultStorage(),
     redirect = url => window.location.replace(url),
     redirectUrl = '/index.html'
