@@ -22,13 +22,25 @@ public class DoctorController : ControllerBase
         _logger = logger;
     }
 
-    // Публично: только активные врачи (для формы записи и т.п.)
+    // Публично: только активные врачи и только поля, необходимые публичному сайту.
+    // Явная проекция защищает API от случайной публикации будущих внутренних полей Doctor.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var doctors = await _db.Doctors
+            .AsNoTracking()
             .Where(d => d.IsActive)
             .OrderBy(d => d.FullName)
+            .Select(d => new PublicDoctorDto(
+                d.Id,
+                d.FullName,
+                d.FullNameEn,
+                d.FullNameFr,
+                d.FullNameEl,
+                d.FullNameAr,
+                d.Specialization,
+                d.ExperienceYears,
+                d.Bio))
             .ToListAsync();
 
         return Ok(doctors);
