@@ -25,10 +25,6 @@ public class ReviewController : ControllerBase
     private readonly ILogger<ReviewController> _logger;
     private readonly IWebHostEnvironment _environment;
 
-    // Тот же список моделей Gemini, что и в ChatController — от самой дешёвой
-    // (для короткой задачи перевода этого достаточно) к более умной как фолбэк.
-    // См. комментарий в TranslateController.cs — "gemini-flash-latest" как
-    // последний, самый надёжный вариант, если конкретные версии моделей 404.
     private static readonly string[] TranslateModels = { "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest" };
 
     private static readonly Dictionary<string, string> TargetLangNames = new()
@@ -57,13 +53,6 @@ public class ReviewController : ControllerBase
         _environment = environment;
     }
 
-    // =========================
-    // Перевод текста отзыва на выбранный пользователем язык интерфейса.
-    // Клиент передаёт только идентификатор отзыва и целевой язык. Исходный текст
-    // всегда загружается сервером из БД, иначе публичный endpoint можно было бы
-    // использовать как бесплатный прокси для перевода произвольных 1000 символов,
-    // тратя квоту Gemini клиники.
-    // =========================
     public sealed class TranslateReviewRequest
     {
         public int ReviewId { get; set; }
@@ -74,9 +63,6 @@ public class ReviewController : ControllerBase
     [EnableRateLimiting("translate")]
     public async Task<IActionResult> TranslateReview([FromBody] TranslateReviewRequest req)
     {
-        // Endpoint нужен и гостям для публичной карусели. В production разрешаем
-        // только same-origin browser requests, чтобы сторонний сайт не мог расходовать
-        // квоту перевода клиники напрямую из браузеров своих посетителей.
         if (!IsAllowedOrigin())
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Cross-origin review translation is not allowed" });
 
@@ -94,9 +80,6 @@ public class ReviewController : ControllerBase
         if (review == null)
             return NotFound();
 
-        // Одобренные отзывы публичны. Pending/rejected доступны для перевода только
-        // самому автору или администратору — те же правила, что и для списка отзывов
-        // пациента. Это не даёт перебором ID читать приватный текст модерации.
         if (!string.Equals(review.Status, "approved", StringComparison.OrdinalIgnoreCase)
             && !IsOwnerOrAdmin(review.PatientId))
         {
@@ -105,7 +88,6 @@ public class ReviewController : ControllerBase
 
         var originalText = review.Text ?? string.Empty;
 
-        // Русский — язык оригинала отзывов по умолчанию; AI для него не нужен.
         if (lang == "ru" || string.IsNullOrWhiteSpace(originalText))
             return Ok(new { text = originalText });
 
@@ -131,10 +113,6 @@ public class ReviewController : ControllerBase
         });
 
         var http = _httpFactory.CreateClient();
-
-        // Тот же общий "шлагбаум" на запросы к Gemini, что и в TranslateController —
-        // без него отзывы и имена/комментарии конкурируют за одну и ту же
-        // маленькую квоту API одновременно и чаще ловят 429.
         var translated = await GeminiTranslateLimiter.RunAsync(async () =>
         {
             foreach (var model in TranslateModels)
@@ -143,8 +121,6 @@ public class ReviewController : ControllerBase
                 {
                     try
                     {
-                        // Реальный ключ не кладём в URL. Общий GeminiApiKeyHandler
-                        // заменяет compatibility key заголовком x-goog-api-key.
                         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
                         var response = await http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
 
@@ -182,7 +158,6 @@ public class ReviewController : ControllerBase
                 }
             }
 
-            // Все модели недоступны/перегружены — отдаём оригинал, чтобы страница не сломалась.
             return originalText;
         });
 
@@ -211,9 +186,6 @@ public class ReviewController : ControllerBase
             && originUri.Port == (Request.Host.Port ?? (Request.IsHttps ? 443 : 80));
     }
 
-    // =========================
-    // ПУБЛИЧНО: одобренные отзывы для карусели на главной + средний рейтинг
-    // =========================
     [HttpGet("approved")]
     public async Task<IActionResult> GetApproved()
     {
@@ -243,10 +215,6 @@ public class ReviewController : ControllerBase
         });
     }
 
-    // =========================
-    // Отзывы конкретного пациента (для личного кабинета, включая статус и причину отклонения)
-    // Только сам пациент (по токену) или админ.
-    // =========================
     [HttpGet("patient/{patientId:int}")]
     [Authorize]
     public async Task<IActionResult> GetByPatient(int patientId)
@@ -261,9 +229,6 @@ public class ReviewController : ControllerBase
         return Ok(reviews);
     }
 
-    // =========================
-    // Отметить уведомление об отклонении как прочитанное (только владелец отзыва)
-    // =========================
     [HttpPost("{id:int}/mark-read")]
     [Authorize]
     public async Task<IActionResult> MarkNotificationRead(int id)
@@ -279,11 +244,6 @@ public class ReviewController : ControllerBase
         return Ok(new { review.Id, review.IsNotificationRead });
     }
 
-    // =========================
-    // Оставить отзыв (только зарегистрированный пациент).
-    // PatientId больше не берётся из тела запроса — только из проверенного токена,
-    // иначе можно было отправить отзыв от имени чужого пациента.
-    // =========================
     [HttpPost]
     [Authorize(Roles = "Patient")]
     public async Task<IActionResult> Create([FromBody] CreateReviewRequest req)
@@ -291,14 +251,10 @@ public class ReviewController : ControllerBase
         var patientId = GetCurrentUserId();
 
         if (req.Rating < 1 || req.Rating > 5)
-        {
             return BadRequest(new { message = "❌ Оценка должна быть от 1 до 5" });
-        }
 
         if (string.IsNullOrWhiteSpace(req.Text) || req.Text.Trim().Length < 10)
-        {
             return BadRequest(new { message = "❌ Текст отзыва должен содержать не менее 10 символов" });
-        }
 
         var review = new Review
         {
@@ -312,7 +268,6 @@ public class ReviewController : ControllerBase
         _context.Reviews.Add(review);
         await _context.SaveChangesAsync();
 
-        // Realtime: у всех открытых вкладок админки живой список "на проверке" обновится сам
         await _notifications.NotifyAdminsAsync(
             "new_review",
             $"Новый отзыв на модерации (оценка {review.Rating}★)",
@@ -325,25 +280,16 @@ public class ReviewController : ControllerBase
         });
     }
 
-    // =========================
-    // АДМИН: список отзывов на проверке
-    // =========================
     [HttpGet("admin/pending")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPending()
         => Ok(await _AdminQuery("pending"));
 
-    // =========================
-    // АДМИН: одобренные отзывы
-    // =========================
     [HttpGet("admin/approved")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetApprovedAdmin()
         => Ok(await _AdminQuery("approved"));
 
-    // =========================
-    // АДМИН: отклонённые отзывы
-    // =========================
     [HttpGet("admin/rejected")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetRejectedAdmin()
@@ -373,9 +319,6 @@ public class ReviewController : ControllerBase
             .ToListAsync();
     }
 
-    // =========================
-    // АДМИН: одобрить / отклонить отзыв
-    // =========================
     [HttpPut("admin/{id:int}/moderate")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Moderate(int id, [FromBody] ModerateReviewRequest dto)
@@ -383,22 +326,36 @@ public class ReviewController : ControllerBase
         var review = await _context.Reviews.FindAsync(id);
         if (review == null) return NotFound();
 
-        var status = dto.Status?.Trim().ToLower();
-
+        var status = dto.Status?.Trim().ToLowerInvariant();
         if (status != "approved" && status != "rejected")
-        {
             return BadRequest(new { message = "❌ Статус должен быть 'approved' или 'rejected'" });
-        }
 
-        if (status == "rejected" && string.IsNullOrWhiteSpace(dto.RejectionReason))
-        {
+        var rejectionReason = status == "rejected" ? dto.RejectionReason?.Trim() : null;
+        if (status == "rejected" && string.IsNullOrWhiteSpace(rejectionReason))
             return BadRequest(new { message = "❌ Укажите причину отклонения отзыва" });
+
+        var currentStatus = review.Status?.Trim().ToLowerInvariant();
+        var currentReason = currentStatus == "rejected" ? review.RejectionReason?.Trim() : null;
+
+        // Replaying the same moderation action must not create a second durable
+        // notification, move ModeratedAt, or make an already-seen result unread again.
+        // This covers double-clicks and ordinary HTTP retries after a slow response.
+        if (string.Equals(currentStatus, status, StringComparison.Ordinal)
+            && string.Equals(currentReason, rejectionReason, StringComparison.Ordinal))
+        {
+            return Ok(new
+            {
+                review.Id,
+                review.Status,
+                review.RejectionReason,
+                idempotent = true
+            });
         }
 
         review.Status = status;
-        review.RejectionReason = status == "rejected" ? dto.RejectionReason!.Trim() : null;
+        review.RejectionReason = rejectionReason;
         review.ModeratedAt = DateTime.UtcNow;
-        review.IsNotificationRead = false; // новое уведомление для пациента
+        review.IsNotificationRead = false;
 
         await _context.SaveChangesAsync();
 
@@ -412,12 +369,15 @@ public class ReviewController : ControllerBase
             message,
             review.Id);
 
-        return Ok(new { review.Id, review.Status, review.RejectionReason });
+        return Ok(new
+        {
+            review.Id,
+            review.Status,
+            review.RejectionReason,
+            idempotent = false
+        });
     }
 
-    // =========================
-    // Вспомогательные методы для проверки прав
-    // =========================
     private int GetCurrentUserId()
         => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
