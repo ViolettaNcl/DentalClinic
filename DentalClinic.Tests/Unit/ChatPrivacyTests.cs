@@ -76,4 +76,27 @@ public class ChatPrivacyTests
         Assert.DoesNotContain("script", log.SessionId, StringComparison.OrdinalIgnoreCase);
         Assert.All(log.SessionId, c => Assert.True(Uri.IsHexDigit(c)));
     }
+
+    [Theory]
+    [InlineData("RU", "ru")]
+    [InlineData(" en ", "en")]
+    [InlineData("fr", "fr")]
+    [InlineData("EL", "el")]
+    [InlineData("ar", "ar")]
+    public void Lang_NormalizesSupportedLocaleCodes(string raw, string expected)
+    {
+        var log = new ChatMessageLog { Lang = raw };
+        Assert.Equal(expected, log.Lang);
+    }
+
+    [Theory]
+    [InlineData("this-is-not-a-language")]
+    [InlineData("")]
+    [InlineData("de")]
+    public void Lang_UnsupportedOrOversizedValueFallsBackToRussian(string raw)
+    {
+        var log = new ChatMessageLog { Lang = raw };
+        Assert.Equal("ru", log.Lang);
+        Assert.True(log.Lang.Length <= 5);
+    }
 }
