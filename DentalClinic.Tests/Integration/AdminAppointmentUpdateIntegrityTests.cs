@@ -130,6 +130,9 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
                 FullName = $"CRM clear doctor {Guid.NewGuid():N}",
                 IsActive = true
             };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+
             var appointment = new AppointmentRequest
             {
                 FirstName = "CRM clear test",
@@ -141,7 +144,6 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
                 ReminderSent = true
             };
 
-            db.Doctors.Add(doctor);
             db.AppointmentRequests.Add(appointment);
             await db.SaveChangesAsync();
             appointmentId = appointment.Id;
@@ -184,6 +186,10 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
                 FullName = $"CRM preserve doctor {Guid.NewGuid():N}",
                 IsActive = true
             };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+            doctorId = doctor.Id;
+
             var appointment = new AppointmentRequest
             {
                 FirstName = "CRM preserve test",
@@ -191,13 +197,11 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
                 Comment = "keep me",
                 Status = AppointmentStatuses.Pending,
                 AppointmentDate = appointmentDate,
-                DoctorId = doctor.Id
+                DoctorId = doctorId
             };
 
-            db.Doctors.Add(doctor);
             db.AppointmentRequests.Add(appointment);
             await db.SaveChangesAsync();
-            doctorId = doctor.Id;
             appointmentId = appointment.Id;
         }
 
@@ -231,19 +235,21 @@ public class AdminAppointmentUpdateIntegrityTests : IClassFixture<CustomWebAppli
                 FullName = $"CRM invalid clear doctor {Guid.NewGuid():N}",
                 IsActive = true
             };
+            db.Doctors.Add(doctor);
+            await db.SaveChangesAsync();
+            doctorId = doctor.Id;
+
             var appointment = new AppointmentRequest
             {
                 FirstName = "CRM invalid clear test",
                 Phone = UniquePhone(),
                 Status = AppointmentStatuses.Pending,
                 AppointmentDate = appointmentDate,
-                DoctorId = doctor.Id
+                DoctorId = doctorId
             };
 
-            db.Doctors.Add(doctor);
             db.AppointmentRequests.Add(appointment);
             await db.SaveChangesAsync();
-            doctorId = doctor.Id;
             appointmentId = appointment.Id;
         }
 
