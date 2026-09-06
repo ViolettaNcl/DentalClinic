@@ -19,9 +19,10 @@ function cacheKey(id, lang) {
 /**
  * Вернуть текст отзыва на нужном языке.
  * Русский считается языком-оригиналом отзывов — переводить его не нужно.
- * Для остальных языков текст переводится через backend (см. ReviewController.Translate)
- * и результат кэшируется как в памяти, так и в sessionStorage (переживает
- * обновление страницы в рамках той же вкладки).
+ * Для остальных языков frontend передаёт backend только reviewId + targetLang:
+ * исходный текст сервер сам читает из БД, поэтому публичный endpoint нельзя
+ * превратить в прокси для перевода произвольного пользовательского текста.
+ * Результат кэшируется в памяти и sessionStorage текущей вкладки.
  */
 async function translateReviewText(id, originalText, lang) {
     if (lang === 'ru' || !originalText) return originalText;
@@ -43,7 +44,7 @@ async function translateReviewText(id, originalText, lang) {
         try {
             const res = await apiFetch('/review/translate', {
                 method: 'POST',
-                body: JSON.stringify({ reviewId: id, text: originalText, targetLang: lang })
+                body: JSON.stringify({ reviewId: id, targetLang: lang })
             });
             const translated = res?.text || originalText;
 
