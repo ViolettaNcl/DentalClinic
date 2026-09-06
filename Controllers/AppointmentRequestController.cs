@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -32,56 +32,131 @@ public class AppointmentRequestController : ControllerBase
         _scheduling = scheduling;
     }
 
-    // Заявки конкретного пациента — только сам пациент (по токену) или админ
+    // Заявки конкретного пациента — только сам пациент (по токену) или админ.
+    // Legacy UI still consumes an array, so keep active work plus a bounded slice of
+    // history instead of materializing the patient's entire lifetime history.
     [HttpGet("patient/{patientId:int}")]
     [Authorize]
-    public async Task<IActionResult> GetPatient(int patientId)
+    public async Task<IActionResult> GetPatient(int patientId, CancellationToken cancellationToken)
     {
         if (!IsOwnerOrAdmin(patientId)) return Forbid();
 
-        var lang = Request.Headers["Accept-Language"].ToString().ToLower();
-
+        var lang = Request.Headers["Accept-Language"].ToString().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(lang))
             lang = "ru";
 
-        var data = await _context.AppointmentRequests
-            .Where(r => r.PatientId == patientId)
+        var patientRequests = _context.AppointmentRequests
+            .AsNoTracking()
+            .Where(r => r.PatientId == patientId);
+
+        var active = await AppointmentReadPolicy.ReadAsync(
+            patientRequests
+                .Where(r => r.Status == AppointmentStatuses.Pending || r.Status == AppointmentStatuses.Confirmed)
+                .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.PatientId,
+                    r.FirstName,
+                    r.Phone,
+                    r.AppointmentDate,
+                    r.Comment,
+                    r.Status,
+                    r.CreatedAt,
+                    r.DoctorId,
+                    DoctorName = r.DoctorId != null
+                        ? _context.Doctors
+                            .Where(d => d.Id == r.DoctorId)
+                            .Select(d =>
+                                lang.StartsWith("en") ? (d.FullNameEn ?? d.FullName) :
+                                lang.StartsWith("fr") ? (d.FullNameFr ?? d.FullName) :
+                                lang.StartsWith("el") ? (d.FullNameEl ?? d.FullName) :
+                                lang.StartsWith("ar") ? (d.FullNameAr ?? d.FullName) :
+                                d.FullName)
+                            .FirstOrDefault()
+                        : null
+                }),
+            AppointmentReadPolicy.PatientActiveLimit,
+            cancellationToken);
+
+        var history = await AppointmentReadPolicy.ReadAsync(
+            patientRequests
+                .Where(r => r.Status == AppointmentStatuses.Completed || r.Status == AppointmentStatuses.Cancelled)
+                .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.PatientId,
+                    r.FirstName,
+                    r.Phone,
+                    r.AppointmentDate,
+                    r.Comment,
+                    r.Status,
+                    r.CreatedAt,
+                    r.DoctorId,
+                    DoctorName = r.DoctorId != null
+                        ? _context.Doctors
+                            .Where(d => d.Id == r.DoctorId)
+                            .Select(d =>
+                                lang.StartsWith("en") ? (d.FullNameEn ?? d.FullName) :
+                                lang.StartsWith("fr") ? (d.FullNameFr ?? d.FullName) :
+                                lang.StartsWith("el") ? (d.FullNameEl ?? d.FullName) :
+                                lang.StartsWith("ar") ? (d.FullNameAr ?? d.FullName) :
+                                d.FullName)
+                            .FirstOrDefault()
+                        : null
+                }),
+            AppointmentReadPolicy.PatientHistoryLimit,
+            cancellationToken);
+
+        MarkReadTruncation(active.Truncated, history.Truncated);
+
+        var data = active.Items
+            .Concat(history.Items)
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new
-            {
-                r.Id,
-                r.PatientId,
-                r.FirstName,
-                r.Phone,
-                r.AppointmentDate,
-                r.Comment,
-                r.Status,
-                r.CreatedAt,
-                r.DoctorId,
-                DoctorName = r.DoctorId != null
-                    ? _context.Doctors
-                        .Where(d => d.Id == r.DoctorId)
-                        .Select(d =>
-                            lang.StartsWith("en") ? (d.FullNameEn ?? d.FullName) :
-                            lang.StartsWith("fr") ? (d.FullNameFr ?? d.FullName) :
-                            lang.StartsWith("el") ? (d.FullNameEl ?? d.FullName) :
-                            lang.StartsWith("ar") ? (d.FullNameAr ?? d.FullName) :
-                            d.FullName)
-                        .FirstOrDefault()
-                    : null
-            })
-            .ToListAsync();
+            .ThenByDescending(r => r.Id)
+            .ToList();
 
         return Ok(data);
     }
 
-    // Все заявки (админ)
+    // Compatibility feed for the admin dashboard. It deliberately keeps all recent
+    // live work before bounded history; the dedicated paged history path can retrieve
+    // older rows without ever loading the complete table into one HTTP response.
     [HttpGet("admin/all")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAll()
-        => Ok(await _context.AppointmentRequests
-               .OrderByDescending(r => r.CreatedAt)
-               .ToListAsync());
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        var requests = _context.AppointmentRequests.AsNoTracking();
+
+        var active = await AppointmentReadPolicy.ReadAsync(
+            requests
+                .Where(r => r.Status == AppointmentStatuses.Pending || r.Status == AppointmentStatuses.Confirmed)
+                .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id),
+            AppointmentReadPolicy.AdminActiveLimit,
+            cancellationToken);
+
+        var history = await AppointmentReadPolicy.ReadAsync(
+            requests
+                .Where(r => r.Status == AppointmentStatuses.Completed || r.Status == AppointmentStatuses.Cancelled)
+                .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id),
+            AppointmentReadPolicy.AdminHistoryLimit,
+            cancellationToken);
+
+        MarkReadTruncation(active.Truncated, history.Truncated);
+
+        var data = active.Items
+            .Concat(history.Items)
+            .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .ToList();
+
+        return Ok(data);
+    }
 
     // Создать заявку (гость или зарегистрированный).
     // Если запрос пришёл с валидным токеном пациента — PatientId берём из токена,
@@ -298,9 +373,9 @@ public class AppointmentRequestController : ControllerBase
     // Пациент: отменить свою запись (можно отменить только ожидающую или подтверждённую)
     [HttpPut("{id:int}/cancel")]
     [Authorize]
-    public async Task<IActionResult> CancelOwn(int id)
+    public async Task<IActionResult> CancelOwn(int id, CancellationToken cancellationToken)
     {
-        var request = await _context.AppointmentRequests.FindAsync(id);
+        var request = await _context.AppointmentRequests.FindAsync([id], cancellationToken);
         if (request == null) return NotFound();
 
         if (!IsOwnerOfAppointment(request)) return Forbid();
@@ -312,7 +387,7 @@ public class AppointmentRequestController : ControllerBase
             return BadRequest(new { message = "Эту запись уже нельзя отменить" });
 
         request.Status = AppointmentStatuses.Cancelled;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Пациент отменил свою запись #{Id}", request.Id);
 
@@ -375,6 +450,15 @@ public class AppointmentRequestController : ControllerBase
     {
         if (User.IsInRole("Admin")) return true;
         return request.PatientId.HasValue && IsOwnerOrAdmin(request.PatientId.Value);
+    }
+
+    private void MarkReadTruncation(bool activeTruncated, bool historyTruncated)
+    {
+        if (!activeTruncated && !historyTruncated) return;
+
+        Response.Headers["X-Result-Truncated"] = "true";
+        Response.Headers["X-Active-Truncated"] = activeTruncated ? "true" : "false";
+        Response.Headers["X-History-Truncated"] = historyTruncated ? "true" : "false";
     }
 
     private IActionResult SchedulingError(SchedulingValidationResult validation) =>
