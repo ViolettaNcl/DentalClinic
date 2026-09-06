@@ -8,8 +8,12 @@ namespace DentalClinic.Models;
 [Table("ChatMessageLogs")]
 public class ChatMessageLog
 {
+    private static readonly HashSet<string> SupportedLanguages =
+        new(StringComparer.Ordinal) { "ru", "en", "fr", "el", "ar" };
+
     private string? _clientIp;
     private string _sessionId = string.Empty;
+    private string _lang = "ru";
 
     [Key]
     public int Id { get; set; }
@@ -32,8 +36,14 @@ public class ChatMessageLog
     [Required, StringLength(1000)]
     public string Text { get; set; } = "";
 
+    // The request language is client-controlled as well. Keep analytics rows inside
+    // the five supported locale codes and inside the nvarchar(5) database contract.
     [StringLength(5)]
-    public string Lang { get; set; } = "ru";
+    public string Lang
+    {
+        get => _lang;
+        set => _lang = NormalizeLanguage(value);
+    }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -66,6 +76,12 @@ public class ChatMessageLog
         return Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
             .ToLowerInvariant();
+    }
+
+    private static string NormalizeLanguage(string? value)
+    {
+        var normalized = value?.Trim().ToLowerInvariant() ?? string.Empty;
+        return SupportedLanguages.Contains(normalized) ? normalized : "ru";
     }
 
     private static string? NormalizeClientIp(string? value)
