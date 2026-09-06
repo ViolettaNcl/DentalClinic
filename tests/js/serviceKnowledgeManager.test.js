@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     buildServicePayload,
     formatServicePrice,
-} from '../../wwwroot/assets/js/managers/admin/serviceKnowledgeManager.js';
+} from '../../wwwroot/assets/js/managers/admin/serviceKnowledgeUtils.js';
 
 test('builds a normalized create payload for Denta knowledge service', () => {
     const result = buildServicePayload({
