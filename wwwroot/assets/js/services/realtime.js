@@ -24,13 +24,12 @@ class RealtimeService {
         this._handlers = {};
     }
 
-    // Подключается, только если пользователь авторизован (есть JWT).
-    // Если соединение не удаётся (сеть, сервер недоступен) — молча остаёмся без
-    // realtime, старый механизм опроса (если он ещё вызывается как fallback) подхватит.
+    // SignalR подключается к тому же origin, поэтому защищённая dc_auth cookie
+    // отправляется браузером автоматически. JWT намеренно не читается из JS и
+    // не помещается в query string, где он мог бы попасть в URL/логи/историю.
+    // Если сервер отвергнет анонимное соединение или сеть недоступна — остаёмся
+    // без realtime, а обычная загрузка данных продолжит работать.
     async connect() {
-        const token = sessionStorage.getItem('authToken');
-        if (!token) return;
-
         try {
             await loadSignalRLib();
         } catch (err) {
@@ -41,7 +40,7 @@ class RealtimeService {
         if (this.connection) return;
 
         this.connection = new window.signalR.HubConnectionBuilder()
-            .withUrl(`/hubs/notifications?access_token=${encodeURIComponent(token)}`)
+            .withUrl('/hubs/notifications')
             .withAutomaticReconnect()
             .build();
 
