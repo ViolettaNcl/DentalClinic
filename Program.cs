@@ -90,20 +90,15 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
+            // Browser sessions authenticate through the HttpOnly cookie for normal
+            // API requests and SignalR/WebSocket negotiation alike. Deliberately do
+            // not accept JWTs from query strings: URLs are routinely logged, copied
+            // into analytics, browser history and proxy traces.
             if (string.IsNullOrEmpty(context.Token)
                 && context.Request.Cookies.TryGetValue("dc_auth", out var cookieToken)
                 && !string.IsNullOrWhiteSpace(cookieToken))
             {
                 context.Token = cookieToken;
-            }
-
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (string.IsNullOrEmpty(context.Token)
-                && !string.IsNullOrEmpty(accessToken)
-                && path.StartsWithSegments("/hubs/notifications"))
-            {
-                context.Token = accessToken;
             }
 
             return Task.CompletedTask;
