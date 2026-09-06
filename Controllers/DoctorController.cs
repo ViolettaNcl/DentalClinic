@@ -13,19 +13,25 @@ public class DoctorController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly ChatKnowledgeService _knowledge;
+    private readonly ClinicClock _clock;
     private readonly ILogger<DoctorController> _logger;
 
-    public DoctorController(ApplicationDbContext db, ChatKnowledgeService knowledge, ILogger<DoctorController> logger)
+    public DoctorController(
+        ApplicationDbContext db,
+        ChatKnowledgeService knowledge,
+        ClinicClock clock,
+        ILogger<DoctorController> logger)
     {
         _db = db;
         _knowledge = knowledge;
+        _clock = clock;
         _logger = logger;
     }
 
     // Публично: только активные врачи и только поля, необходимые публичному сайту.
     // Явная проекция защищает API от случайной публикации будущих внутренних полей Doctor.
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var doctors = await _db.Doctors
             .AsNoTracking()
@@ -41,7 +47,7 @@ public class DoctorController : ControllerBase
                 d.Specialization,
                 d.ExperienceYears,
                 d.Bio))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(doctors);
     }
@@ -49,11 +55,12 @@ public class DoctorController : ControllerBase
     // Админ: все врачи, включая деактивированных — для управления списком
     [HttpGet("admin/all")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAllAdmin()
+    public async Task<IActionResult> GetAllAdmin(CancellationToken cancellationToken)
     {
         var doctors = await _db.Doctors
+            .AsNoTracking()
             .OrderBy(d => d.FullName)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(doctors);
     }
@@ -61,7 +68,9 @@ public class DoctorController : ControllerBase
     // Админ: добавить нового врача
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] CreateDoctorRequest req)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateDoctorRequest req,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.FullName))
             return BadRequest(new { message = "Укажите имя врача" });
@@ -73,14 +82,14 @@ public class DoctorController : ControllerBase
             FullNameFr = NormalizeOptional(req.FullNameFr),
             FullNameEl = NormalizeOptional(req.FullNameEl),
             FullNameAr = NormalizeOptional(req.FullNameAr),
-            Specialization = req.Specialization?.Trim(),
+            Specialization = NormalizeOptional(req.Specialization),
             ExperienceYears = req.ExperienceYears,
-            Bio = req.Bio?.Trim(),
+            Bio = NormalizeOptional(req.Bio),
             IsActive = true
         };
 
         _db.Doctors.Add(doctor);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         _knowledge.Invalidate();
 
         _logger.LogInformation("Добавлен новый врач: {FullName} (id={Id})", doctor.FullName, doctor.Id);
@@ -92,10 +101,40 @@ public class DoctorController : ControllerBase
     // чтобы не потерять историю приёмов, где он указан как DoctorId).
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateDoctorRequest req)
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] UpdateDoctorRequest req,
+        CancellationToken cancellationToken)
     {
-        var doctor = await _db.Doctors.FindAsync(id);
+        var doctor = await _db.Doctors.FindAsync([id], cancellationToken);
         if (doctor == null) return NotFound();
+
+        // Деактивация скрывает врача с публичного сайта и запрещает новые записи.
+        // Если у него уже есть будущие pending/confirmed записи, сначала их нужно
+        // перенести/отменить — иначе CRM сохранит подтверждённые приёмы у врача,
+        // которого календарь и публичный каталог больше не считают доступным.
+        if (doctor.IsActive && req.IsActive == false)
+        {
+            var clinicNow = _clock.Now;
+            var futureAppointments = await _db.AppointmentRequests
+                .AsNoTracking()
+                .CountAsync(a =>
+                    a.DoctorId == doctor.Id
+                    && a.AppointmentDate.HasValue
+                    && a.AppointmentDate.Value >= clinicNow
+                    && (a.Status == AppointmentStatuses.Pending
+                        || a.Status == AppointmentStatuses.Confirmed),
+                    cancellationToken);
+
+            if (futureAppointments > 0)
+            {
+                return Conflict(new
+                {
+                    message = "Нельзя деактивировать врача, пока у него есть будущие ожидающие или подтверждённые записи. Сначала перенесите или отмените их.",
+                    futureAppointments
+                });
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(req.FullName))
             doctor.FullName = req.FullName.Trim();
@@ -113,7 +152,7 @@ public class DoctorController : ControllerBase
             doctor.IsActive = req.IsActive.Value;
 
         if (req.Specialization != null)
-            doctor.Specialization = req.Specialization.Trim();
+            doctor.Specialization = NormalizeOptional(req.Specialization);
 
         if (req.ClearExperienceYears)
             doctor.ExperienceYears = null;
@@ -121,9 +160,9 @@ public class DoctorController : ControllerBase
             doctor.ExperienceYears = req.ExperienceYears;
 
         if (req.Bio != null)
-            doctor.Bio = req.Bio.Trim();
+            doctor.Bio = NormalizeOptional(req.Bio);
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         _knowledge.Invalidate();
 
         _logger.LogInformation("Обновлён врач id={Id}: {FullName}, активен={IsActive}", doctor.Id, doctor.FullName, doctor.IsActive);
