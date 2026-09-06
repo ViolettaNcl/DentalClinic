@@ -15,13 +15,14 @@ RUN dotnet publish ./DentalClinic.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-RUN adduser --disabled-password --gecos "" appuser \
-    && mkdir -p /app/wwwroot/uploads/avatars \
-    && chown -R appuser:appuser /app
+# .NET 10 images already provide the non-root `app` user and APP_UID.
+# Keep the published tree and avatar upload directory writable by that user
+# instead of trying to install/create another account in the runtime image.
+COPY --from=build /app/publish .
+RUN mkdir -p /app/wwwroot/uploads/avatars \
+    && chown -R app:app /app
 
-COPY --from=build --chown=appuser:appuser /app/publish .
-
-USER appuser
+USER $APP_UID
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Vercel передаёт порт контейнеру через PORT. Значение 8080 оставлено
