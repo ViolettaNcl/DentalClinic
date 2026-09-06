@@ -2,12 +2,13 @@
 using DentalClinic.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace DentalClinic.Controllers
 {
     // Загрузка и удаление аватара — общий эндпоинт и для админа, и для пациента:
-    // роль читаем из JWT-токена и обновляем нужную таблицу (Admins или Patients).
+    // роль читаем из JWT/cookie-сессии и обновляем нужную таблицу (Admins или Patients).
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -15,7 +16,8 @@ namespace DentalClinic.Controllers
     {
         private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
         private const long MaxFileSizeBytes = 3 * 1024 * 1024; // 3 МБ
-        private const string AvatarUrlPrefix = "/uploads/avatars/";
+        private const string LegacyAvatarUrlPrefix = "/uploads/avatars/";
+        private const string DurableAvatarUrl = "/api/avatar/content";
 
         private readonly ApplicationDbContext _db;
         private readonly IWebHostEnvironment _env;
@@ -47,8 +49,7 @@ namespace DentalClinic.Controllers
 
             // Расширение файла контролируется пользователем, поэтому само по себе
             // не доказывает, что это изображение. Проверяем сигнатуру содержимого
-            // до записи в wwwroot, чтобы произвольный HTML/скрипт с именем .png
-            // не оказался среди публично доступных загрузок.
+            // до сохранения в постоянное хранилище.
             await using (var validationStream = file.OpenReadStream())
             {
                 if (!await ImageUploadValidator.MatchesExtensionAsync(
@@ -68,66 +69,95 @@ namespace DentalClinic.Controllers
                 return Forbid();
             }
 
-            // Сначала убеждаемся, что аккаунт действительно существует. Раньше файл
-            // записывался на диск до FindAsync(), поэтому устаревший/некорректный JWT
-            // мог оставлять сиротские файлы даже при последующем 404.
-            string? oldAvatarUrl;
-            Action<string> assignAvatarUrl;
+            await using var buffer = new MemoryStream((int)file.Length);
+            await file.CopyToAsync(buffer, HttpContext.RequestAborted);
+            var bytes = buffer.ToArray();
+            var contentType = ContentTypeForExtension(ext);
+            var avatarUrl = $"{DurableAvatarUrl}?v={Guid.NewGuid():N}";
 
+            string? oldAvatarUrl;
             if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
-                var admin = await _db.Admins.FindAsync(id.Value);
+                var admin = await _db.Admins.FindAsync([id.Value], HttpContext.RequestAborted);
                 if (admin == null) return NotFound();
+
                 oldAvatarUrl = admin.AvatarUrl;
-                assignAvatarUrl = url => admin.AvatarUrl = url;
+                admin.AvatarData = bytes;
+                admin.AvatarContentType = contentType;
+                admin.AvatarUrl = avatarUrl;
                 role = "Admin";
             }
             else
             {
-                var patient = await _db.Patients.FindAsync(id.Value);
+                var patient = await _db.Patients.FindAsync([id.Value], HttpContext.RequestAborted);
                 if (patient == null) return NotFound();
+
                 oldAvatarUrl = patient.AvatarUrl;
-                assignAvatarUrl = url => patient.AvatarUrl = url;
+                patient.AvatarData = bytes;
+                patient.AvatarContentType = contentType;
+                patient.AvatarUrl = avatarUrl;
                 role = "Patient";
             }
 
-            var uploadsDir = Path.Combine(_env.WebRootPath, "uploads", "avatars");
-            Directory.CreateDirectory(uploadsDir);
+            // SQL is the durable source of truth. Vercel/serverless instances can
+            // recycle their local filesystem at any moment, so new avatars must not
+            // depend on wwwroot/uploads. Legacy local files are removed only after
+            // the durable DB commit succeeds.
+            await _db.SaveChangesAsync(HttpContext.RequestAborted);
+            DeleteLegacyPhysicalFileIfLocal(oldAvatarUrl);
 
-            var fileName = $"{role.ToLowerInvariant()}-{id}-{Guid.NewGuid():N}{ext}";
-            var filePath = Path.Combine(uploadsDir, fileName);
-            var relativeUrl = $"{AvatarUrlPrefix}{fileName}";
+            _logger.LogInformation("{Role} {Id} обновил аватар в постоянном хранилище", role, id);
 
-            try
+            return Ok(new { message = "✅ Аватар обновлён", avatarUrl });
+        }
+
+        // =========================
+        // ЧТЕНИЕ СОБСТВЕННОГО АВАТАРА
+        // =========================
+        [HttpGet("content")]
+        public async Task<IActionResult> GetContent(CancellationToken cancellationToken)
+        {
+            var (role, id) = GetCurrentUser();
+            if (id == null) return Unauthorized();
+
+            byte[]? data;
+            string? contentType;
+
+            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
-                await using (var stream = new FileStream(
-                    filePath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    81920,
-                    useAsync: true))
-                {
-                    await file.CopyToAsync(stream, HttpContext.RequestAborted);
-                }
-
-                assignAvatarUrl(relativeUrl);
-                await _db.SaveChangesAsync(HttpContext.RequestAborted);
+                var avatar = await _db.Admins
+                    .AsNoTracking()
+                    .Where(a => a.Id == id.Value)
+                    .Select(a => new { a.AvatarData, a.AvatarContentType })
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (avatar == null) return NotFound();
+                data = avatar.AvatarData;
+                contentType = avatar.AvatarContentType;
             }
-            catch
+            else if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
             {
-                // Файловая система и БД не участвуют в одной транзакции. Если запись
-                // нового файла или SaveChanges завершается ошибкой, удаляем частичный/
-                // новый файл и не трогаем прежний аватар.
-                DeletePhysicalPathBestEffort(filePath);
-                throw;
+                var avatar = await _db.Patients
+                    .AsNoTracking()
+                    .Where(p => p.Id == id.Value)
+                    .Select(p => new { p.AvatarData, p.AvatarContentType })
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (avatar == null) return NotFound();
+                data = avatar.AvatarData;
+                contentType = avatar.AvatarContentType;
+            }
+            else
+            {
+                return Forbid();
             }
 
-            DeletePhysicalFileIfLocal(oldAvatarUrl);
+            if (data == null || data.Length == 0 || string.IsNullOrWhiteSpace(contentType))
+                return NotFound();
 
-            _logger.LogInformation("{Role} {Id} обновил аватар", role, id);
-
-            return Ok(new { message = "✅ Аватар обновлён", avatarUrl = relativeUrl });
+            // AvatarUrl changes on every upload, therefore this authenticated image
+            // response can be cached privately for a long time without showing an
+            // old avatar after replacement.
+            Response.Headers["Cache-Control"] = "private, max-age=31536000, immutable";
+            return File(data, contentType);
         }
 
         // =========================
@@ -143,18 +173,22 @@ namespace DentalClinic.Controllers
 
             if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
-                var admin = await _db.Admins.FindAsync(id.Value);
+                var admin = await _db.Admins.FindAsync([id.Value], HttpContext.RequestAborted);
                 if (admin == null) return NotFound();
                 oldAvatarUrl = admin.AvatarUrl;
                 admin.AvatarUrl = null;
+                admin.AvatarData = null;
+                admin.AvatarContentType = null;
                 role = "Admin";
             }
             else if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
             {
-                var patient = await _db.Patients.FindAsync(id.Value);
+                var patient = await _db.Patients.FindAsync([id.Value], HttpContext.RequestAborted);
                 if (patient == null) return NotFound();
                 oldAvatarUrl = patient.AvatarUrl;
                 patient.AvatarUrl = null;
+                patient.AvatarData = null;
+                patient.AvatarContentType = null;
                 role = "Patient";
             }
             else
@@ -163,32 +197,37 @@ namespace DentalClinic.Controllers
             }
 
             await _db.SaveChangesAsync(HttpContext.RequestAborted);
-            DeletePhysicalFileIfLocal(oldAvatarUrl);
+            DeleteLegacyPhysicalFileIfLocal(oldAvatarUrl);
 
             _logger.LogInformation("{Role} {Id} удалил аватар", role, id);
 
             return Ok(new { message = "✅ Аватар удалён" });
         }
 
-        private void DeletePhysicalFileIfLocal(string? relativeUrl)
+        private static string ContentTypeForExtension(string extension) => extension switch
         {
-            var path = ResolveLocalAvatarPath(relativeUrl);
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+        private void DeleteLegacyPhysicalFileIfLocal(string? relativeUrl)
+        {
+            var path = ResolveLegacyLocalAvatarPath(relativeUrl);
             if (path != null)
                 DeletePhysicalPathBestEffort(path);
         }
 
-        private string? ResolveLocalAvatarPath(string? relativeUrl)
+        private string? ResolveLegacyLocalAvatarPath(string? relativeUrl)
         {
             if (string.IsNullOrWhiteSpace(relativeUrl)
-                || !relativeUrl.StartsWith(AvatarUrlPrefix, StringComparison.Ordinal))
+                || !relativeUrl.StartsWith(LegacyAvatarUrlPrefix, StringComparison.Ordinal))
             {
                 return null;
             }
 
-            // Храним только сгенерированное имя файла, а не произвольный относительный
-            // путь. Это не позволяет старому/повреждённому AvatarUrl с ../ выйти за
-            // wwwroot/uploads/avatars при удалении.
-            var fileName = relativeUrl[AvatarUrlPrefix.Length..];
+            var fileName = relativeUrl[LegacyAvatarUrlPrefix.Length..];
             if (string.IsNullOrWhiteSpace(fileName)
                 || !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
             {
@@ -207,7 +246,7 @@ namespace DentalClinic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Не удалось удалить файл аватара {Path}", path);
+                _logger.LogWarning(ex, "Не удалось удалить legacy-файл аватара {Path}", path);
             }
         }
 
