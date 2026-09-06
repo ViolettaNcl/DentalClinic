@@ -62,8 +62,6 @@ namespace DentalClinic.Controllers
             }
             catch (DbUpdateException)
             {
-                // The unique DB index is the final guard against two simultaneous
-                // registrations passing the AnyAsync check at the same time.
                 return Conflict(new { message = "❌ Email уже зарегистрирован" });
             }
 
@@ -106,8 +104,6 @@ namespace DentalClinic.Controllers
 
             if (patient == null || !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
             {
-                // Never log the submitted email/phone/password. Authentication logs keep
-                // only coarse event information so production logs do not become a PII store.
                 _logger.LogWarning("Неудачная попытка входа пациента");
                 return Unauthorized(new { message = "❌ Email или пароль неверный" });
             }
@@ -171,9 +167,6 @@ namespace DentalClinic.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            // Deleting the browser cookie is not enough if the JWT was copied or is
-            // still present in another tab/device. Bump the account token version so
-            // every token issued before this logout fails OnTokenValidated immediately.
             if (User.Identity?.IsAuthenticated == true)
             {
                 var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -198,6 +191,50 @@ namespace DentalClinic.Controllers
 
             DeleteSessionCookie();
             return Ok(new { message = "Выход выполнен" });
+        }
+
+        [HttpGet("session")]
+        [Authorize]
+        public async Task<IActionResult> GetSession()
+        {
+            var userId = GetCurrentUserId();
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+            {
+                var patient = await _db.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == userId);
+                if (patient == null) return Unauthorized();
+
+                return Ok(new
+                {
+                    id = patient.Id,
+                    name = patient.FirstName,
+                    email = patient.Email,
+                    avatarUrl = patient.AvatarUrl,
+                    role = "patient"
+                });
+            }
+
+            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                var admin = await _db.Admins
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Id == userId);
+                if (admin == null) return Unauthorized();
+
+                return Ok(new
+                {
+                    id = admin.Id,
+                    name = "Администратор",
+                    email = admin.Email,
+                    avatarUrl = admin.AvatarUrl,
+                    role = "admin"
+                });
+            }
+
+            return Forbid();
         }
 
         [HttpGet("profile")]
