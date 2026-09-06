@@ -9,12 +9,21 @@ import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 import { installServiceDetailPriceManager } from '/assets/js/managers/public/serviceDetailPriceManager.js';
 import { installPublicDoctorCatalogSync } from '/assets/js/managers/public/publicDoctorCatalogManager.js';
+import { PublicReviewsManager } from '/assets/js/managers/public/reviewsManager.js';
+import { escapeHtmlAttribute } from '/assets/js/services/htmlAttributeSafety.js';
 
 ChatBot.prototype._isBookingIntent = isBookingIntent;
 installDentaSafetyGuard(ChatBot);
 installChatBookingCookieTransport(ChatBot);
 installServiceDetailPriceManager();
 installPublicDoctorCatalogSync();
+
+// Public review text is reused inside a quoted data-* attribute so that the
+// translation button can restore the original. Text-node escaping alone does not
+// escape quotes and therefore is insufficient for that attribute context. Patch
+// the renderer before DOMContentLoaded so an approved review cannot break out of
+// data-original-text and inject event-handler attributes into the public page.
+PublicReviewsManager.prototype._escape = escapeHtmlAttribute;
 
 async function initializePage() {
     try {
