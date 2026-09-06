@@ -30,7 +30,9 @@ namespace DentalClinic.Controllers
 
         [HttpPost("register")]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+        public async Task<IActionResult> Register(
+            [FromBody] RegisterRequest req,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(req.FirstName) ||
                 string.IsNullOrWhiteSpace(req.Email) ||
@@ -45,7 +47,7 @@ namespace DentalClinic.Controllers
 
             var email = NormalizeEmail(req.Email);
 
-            if (await _db.Patients.AnyAsync(p => p.Email == email))
+            if (await _db.Patients.AnyAsync(p => p.Email == email, cancellationToken))
                 return BadRequest(new { message = "❌ Email уже зарегистрирован" });
 
             var patient = new Patient
@@ -58,7 +60,7 @@ namespace DentalClinic.Controllers
             _db.Patients.Add(patient);
             try
             {
-                await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync(cancellationToken);
             }
             catch (DbUpdateException)
             {
@@ -71,7 +73,8 @@ namespace DentalClinic.Controllers
                 patient.Id,
                 "welcome",
                 $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷",
-                null);
+                null,
+                cancellationToken);
 
             IssueSessionCookie(_tokens.GenerateToken(
                 patient.Id,
@@ -94,13 +97,17 @@ namespace DentalClinic.Controllers
 
         [HttpPost("login")]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest req)
+        public async Task<IActionResult> Login(
+            [FromBody] LoginRequest req,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
             var email = NormalizeEmail(req.Email);
-            var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Email == email);
+            var patient = await _db.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Email == email, cancellationToken);
 
             if (patient == null || !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
             {
@@ -130,13 +137,17 @@ namespace DentalClinic.Controllers
 
         [HttpPost("admin/login")]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> AdminLogin([FromBody] LoginRequest req)
+        public async Task<IActionResult> AdminLogin(
+            [FromBody] LoginRequest req,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Email и пароль обязательны" });
 
             var email = NormalizeEmail(req.Email);
-            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Email == email);
+            var admin = await _db.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Email == email, cancellationToken);
 
             if (admin == null || !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
             {
@@ -165,7 +176,7 @@ namespace DentalClinic.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
         {
             if (User.Identity?.IsAuthenticated == true)
             {
@@ -175,17 +186,17 @@ namespace DentalClinic.Controllers
                 {
                     if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
                     {
-                        var patient = await _db.Patients.FindAsync(userId);
+                        var patient = await _db.Patients.FindAsync([userId], cancellationToken);
                         if (patient != null) patient.TokenVersion = checked(patient.TokenVersion + 1);
                     }
                     else if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
                     {
-                        var admin = await _db.Admins.FindAsync(userId);
+                        var admin = await _db.Admins.FindAsync([userId], cancellationToken);
                         if (admin != null) admin.TokenVersion = checked(admin.TokenVersion + 1);
                     }
 
                     if (_db.ChangeTracker.HasChanges())
-                        await _db.SaveChangesAsync();
+                        await _db.SaveChangesAsync(cancellationToken);
                 }
             }
 
@@ -195,7 +206,7 @@ namespace DentalClinic.Controllers
 
         [HttpGet("session")]
         [Authorize]
-        public async Task<IActionResult> GetSession()
+        public async Task<IActionResult> GetSession(CancellationToken cancellationToken)
         {
             var userId = GetCurrentUserId();
             var role = User.FindFirstValue(ClaimTypes.Role);
@@ -204,7 +215,7 @@ namespace DentalClinic.Controllers
             {
                 var patient = await _db.Patients
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == userId);
+                    .FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
                 if (patient == null) return Unauthorized();
 
                 return Ok(new
@@ -221,7 +232,7 @@ namespace DentalClinic.Controllers
             {
                 var admin = await _db.Admins
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.Id == userId);
+                    .FirstOrDefaultAsync(a => a.Id == userId, cancellationToken);
                 if (admin == null) return Unauthorized();
 
                 return Ok(new
@@ -239,9 +250,12 @@ namespace DentalClinic.Controllers
 
         [HttpGet("profile")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> GetProfile()
+        public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
         {
-            var patient = await _db.Patients.FindAsync(GetCurrentUserId());
+            var patientId = GetCurrentUserId();
+            var patient = await _db.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
             if (patient == null) return NotFound();
 
             return Ok(new
@@ -257,9 +271,12 @@ namespace DentalClinic.Controllers
 
         [HttpGet("admin/profile")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAdminProfile()
+        public async Task<IActionResult> GetAdminProfile(CancellationToken cancellationToken)
         {
-            var admin = await _db.Admins.FindAsync(GetCurrentUserId());
+            var adminId = GetCurrentUserId();
+            var admin = await _db.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == adminId, cancellationToken);
             if (admin == null) return NotFound();
 
             return Ok(new
@@ -273,9 +290,11 @@ namespace DentalClinic.Controllers
 
         [HttpPut("profile")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
+        public async Task<IActionResult> UpdateProfile(
+            [FromBody] UpdateProfileRequest req,
+            CancellationToken cancellationToken)
         {
-            var patient = await _db.Patients.FindAsync(GetCurrentUserId());
+            var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
             if (patient == null) return NotFound();
 
             if (!string.IsNullOrWhiteSpace(req.FirstName))
@@ -284,7 +303,7 @@ namespace DentalClinic.Controllers
             if (req.Phone != null)
                 patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
 
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Пациент {Id} обновил профиль", patient.Id);
 
             return Ok(new
@@ -297,9 +316,11 @@ namespace DentalClinic.Controllers
 
         [HttpPut("change-password")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+        public async Task<IActionResult> ChangePassword(
+            [FromBody] ChangePasswordRequest req,
+            CancellationToken cancellationToken)
         {
-            var patient = await _db.Patients.FindAsync(GetCurrentUserId());
+            var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
             if (patient == null) return NotFound();
 
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
@@ -310,7 +331,7 @@ namespace DentalClinic.Controllers
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             patient.TokenVersion = checked(patient.TokenVersion + 1);
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Пациент {Id} сменил пароль и отозвал прежние сессии", patient.Id);
 
             DeleteSessionCookie();
