@@ -176,14 +176,19 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     options.AddPolicy("chat", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+    {
+        var profile = ChatRateLimitPolicy.Resolve(httpContext.Request.Path.Value);
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{profile.Bucket}:{ip}",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 15,
+                PermitLimit = profile.PermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
-            }));
+            });
+    });
 
     options.AddPolicy("translate", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
