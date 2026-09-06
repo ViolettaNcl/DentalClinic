@@ -28,7 +28,13 @@ export const TRANSLATION_QUALITY_OVERRIDES = Object.freeze({
         about_p2: "Notre mission est de restaurer la santé et la beauté du sourire de chaque patient. Nous privilégions des méthodes de traitement mini-invasives, avec des équipements modernes et des protocoles éprouvés. Notre équipe veille à rendre chaque visite aussi confortable que possible et à réduire au minimum l'inconfort, quelle que soit la complexité du cas clinique.",
         doc1_approach_text: 'axée sur le confort du patient, sans procédures inutiles, avec un sourire naturel et un plan de traitement clair.',
         br_title: 'Ponts dentaires - Dental Clinic',
-        br_hero_title: 'Ponts dentaires'
+        br_hero_title: 'Ponts dentaires',
+        br_intro_title: "Qu'est-ce qu'un pont dentaire ?",
+        br_intro_text: "Un pont dentaire est une prothèse fixe destinée à remplacer une ou plusieurs dents manquantes. Il s'appuie sur les dents piliers voisines et restaure la fonction et l'esthétique.",
+        br_types_title: 'Types de ponts dentaires',
+        br_type1_desc: 'Pont dentaire classique reposant sur deux dents piliers. Fiable et largement utilisé.',
+        br_p2_name: 'Pont en céramique',
+        imp_gal2_title: 'Pont sur implants'
     }),
     el: Object.freeze({
         nav_doctors: 'Οδοντίατροι',
