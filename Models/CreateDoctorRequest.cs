@@ -7,6 +7,18 @@ public class CreateDoctorRequest
     [Required, StringLength(150)]
     public string FullName { get; set; } = null!;
 
+    [StringLength(150)]
+    public string? FullNameEn { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameFr { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameEl { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameAr { get; set; }
+
     [StringLength(300)]
     public string? Specialization { get; set; }
 
