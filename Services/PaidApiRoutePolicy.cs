@@ -9,6 +9,8 @@ public static class PaidApiRoutePolicy
 
         return string.Equals(path, "/api/chat", StringComparison.OrdinalIgnoreCase)
             || string.Equals(path, "/api/chat/stream", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/chat/tts", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(path, "/api/chat/tts", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/api/translate", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/api/review/translate", StringComparison.OrdinalIgnoreCase);
     }
 }
