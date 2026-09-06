@@ -28,16 +28,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Setup .NET 10
         if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: '10.0.x'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4.37.3
         with:
           languages: ${{ matrix.language }}
 
@@ -49,6 +49,6 @@ jobs:
           dotnet build DentalClinic.csproj --no-restore --configuration Release
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4.37.3
         with:
           category: "/language:${{ matrix.language }}"
