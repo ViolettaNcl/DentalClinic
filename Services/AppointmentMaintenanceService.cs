@@ -57,9 +57,11 @@ public sealed class AppointmentMaintenanceService
 
     /// <summary>
     /// Sends one post-visit review prompt to registered patients after a completed
-    /// appointment. The legacy notification lookup avoids resending prompts created
-    /// before durable keys existed; NotifyOnceAsync + the unique database index is
-    /// the cross-instance race guarantee for all new maintenance runs.
+    /// appointment. FollowUpSent is the durable appointment-level delivery marker:
+    /// deleting the user-facing notification must not make the maintenance job send
+    /// the same prompt again. The legacy notification lookup remains for rows created
+    /// before this marker existed, while NotifyOnceAsync + the unique database index
+    /// protects cross-instance races for new maintenance runs.
     /// </summary>
     public async Task<int> SendPostVisitFollowUpsAsync(CancellationToken cancellationToken)
     {
@@ -79,6 +81,7 @@ public sealed class AppointmentMaintenanceService
 
         var due = await _db.AppointmentRequests
             .Where(AppointmentFollowUpPolicy.DueBetween(windowStart, windowEnd))
+            .Where(request => !request.FollowUpSent)
             .Where(request => !_db.Notifications.Any(notification =>
                 notification.PatientId == request.PatientId
                 && notification.Type == AppointmentFollowUpPolicy.NotificationType
@@ -90,6 +93,11 @@ public sealed class AppointmentMaintenanceService
         var createdCount = 0;
         foreach (var request in due)
         {
+            // Mark before the durable notification save. NotifyOnceAsync uses this
+            // same scoped DbContext, so both the winning insert and a duplicate-key
+            // race persist the appointment marker. The marker survives later deletion
+            // of the patient-facing Notification row.
+            request.FollowUpSent = true;
             if (await _notifications.NotifyOnceAsync(
                 request.PatientId!.Value,
                 AppointmentFollowUpPolicy.NotificationType,
@@ -101,6 +109,9 @@ public sealed class AppointmentMaintenanceService
                 createdCount++;
             }
         }
+
+        if (due.Count > 0)
+            await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Создано post-visit follow-up уведомлений: {Count}; кандидатов {Candidates}; окно {Start}–{End}",
