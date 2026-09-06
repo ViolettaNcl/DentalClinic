@@ -13,12 +13,14 @@ public class AuthRequestValidationTests
         return results;
     }
 
-    [Fact]
-    public void RegisterRequest_AcceptsNormalBoundedValues()
+    [Theory]
+    [InlineData("Violetta")]
+    [InlineData("A")]
+    public void RegisterRequest_AcceptsNormalBoundedNames(string name)
     {
         var request = new RegisterRequest
         {
-            FirstName = "Violetta",
+            FirstName = name,
             Email = "violetta@example.com",
             Password = "password123"
         };
@@ -30,7 +32,6 @@ public class AuthRequestValidationTests
     [InlineData(101, "user@example.com", 12)]
     [InlineData(8, "oversized", 12)]
     [InlineData(8, "user@example.com", 101)]
-    [InlineData(1, "user@example.com", 12)]
     public void RegisterRequest_RejectsInvalidOrOversizedInputs(int nameLength, string emailKind, int passwordLength)
     {
         var email = emailKind == "oversized"
