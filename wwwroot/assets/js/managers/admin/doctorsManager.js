@@ -47,6 +47,16 @@ class DoctorsManager {
                 <div class="panel-form-group doctor-knowledge-hint">
                     <small>Эти данные используются на сайте и в базе знаний Денты. Заполняйте только подтверждённую информацию о враче.</small>
                 </div>
+                <details class="doctor-localized-names">
+                    <summary>Имя врача на других языках</summary>
+                    <small>Необязательно. Дента использует соответствующее имя, когда отвечает на выбранном языке. Если поле пустое, используется основное имя.</small>
+                    <div class="doctor-localized-grid">
+                        <label>English<input type="text" id="doctor-fullname-en" maxlength="150" autocomplete="off"></label>
+                        <label>Français<input type="text" id="doctor-fullname-fr" maxlength="150" autocomplete="off"></label>
+                        <label>Ελληνικά<input type="text" id="doctor-fullname-el" maxlength="150" autocomplete="off"></label>
+                        <label>العربية<input type="text" id="doctor-fullname-ar" maxlength="150" autocomplete="off" dir="rtl"></label>
+                    </div>
+                </details>
                 <div class="panel-form-group">
                     <label for="doctor-specialization">Специализация</label>
                     <input type="text" id="doctor-specialization" maxlength="300" placeholder="Например: имплантология, хирургия">
@@ -62,6 +72,10 @@ class DoctorsManager {
             `);
         }
 
+        this.modal.fullNameEn = document.getElementById('doctor-fullname-en');
+        this.modal.fullNameFr = document.getElementById('doctor-fullname-fr');
+        this.modal.fullNameEl = document.getElementById('doctor-fullname-el');
+        this.modal.fullNameAr = document.getElementById('doctor-fullname-ar');
         this.modal.specialization = document.getElementById('doctor-specialization');
         this.modal.experienceYears = document.getElementById('doctor-experience');
         this.modal.bio = document.getElementById('doctor-bio');
@@ -127,6 +141,10 @@ class DoctorsManager {
         this.modal.form?.reset();
         this.modal.id.value = doctor?.id || '';
         this.modal.fullName.value = doctor?.fullName || '';
+        this.modal.fullNameEn.value = doctor?.fullNameEn || '';
+        this.modal.fullNameFr.value = doctor?.fullNameFr || '';
+        this.modal.fullNameEl.value = doctor?.fullNameEl || '';
+        this.modal.fullNameAr.value = doctor?.fullNameAr || '';
         this.modal.specialization.value = doctor?.specialization || '';
         this.modal.experienceYears.value = doctor?.experienceYears ?? '';
         this.modal.bio.value = doctor?.bio || '';
@@ -154,6 +172,10 @@ class DoctorsManager {
         const id = this.modal.id.value;
         const result = buildDoctorPayload({
             fullName: this.modal.fullName.value,
+            fullNameEn: this.modal.fullNameEn.value,
+            fullNameFr: this.modal.fullNameFr.value,
+            fullNameEl: this.modal.fullNameEl.value,
+            fullNameAr: this.modal.fullNameAr.value,
             specialization: this.modal.specialization.value,
             experienceYears: this.modal.experienceYears.value,
             bio: this.modal.bio.value,
@@ -184,8 +206,6 @@ class DoctorsManager {
 
             this._hideModal();
             await this.loadAll();
-            // Обновляем выпадающие списки врачей в других разделах панели
-            // (запись по телефону, календарь, редактирование заявки).
             window.reloadDoctorSelects?.();
         } catch (err) {
             showError(err.message || 'Не удалось сохранить врача');
@@ -224,6 +244,13 @@ class DoctorsManager {
         style.textContent = `
             .doctor-knowledge-summary{margin-top:4px;color:#687a75;font-size:.82rem;line-height:1.35}
             .doctor-knowledge-hint{padding:9px 11px;border-left:3px solid #13b39b;background:#f5fbf9;color:#51645f}
+            .doctor-localized-names{margin:4px 0 14px;padding:10px 12px;border:1px solid #dce9e5;border-radius:10px;background:#fbfefd}
+            .doctor-localized-names summary{cursor:pointer;font-weight:700;color:#315d54}
+            .doctor-localized-names>small{display:block;margin:8px 0;color:#687a75;line-height:1.4}
+            .doctor-localized-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+            .doctor-localized-grid label{display:grid;gap:5px;font-size:.84rem;color:#51645f}
+            .doctor-localized-grid input{width:100%}
+            @media(max-width:640px){.doctor-localized-grid{grid-template-columns:1fr}}
         `;
         document.head.appendChild(style);
     }
