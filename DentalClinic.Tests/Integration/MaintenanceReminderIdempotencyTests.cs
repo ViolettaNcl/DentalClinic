@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using DentalClinic.Data;
 using DentalClinic.Models;
+using DentalClinic.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -27,7 +28,7 @@ public class MaintenanceReminderIdempotencyTests : IClassFixture<CustomWebApplic
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var clock = scope.ServiceProvider.GetRequiredService<Services.ClinicClock>();
+            var clock = scope.ServiceProvider.GetRequiredService<ClinicClock>();
             var suffix = Guid.NewGuid().ToString("N");
             var patient = new Patient
             {
