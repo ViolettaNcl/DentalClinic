@@ -29,7 +29,7 @@ async function initializePage() {
         document.body.insertAdjacentHTML('beforeend', footerHTML);
         await i18nReady;
 
-        const auth = new AuthManager(); auth.init();
+        const auth = new AuthManager(); await auth.init();
         const bell = new NotificationBell(); bell.init();
         const nav = new NavigationManager(); nav.init();
         const langSwitcher = new LanguageSwitcher(); await langSwitcher.init();

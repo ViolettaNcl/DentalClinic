@@ -58,6 +58,66 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task SessionEndpoint_WithPatientCookie_ReturnsFreshUiMetadata()
+    {
+        var client = _factory.CreateClient();
+        var email = UniqueEmail("session-patient");
+
+        await client.PostAsJsonAsync("/api/auth/register", ValidRegisterRequest(email));
+        var response = await client.GetAsync("/api/auth/session");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("patient", body.GetProperty("role").GetString());
+        Assert.Equal("Тест", body.GetProperty("name").GetString());
+        Assert.Equal(email, body.GetProperty("email").GetString());
+        Assert.True(body.GetProperty("id").GetInt32() > 0);
+        Assert.False(body.TryGetProperty("token", out _));
+    }
+
+    [Fact]
+    public async Task SessionEndpoint_WithAdminCookie_ReturnsAdminMetadata()
+    {
+        var email = UniqueEmail("session-admin");
+        const string password = "admin-test-password";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Admins.Add(new Admin
+            {
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = _factory.CreateClient();
+        await client.PostAsJsonAsync("/api/auth/admin/login", new LoginRequest
+        {
+            Email = email,
+            Password = password
+        });
+
+        var response = await client.GetAsync("/api/auth/session");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("admin", body.GetProperty("role").GetString());
+        Assert.Equal("Администратор", body.GetProperty("name").GetString());
+        Assert.Equal(email, body.GetProperty("email").GetString());
+        Assert.True(body.GetProperty("id").GetInt32() > 0);
+    }
+
+    [Fact]
+    public async Task SessionEndpoint_WithoutAuthentication_ReturnsUnauthorized()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/api/auth/session");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Logout_ExpiresAuthenticationCookie()
     {
         var client = _factory.CreateClient();

@@ -2,6 +2,7 @@ import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, showConfirm, queueToast } from '../../services/ui.js';
 import { t, onLanguageChange } from '../../core/i18n.js';
 import { terminateCookieSession } from '../../core/sessionTermination.js';
+import { getServerSession, clearSessionMetadata } from '../../core/sessionBootstrap.js';
 import { shouldTryAdminFallback } from './authLoginPolicy.js';
 
 class AuthManager {
@@ -18,10 +19,16 @@ class AuthManager {
             return;
         }
 
-        // Stage 2 migration: access JWT now lives only in an HttpOnly cookie.
         sessionStorage.removeItem('authToken');
-
         this.setupEvents();
+
+        try {
+            await getServerSession({ force: true });
+        } catch (err) {
+            // A temporary network/server problem must not be treated as a logout.
+            console.warn('Не удалось проверить серверную сессию:', err?.message || err);
+        }
+
         this.updateHeader();
         onLanguageChange(() => this.updateHeader());
     }
@@ -89,9 +96,6 @@ class AuthManager {
                         body: JSON.stringify(data)
                     });
                 } catch (patientErr) {
-                    // The form is shared by patients and admins, but an admin lookup is
-                    // appropriate only after the patient endpoint explicitly rejects the
-                    // credentials. Do not double traffic on 429/5xx/network failures.
                     if (!shouldTryAdminFallback(patientErr)) throw patientErr;
 
                     res = await apiFetch('/auth/admin/login', {
@@ -102,8 +106,6 @@ class AuthManager {
             }
 
             if (res.id) {
-                // Non-secret display/session metadata only. The signed JWT is set by the
-                // server as HttpOnly and cannot be read by JavaScript.
                 sessionStorage.setItem('patientId', res.id);
                 sessionStorage.setItem('patientName', res.name);
                 sessionStorage.setItem('patientEmail', res.email);
@@ -149,10 +151,14 @@ class AuthManager {
 
     updateHeader() {
         const name = sessionStorage.getItem('patientName');
+        const role = sessionStorage.getItem('userRole')?.toLowerCase();
         const cabinet = document.getElementById('cabinet-link');
         const headerBtns = document.getElementById('header-buttons');
 
         if (name && cabinet && headerBtns) {
+            cabinet.href = role === 'admin'
+                ? '/pages/admin-dashboard.html'
+                : '/pages/patient-dashboard.html';
             cabinet.style.display = 'block';
             headerBtns.innerHTML =
                 `<button class="btn-primary btn-logout">${t('auth_logout_btn', 'Выход')}</button>`;
@@ -172,15 +178,10 @@ class AuthManager {
         try {
             await terminateCookieSession({
                 requestLogout: () => apiFetch('/auth/logout', { method: 'POST' }),
-                clearSession: () => {
-                    ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken']
-                        .forEach(key => sessionStorage.removeItem(key));
-                },
+                clearSession: () => clearSessionMetadata(),
                 redirect: url => window.location.replace(url)
             });
         } catch (err) {
-            // The cookie is HttpOnly, so a failed server logout means the authenticated
-            // session may still be alive. Keep local metadata intact and do not redirect.
             console.error('Patient logout failed:', err?.message || err);
             showError(t('auth_error_generic', 'Не удалось завершить сеанс. Проверьте соединение и попробуйте ещё раз.'));
         }
