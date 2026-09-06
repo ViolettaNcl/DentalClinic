@@ -1,13 +1,58 @@
-﻿using DentalClinic.Models;
+﻿using System.Data;
+using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace DentalClinic.Data
 {
     public static class DbSeeder
     {
-        public static async Task SeedAsync(ApplicationDbContext db)
+        private static readonly SemaphoreSlim ProcessSeedGate = new(1, 1);
+
+        private const string SqlServerSeedLockSql = """
+            DECLARE @result int;
+            EXEC @result = sp_getapplock
+                @Resource = N'DentalClinic.DbSeeder',
+                @LockMode = 'Exclusive',
+                @LockOwner = 'Transaction',
+                @LockTimeout = 15000;
+            IF @result < 0
+                THROW 51000, 'Could not acquire DentalClinic database seeding lock.', 1;
+            """;
+
+        public static async Task SeedAsync(
+            ApplicationDbContext db,
+            CancellationToken cancellationToken = default)
         {
-            if (!await db.Doctors.AnyAsync())
+            // Multiple Vercel instances can cold-start at the same time. A process
+            // gate prevents duplicate work inside one process, while SQL Server's
+            // transaction-owned application lock serializes seeders across instances.
+            await ProcessSeedGate.WaitAsync(cancellationToken);
+            try
+            {
+                if (db.Database.IsSqlServer())
+                {
+                    await using var transaction = await db.Database.BeginTransactionAsync(
+                        IsolationLevel.ReadCommitted,
+                        cancellationToken);
+                    await db.Database.ExecuteSqlRawAsync(SqlServerSeedLockSql, cancellationToken);
+                    await SeedCoreAsync(db, cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+                    return;
+                }
+
+                await SeedCoreAsync(db, cancellationToken);
+            }
+            finally
+            {
+                ProcessSeedGate.Release();
+            }
+        }
+
+        private static async Task SeedCoreAsync(
+            ApplicationDbContext db,
+            CancellationToken cancellationToken)
+        {
+            if (!await db.Doctors.AnyAsync(cancellationToken))
             {
                 db.Doctors.AddRange(
                     new Doctor { FullName = "Раис Наджиб", Specialization = "терапия, импланты", ExperienceYears = 2, IsActive = true },
@@ -15,7 +60,7 @@ namespace DentalClinic.Data
                 );
             }
 
-            if (!await db.Services.AnyAsync())
+            if (!await db.Services.AnyAsync(cancellationToken))
             {
                 db.Services.AddRange(
                     // Косметика
@@ -59,7 +104,7 @@ namespace DentalClinic.Data
                 );
             }
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 }
