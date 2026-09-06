@@ -24,15 +24,23 @@ public sealed class AdminAnalyticsService
 
     public async Task<AdminAnalyticsSummary> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var rows = await _db.AppointmentRequests
+        var rawRows = await _db.AppointmentRequests
             .AsNoTracking()
             .Select(a => new AnalyticsAppointmentRow(
                 a.Status,
                 a.AppointmentDate,
                 a.DoctorId,
                 a.PatientId,
-                a.Comment))
+                a.Comment,
+                a.CreatedAt))
             .ToListAsync(cancellationToken);
+
+        // CreatedAt is stored in UTC, while the dashboard is interpreted in the
+        // clinic's local calendar. Normalize before month/day aggregation so a
+        // request around UTC midnight is counted on the correct clinic-local day.
+        var rows = rawRows
+            .Select(row => row with { CreatedAt = _clock.FromUtc(row.CreatedAt) })
+            .ToArray();
 
         var doctorNames = await _db.Doctors
             .AsNoTracking()
@@ -64,9 +72,8 @@ public sealed class AdminAnalyticsService
         var monthStart = new DateTime(clinicNow.Year, clinicNow.Month, 1);
         var nextMonth = monthStart.AddMonths(1);
         var thisMonth = rows.Count(r =>
-            r.AppointmentDate.HasValue
-            && r.AppointmentDate.Value >= monthStart
-            && r.AppointmentDate.Value < nextMonth);
+            r.CreatedAt >= monthStart
+            && r.CreatedAt < nextMonth);
 
         var registered = 0;
         var guest = 0;
@@ -98,8 +105,7 @@ public sealed class AdminAnalyticsService
 
         foreach (var row in rows)
         {
-            if (!row.AppointmentDate.HasValue) continue;
-            var date = row.AppointmentDate.Value.Date;
+            var date = row.CreatedAt.Date;
             if (dayCounts.ContainsKey(date)) dayCounts[date]++;
         }
 
@@ -139,7 +145,8 @@ public sealed class AdminAnalyticsService
         DateTime? AppointmentDate,
         int? DoctorId,
         int? PatientId,
-        string? Comment);
+        string? Comment,
+        DateTime CreatedAt);
 }
 
 public sealed record AdminAnalyticsSummary(

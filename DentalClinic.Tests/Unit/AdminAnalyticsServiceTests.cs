@@ -10,7 +10,7 @@ namespace DentalClinic.Tests.Unit;
 public class AdminAnalyticsServiceTests
 {
     [Fact]
-    public async Task Summary_UsesExclusiveSources_Statuses_AndClinicMonth()
+    public async Task Summary_UsesExclusiveSources_Statuses_AndRequestCreationDates()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase($"analytics-{Guid.NewGuid():N}")
@@ -22,11 +22,18 @@ public class AdminAnalyticsServiceTests
             new Doctor { Id = 2, FullName = "Dr. Two" });
 
         db.AppointmentRequests.AddRange(
-            Request(1, AppointmentStatuses.Pending, new DateTime(2026, 9, 6, 10, 0, 0), doctorId: 1, patientId: 10),
-            Request(2, AppointmentStatuses.Confirmed, new DateTime(2026, 9, 5, 11, 0, 0), doctorId: 1),
-            Request(3, AppointmentStatuses.Completed, new DateTime(2026, 9, 1, 12, 0, 0), doctorId: 2, patientId: 20, comment: "[Заявка через чат] Имплант"),
-            Request(4, AppointmentStatuses.Cancelled, new DateTime(2026, 8, 31, 9, 0, 0)),
-            Request(5, "legacy-status", null));
+            Request(1, AppointmentStatuses.Pending, new DateTime(2026, 9, 6, 10, 0, 0), doctorId: 1, patientId: 10,
+                createdAt: new DateTime(2026, 9, 6, 7, 0, 0, DateTimeKind.Utc)),
+            // The appointment itself is next month, but the request was created this month.
+            Request(2, AppointmentStatuses.Confirmed, new DateTime(2026, 10, 5, 11, 0, 0), doctorId: 1,
+                createdAt: new DateTime(2026, 9, 5, 8, 0, 0, DateTimeKind.Utc)),
+            Request(3, AppointmentStatuses.Completed, new DateTime(2026, 9, 1, 12, 0, 0), doctorId: 2, patientId: 20,
+                comment: "[Заявка через чат] Имплант",
+                createdAt: new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc)),
+            Request(4, AppointmentStatuses.Cancelled, new DateTime(2026, 8, 31, 9, 0, 0),
+                createdAt: new DateTime(2026, 8, 31, 10, 0, 0, DateTimeKind.Utc)),
+            Request(5, "legacy-status", null,
+                createdAt: new DateTime(2026, 9, 2, 8, 0, 0, DateTimeKind.Utc)));
         await db.SaveChangesAsync();
 
         var config = new ConfigurationBuilder()
@@ -38,7 +45,7 @@ public class AdminAnalyticsServiceTests
         var summary = await service.GetSummaryAsync();
 
         Assert.Equal(5, summary.TotalRequests);
-        Assert.Equal(3, summary.ThisMonthRequests);
+        Assert.Equal(4, summary.ThisMonthRequests);
         Assert.Equal(40d, summary.ConfirmedOrCompletedRate);
 
         Assert.Equal(1, summary.Statuses.Pending);
@@ -56,7 +63,9 @@ public class AdminAnalyticsServiceTests
         Assert.Equal(30, summary.ByDay.Count);
         Assert.Equal("2026-08-08", summary.ByDay[0].Date);
         Assert.Equal("2026-09-06", summary.ByDay[^1].Date);
+        Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-08-31").Count);
         Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-01").Count);
+        Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-02").Count);
         Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-05").Count);
         Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-06").Count);
 
@@ -73,6 +82,33 @@ public class AdminAnalyticsServiceTests
                 Assert.Equal("Dr. Two", second.DoctorName);
                 Assert.Equal(1, second.Count);
             });
+    }
+
+    [Fact]
+    public async Task Summary_ConvertsUtcCreatedAtToClinicCalendarBeforeGrouping()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"analytics-timezone-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+
+        db.AppointmentRequests.Add(Request(
+            10,
+            AppointmentStatuses.Pending,
+            new DateTime(2026, 10, 1, 10, 0, 0),
+            createdAt: new DateTime(2026, 8, 31, 21, 30, 0, DateTimeKind.Utc)));
+        await db.SaveChangesAsync();
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scheduling:TimeZoneId"] = "Europe/Moscow" })
+            .Build();
+        var time = new FixedTimeProvider(new DateTimeOffset(2026, 9, 6, 9, 0, 0, TimeSpan.Zero));
+        var service = new AdminAnalyticsService(db, new ClinicClock(config, time));
+
+        var summary = await service.GetSummaryAsync();
+
+        Assert.Equal(1, summary.ThisMonthRequests);
+        Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-01").Count);
     }
 
     [Fact]
@@ -103,7 +139,8 @@ public class AdminAnalyticsServiceTests
         DateTime? appointmentDate,
         int? doctorId = null,
         int? patientId = null,
-        string? comment = null) => new()
+        string? comment = null,
+        DateTime? createdAt = null) => new()
     {
         Id = id,
         Phone = $"+70000000{id:000}",
@@ -112,7 +149,7 @@ public class AdminAnalyticsServiceTests
         DoctorId = doctorId,
         PatientId = patientId,
         Comment = comment,
-        CreatedAt = new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc)
+        CreatedAt = createdAt ?? new DateTime(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc)
     };
 
     private sealed class FixedTimeProvider : TimeProvider
