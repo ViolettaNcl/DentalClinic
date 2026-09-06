@@ -137,9 +137,9 @@ public class NotificationServiceTests
         var entity = db.Model.FindEntityType(typeof(Notification));
         Assert.NotNull(entity);
 
-        var index = Assert.Single(entity!.GetIndexes().Where(i =>
+        var index = Assert.Single(entity!.GetIndexes(), i =>
             i.Properties.Count == 1
-            && i.Properties[0].Name == nameof(Notification.IdempotencyKey)));
+            && i.Properties[0].Name == nameof(Notification.IdempotencyKey));
 
         Assert.True(index.IsUnique);
         Assert.Equal("[IdempotencyKey] IS NOT NULL", index.GetFilter());
