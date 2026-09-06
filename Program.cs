@@ -360,8 +360,16 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (!isVercel && db.Database.IsRelational())
+
+    // The application model now depends on additive migrations introduced after the
+    // original Vercel move (token revocation, durable avatars, distributed quotas,
+    // follow-up delivery state, etc.). Skipping MigrateAsync on Vercel let a new
+    // application image start against an older schema and fail at runtime. The
+    // migration chain is deliberately idempotent for the existing live database, so
+    // every relational deployment must bring the schema forward before seeding/serving.
+    if (db.Database.IsRelational())
         await db.Database.MigrateAsync();
+
     await DentalClinic.Data.DbSeeder.SeedAsync(db);
 }
 

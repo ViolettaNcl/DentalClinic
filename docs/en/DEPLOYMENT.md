@@ -4,7 +4,7 @@
 
 *[🇷🇺 Русская версия](../DEPLOYMENT.md)*
 
-The project runs on Vercel as an ASP.NET Core 9 container service. Its deployment
+The project runs on Vercel as an ASP.NET Core 10 container service. Its deployment
 configuration lives in `Dockerfile.vercel` and `vercel.json`. Vercel terminates TLS
 at its proxy and passes the assigned container port through `$PORT`.
 
@@ -33,22 +33,28 @@ Production and Preview. Never put secrets in `vercel.json` or commit them to Git
 The frontend and API are same-origin on the default deployment. If another origin
 calls the API, add `AllowedOrigins__0=https://your-domain`.
 
-## 2. Database and leaving the previous host
+## 2. Database and schema migration
 
 Vercel runs the application but does not provide SQL Server inside the container.
-Use an external managed SQL Server such as Azure SQL. To leave the old host while
-preserving data:
+Use an external managed SQL Server such as Azure SQL.
 
-1. Back up the current database.
-2. Restore it into the new managed SQL Server.
-3. After taking a backup, run `scripts/sql/20260901_stage1_appointments.sql`.
-4. Set the new connection string in `ConnectionStrings__DefaultConnection`.
-5. Check `GET /health`; it should return HTTP 200 and `"status":"Healthy"`.
+The EF migration chain is designed to upgrade the existing live schema in place:
+the baseline migration is idempotent and later migrations add the production
+hardening fields/indexes used by the current application. On every relational app
+startup, `Program.cs` now runs `Database.MigrateAsync()` **before** `DbSeeder` and
+before the app begins serving requests. This also applies on Vercel, so a newly
+published image cannot silently run against an older schema.
 
-The repository does not yet contain a complete EF Core migration history capable of
-creating the entire schema from scratch. `DbSeeder` populates doctors and services but
-expects the tables to exist. Do not point production at an empty database before
-creating or migrating the schema.
+Before the first migration of an existing production database:
+
+1. Take a verified database backup.
+2. Point `ConnectionStrings__DefaultConnection` at the managed SQL Server.
+3. Deploy the application; startup applies pending EF migrations automatically.
+4. Check `GET /health`; it should return HTTP 200 and `"status":"Healthy"`.
+5. Verify the latest migration is recorded in `__EFMigrationsHistory`.
+
+For a local/manual maintenance window you can still run `dotnet ef database update`.
+Do not bypass backups before schema changes.
 
 ## 3. Deploying from GitHub
 
@@ -61,22 +67,24 @@ Recommended permanent workflow:
    appointment creation, and the chatbot microphone.
 5. Promote or create a Production deployment after verification.
 
-`vercel.json` rewrites all traffic to the `app` container service. Vercel provides
-HTTPS automatically. `Program.cs` honors `X-Forwarded-Proto`, avoiding redirect loops
-behind the Vercel proxy.
+`vercel.json` rewrites all traffic to the `web` container service. Vercel provides
+HTTPS automatically. `Program.cs` honors forwarded protocol/client information from
+Vercel before rate limiting and authentication-sensitive request handling.
 
 ## 4. Cron jobs
 
-`vercel.json` defines two daily jobs compatible with the Hobby plan:
+`vercel.json` defines four daily maintenance jobs:
 
 | Time (UTC) | Endpoint | Purpose |
 |---|---|---|
 | `06:00` | `/api/maintenance/reminders` | Remind patients about the following day's visits |
+| `06:10` | `/api/maintenance/follow-ups` | Send one-time post-visit follow-ups |
 | `06:15` | `/api/maintenance/cleanup` | Cancel stale pending requests only when explicitly enabled |
+| `06:30` | `/api/maintenance/chat-retention` | Remove expired chat/IP-pseudonym data |
 
-Vercel sends `Authorization: Bearer <CRON_SECRET>`. Both endpoints return 401 when
-the secret is missing or wrong. Regular `BackgroundService` workers are disabled on
-Vercel because containers may suspend between requests.
+Vercel sends `Authorization: Bearer <CRON_SECRET>`. The maintenance endpoints return
+401 when the secret is missing or wrong. Regular `BackgroundService` workers are
+disabled on Vercel because containers may suspend between requests.
 
 ## 5. GitHub Actions and FTPS backup
 
@@ -110,25 +118,26 @@ docker compose up --build
 ```
 
 The app is available at `http://localhost:8080`; SQL Server at `localhost:1433`.
-Named Docker volumes retain the database and uploads across restarts.
+Named Docker volumes retain the database across restarts.
 
-## 7. File upload limitation
+## 7. Avatar persistence
 
-Avatars are currently written to `wwwroot/uploads/avatars`. A Vercel container's
-filesystem is not persistent storage, so uploaded avatars may disappear after a new
-deployment or instance replacement. Move this feature to Vercel Blob or another object
-store before relying on it in production.
+New patient/admin avatars are stored durably in SQL and served through the authenticated
+avatar endpoint. Legacy local avatar paths are cleaned up safely when replaced or
+deleted. The application no longer depends on Vercel's ephemeral container filesystem
+for newly uploaded avatars.
 
 ## 8. Post-deployment checklist
 
 - [ ] The Production deployment is READY.
 - [ ] `/health` returns HTTP 200 and reports a Healthy database.
+- [ ] Pending EF migrations were applied and `__EFMigrationsHistory` contains the latest migration.
 - [ ] The home page and static assets load over HTTPS.
 - [ ] Patient/admin sign-in and registration work.
 - [ ] Appointment creation rejects past dates and doctor conflicts.
 - [ ] The microphone requests browser permission and inserts recognized text into chat.
 - [ ] Cron endpoints return 401 without the correct `CRON_SECRET`.
 - [ ] `BackgroundJobs__CleanupEnabled` is enabled only deliberately.
-- [ ] Backups are configured for the new database.
+- [ ] Backups are configured for the production database.
 - [ ] If FTPS backup is required, all four FTP secrets are configured in GitHub.
-- [ ] Avatars use external object storage or the upload feature is temporarily disabled.
+- [ ] Patient/admin avatar upload and retrieval survive a fresh deployment.
