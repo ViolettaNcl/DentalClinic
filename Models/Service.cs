@@ -46,6 +46,8 @@ public class Service
 
     public bool IsActive { get; set; } = true;
 
-    // Порядок отображения внутри категории в прайсе и в промпте бота
+    // 0 = не привязывать к фиксированной карточке на detail-странице;
+    // положительные значения задают стабильный слот карточки и порядок в прайсе.
+    [Range(0, int.MaxValue)]
     public int SortOrder { get; set; } = 0;
 }

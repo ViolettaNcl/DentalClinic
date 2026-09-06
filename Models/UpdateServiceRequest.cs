@@ -1,4 +1,6 @@
-﻿namespace DentalClinic.Models;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace DentalClinic.Models;
 
 // Тот же паттерн, что и UpdateDoctorRequest: все поля необязательные (nullable),
 // чтобы отличить "клиент не передал это поле" от "клиент явно передал 0/пусто".
@@ -20,6 +22,9 @@ public class UpdateServiceRequest
     public string? Unit { get; set; }
     public string? Keywords { get; set; }
     public string? PageUrl { get; set; }
+
+    [Range(0, int.MaxValue)]
     public int? SortOrder { get; set; }
+
     public bool? IsActive { get; set; }
 }

@@ -10,6 +10,8 @@ public static class ServiceCatalogPolicy
     public static bool IsValidPriceRange(decimal priceFrom, decimal? priceTo) =>
         priceFrom >= 0 && (!priceTo.HasValue || priceTo.Value >= priceFrom);
 
+    public static bool IsValidSortOrder(int sortOrder) => sortOrder >= 0;
+
     public static bool IsValidPageUrl(string? pageUrl)
     {
         if (string.IsNullOrWhiteSpace(pageUrl)) return true;

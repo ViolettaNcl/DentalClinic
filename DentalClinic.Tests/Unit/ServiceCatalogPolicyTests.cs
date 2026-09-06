@@ -17,6 +17,16 @@ public class ServiceCatalogPolicyTests
     }
 
     [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(100, true)]
+    [InlineData(-1, false)]
+    public void SortOrder_AllowsOnlyNonNegativeValues(int sortOrder, bool expected)
+    {
+        Assert.Equal(expected, ServiceCatalogPolicy.IsValidSortOrder(sortOrder));
+    }
+
+    [Theory]
     [InlineData(null, true)]
     [InlineData("", true)]
     [InlineData("/pages/services/implants.html", true)]

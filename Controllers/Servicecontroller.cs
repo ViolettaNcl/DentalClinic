@@ -63,6 +63,13 @@ public class ServiceController : ControllerBase
         if (!ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
             return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
 
+        if (!ServiceCatalogPolicy.IsValidSortOrder(req.SortOrder))
+            return BadRequest(new { message = "Порядок отображения не может быть отрицательным" });
+
+        var pageUrl = req.PageUrl?.Trim();
+        if (await HasActivePageSlotConflictAsync(pageUrl, req.SortOrder))
+            return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
+
         var service = new Service
         {
             Category = req.Category.Trim(),
@@ -72,7 +79,7 @@ public class ServiceController : ControllerBase
             PriceTo = req.PriceTo,
             Unit = req.Unit?.Trim(),
             Keywords = req.Keywords?.Trim(),
-            PageUrl = req.PageUrl?.Trim(),
+            PageUrl = pageUrl,
             SortOrder = req.SortOrder,
             IsActive = true
         };
@@ -93,18 +100,27 @@ public class ServiceController : ControllerBase
         var service = await _db.Services.FindAsync(id);
         if (service == null) return NotFound();
 
-        // Рассчитываем будущий диапазон заранее, чтобы частичное обновление не
-        // могло оставить PriceTo ниже PriceFrom.
+        // Рассчитываем будущие значения заранее, чтобы частичное обновление не
+        // могло оставить некорректный диапазон или занять чужой live-card слот.
         var nextPriceFrom = req.PriceFrom ?? service.PriceFrom;
         var nextPriceTo = req.ClearPriceTo == true
             ? null
             : req.PriceTo ?? service.PriceTo;
+        var nextPageUrl = req.PageUrl != null ? req.PageUrl.Trim() : service.PageUrl;
+        var nextSortOrder = req.SortOrder ?? service.SortOrder;
+        var nextIsActive = req.IsActive ?? service.IsActive;
 
         if (!ServiceCatalogPolicy.IsValidPriceRange(nextPriceFrom, nextPriceTo))
             return BadRequest(new { message = "Проверьте диапазон цен: значения не могут быть отрицательными, а цена 'до' не может быть ниже цены 'от'" });
 
         if (req.PageUrl != null && !ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
             return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
+
+        if (!ServiceCatalogPolicy.IsValidSortOrder(nextSortOrder))
+            return BadRequest(new { message = "Порядок отображения не может быть отрицательным" });
+
+        if (nextIsActive && await HasActivePageSlotConflictAsync(nextPageUrl, nextSortOrder, id))
+            return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
 
         if (!string.IsNullOrWhiteSpace(req.Category)) service.Category = req.Category.Trim();
         if (!string.IsNullOrWhiteSpace(req.Name)) service.Name = req.Name.Trim();
@@ -139,5 +155,20 @@ public class ServiceController : ControllerBase
         _knowledge.Invalidate();
 
         return Ok(service);
+    }
+
+    private async Task<bool> HasActivePageSlotConflictAsync(string? pageUrl, int sortOrder, int? excludeId = null)
+    {
+        if (sortOrder <= 0 || string.IsNullOrWhiteSpace(pageUrl)) return false;
+
+        var normalizedPageUrl = pageUrl.Trim();
+        var query = _db.Services
+            .AsNoTracking()
+            .Where(s => s.IsActive && s.PageUrl == normalizedPageUrl && s.SortOrder == sortOrder);
+
+        if (excludeId.HasValue)
+            query = query.Where(s => s.Id != excludeId.Value);
+
+        return await query.AnyAsync();
     }
 }

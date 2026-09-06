@@ -32,8 +32,9 @@ export function buildServicePayload(values = {}, { edit = false } = {}) {
         return { ok: false, error: 'Ссылка должна вести на локальную страницу /pages/...' };
 
     const sortOrderRaw = String(values.sortOrder ?? '').trim();
-    const sortOrder = sortOrderRaw ? Number.parseInt(sortOrderRaw, 10) : 0;
-    if (!Number.isFinite(sortOrder)) return { ok: false, error: 'Некорректный порядок сортировки' };
+    const sortOrder = sortOrderRaw ? Number(sortOrderRaw) : 0;
+    if (!Number.isInteger(sortOrder) || sortOrder < 0)
+        return { ok: false, error: 'Порядок сортировки должен быть целым числом 0 или больше' };
 
     const payload = {
         category,
