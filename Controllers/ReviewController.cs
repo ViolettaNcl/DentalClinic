@@ -19,6 +19,8 @@ namespace DentalClinic.Controllers;
 [Route("api/[controller]")]
 public class ReviewController : ControllerBase
 {
+    private const int PublicReviewLimit = 100;
+
     private readonly ApplicationDbContext _context;
     private readonly NotificationService _notifications;
     private readonly IHttpClientFactory _httpFactory;
@@ -204,12 +206,29 @@ public class ReviewController : ControllerBase
     }
 
     [HttpGet("approved")]
-    public async Task<IActionResult> GetApproved()
+    public async Task<IActionResult> GetApproved(CancellationToken cancellationToken)
     {
-        var reviews = await _context.Reviews
-            .Where(r => r.Status == "approved")
-            .OrderByDescending(r => r.ModeratedAt)
-            .Join(_context.Patients,
+        // Keep the public carousel response bounded as review history grows. Aggregate
+        // count/rating still represent the complete approved set, while only the most
+        // recently moderated cards are materialized and sent to every anonymous visitor.
+        var approved = _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.Status == "approved");
+
+        var stats = await approved
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                Average = g.Average(r => r.Rating)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var reviews = await approved
+            .OrderByDescending(r => r.ModeratedAt ?? r.CreatedAt)
+            .ThenByDescending(r => r.Id)
+            .Take(PublicReviewLimit)
+            .Join(_context.Patients.AsNoTracking(),
                 r => r.PatientId,
                 p => p.Id,
                 (r, p) => new
@@ -220,15 +239,17 @@ public class ReviewController : ControllerBase
                     r.CreatedAt,
                     PatientName = p.FirstName
                 })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var average = reviews.Count > 0 ? Math.Round(reviews.Average(r => r.Rating), 1) : 0;
+        var count = stats?.Count ?? 0;
+        var average = stats == null ? 0 : Math.Round(stats.Average, 1);
 
         return Ok(new
         {
             average,
-            count = reviews.Count,
-            reviews
+            count,
+            reviews,
+            truncated = count > reviews.Count
         });
     }
 
