@@ -43,6 +43,21 @@ test('review translation endpoint owns text, origin policy, cache key and Gemini
     assert.match(endpoint, /generateContent\?key=compat/);
 });
 
+test('review translation propagates request cancellation and disposes provider responses', async () => {
+    const text = await source('Controllers/ReviewController.cs');
+    const endpointStart = text.indexOf('[HttpPost("translate")]');
+    const endpointEnd = text.indexOf('internal static string BuildReviewTranslationCacheKey', endpointStart);
+    const endpoint = text.slice(endpointStart, endpointEnd);
+
+    assert.match(endpoint, /TranslateReview\([\s\S]*CancellationToken\s+cancellationToken/);
+    assert.match(endpoint, /FirstOrDefaultAsync\([\s\S]*cancellationToken\)/);
+    assert.match(endpoint, /GeminiTranslateLimiter\.RunAsync\([\s\S]*,\s*cancellationToken\)/);
+    assert.match(endpoint, /using\s+var\s+response\s*=\s*await\s+http\.PostAsync\([\s\S]*cancellationToken\)/);
+    assert.match(endpoint, /Task\.Delay\(400,\s*cancellationToken\)/);
+    assert.match(endpoint, /ReadAsStringAsync\(cancellationToken\)/);
+    assert.match(endpoint, /catch\s*\(OperationCanceledException\)[\s\S]*throw;/);
+});
+
 test('default HttpClient is protected by GeminiApiKeyHandler', async () => {
     const program = await source('Program.cs');
 
