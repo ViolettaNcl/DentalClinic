@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
     buildServicePayload,
     formatServicePrice,
+    SERVICE_FIELD_LIMITS,
+    SERVICE_MAX_PRICE,
 } from '../../wwwroot/assets/js/managers/admin/serviceKnowledgeUtils.js';
 
 test('builds a normalized create payload for Denta knowledge service', () => {
@@ -45,6 +47,41 @@ test('edit payload can explicitly clear an existing upper price', () => {
     assert.equal(result.payload.clearPriceTo, true);
     assert.equal(result.payload.isActive, true);
     assert.equal('priceTo' in result.payload, false);
+});
+
+test('accepts exact persistence boundaries used by the service API', () => {
+    const result = buildServicePayload({
+        category: 'A'.repeat(SERVICE_FIELD_LIMITS.category),
+        name: 'B'.repeat(SERVICE_FIELD_LIMITS.name),
+        description: 'D'.repeat(SERVICE_FIELD_LIMITS.description),
+        unit: 'U'.repeat(SERVICE_FIELD_LIMITS.unit),
+        keywords: 'K'.repeat(SERVICE_FIELD_LIMITS.keywords),
+        pageUrl: '/pages/' + 'p'.repeat(SERVICE_FIELD_LIMITS.pageUrl - '/pages/'.length),
+        priceFrom: String(SERVICE_MAX_PRICE).replace('.', ','),
+        priceTo: String(SERVICE_MAX_PRICE),
+        sortOrder: '0',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.payload.priceFrom, SERVICE_MAX_PRICE);
+    assert.equal(result.payload.priceTo, SERVICE_MAX_PRICE);
+});
+
+test('rejects values that exceed database-backed field lengths', () => {
+    const base = { category: 'A', name: 'B', priceFrom: '100' };
+
+    for (const [field, max] of Object.entries(SERVICE_FIELD_LIMITS)) {
+        const values = { ...base, [field]: 'x'.repeat(max + 1) };
+        if (field === 'pageUrl') values[field] = '/pages/' + 'x'.repeat(max + 1 - '/pages/'.length);
+        const result = buildServicePayload(values);
+        assert.equal(result.ok, false, `${field} should reject values longer than ${max}`);
+    }
+});
+
+test('rejects prices that SQL decimal(10,2) cannot represent exactly', () => {
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100000000' }).ok, false);
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '123.456' }).ok, false);
+    assert.equal(buildServicePayload({ category: 'A', name: 'B', priceFrom: '100', priceTo: '123,456' }).ok, false);
 });
 
 test('rejects invalid price ranges, links and sort orders', () => {
