@@ -1,0 +1,50 @@
+name: Denta live provider smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  live-provider-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DENTA_LIVE_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: Check secret availability
+        id: gate
+        shell: bash
+        run: |
+          if [ -n "$DENTA_LIVE_GEMINI_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "GEMINI_API_KEY is not configured; live smoke is intentionally skipped."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore test project
+        if: steps.gate.outputs.enabled == 'true'
+        run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
+
+      - name: Run live Denta provider contract smoke
+        if: steps.gate.outputs.enabled == 'true'
+        run: >-
+          dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj
+          --configuration Release
+          --filter "Category=LiveProvider"
+          --logger "console;verbosity=normal"
