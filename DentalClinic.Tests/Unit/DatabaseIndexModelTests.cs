@@ -15,10 +15,12 @@ public class DatabaseIndexModelTests
             .Options;
         using var db = new ApplicationDbContext(options);
 
-        var entity = Assert.NotNull(db.Model.FindEntityType(typeof(AppointmentRequest)));
-        var index = Assert.Single(entity.GetIndexes().Where(candidate =>
+        var entity = db.Model.FindEntityType(typeof(AppointmentRequest));
+        Assert.NotNull(entity);
+
+        var index = entity!.GetIndexes().Single(candidate =>
             candidate.Properties.Count == 1
-            && candidate.Properties[0].Name == nameof(AppointmentRequest.CreatedAt)));
+            && candidate.Properties[0].Name == nameof(AppointmentRequest.CreatedAt));
 
         Assert.Equal("IX_AppointmentRequests_CreatedAt", index.GetDatabaseName());
     }
