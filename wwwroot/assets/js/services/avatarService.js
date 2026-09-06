@@ -38,16 +38,31 @@ export async function deleteAvatar() {
     return parseJsonOrThrow(response);
 }
 
+function createAvatarVisual(url, fallbackIcon) {
+    if (url) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = t('avatar_alt', 'Аватар');
+        return img;
+    }
+
+    const fallback = document.createElement('span');
+    fallback.className = 'avatar-fallback';
+    fallback.textContent = fallbackIcon;
+    return fallback;
+}
+
 /**
  * Ставит фото (или запасной эмодзи) во все элементы с классом .panel-user-avatar
  * на странице — используется, чтобы обновить аватар в сайдбаре сразу после
  * загрузки/удаления в карточке профиля.
+ *
+ * Не собираем <img> через innerHTML: AvatarUrl приходит с сервера, но DOM API
+ * сохраняет границу безопасной даже если источник URL когда-нибудь изменится.
  */
 export function paintAvatarEverywhere(url, fallbackIcon = '👤') {
     document.querySelectorAll('.panel-user-avatar').forEach(el => {
-        el.innerHTML = url
-            ? `<img src="${url}" alt="${t('avatar_alt', 'Аватар')}">`
-            : `<span class="avatar-fallback">${fallbackIcon}</span>`;
+        el.replaceChildren(createAvatarVisual(url, fallbackIcon));
     });
 }
 
@@ -60,11 +75,22 @@ export function initAvatarUploader({ rootId, initialUrl, fallbackIcon = '👤', 
     const root = document.getElementById(rootId);
     if (!root) return null;
 
+    let currentUrl = initialUrl;
+    let circle, input, changeBtn, removeBtn, spinner;
+
+    const replaceCircleVisual = () => {
+        if (!circle) return;
+        circle.querySelectorAll('img, .avatar-fallback').forEach(el => el.remove());
+        circle.prepend(createAvatarVisual(currentUrl, fallbackIcon));
+    };
+
     const render = () => {
+        // Only static/trusted UI copy is placed into the template. The server-provided
+        // avatar URL and fallback content are attached below via DOM properties instead
+        // of being interpolated into HTML/attributes.
         root.innerHTML = `
             <div class="avatar-uploader">
                 <div class="avatar-circle" id="${rootId}-circle" tabindex="0" role="button" aria-label="${t('avatar_upload_aria', 'Загрузить фото')}">
-                    ${currentUrl ? `<img src="${currentUrl}" alt="${t('avatar_alt', 'Аватар')}">` : `<span class="avatar-fallback">${fallbackIcon}</span>`}
                     <div class="avatar-overlay">
                         <span class="avatar-overlay-icon">📷</span>
                         <span class="avatar-overlay-text">${t('avatar_overlay_text', 'Изменить')}</span>
@@ -84,19 +110,13 @@ export function initAvatarUploader({ rootId, initialUrl, fallbackIcon = '👤', 
         changeBtn = root.querySelector(`#${rootId}-change`);
         removeBtn = root.querySelector(`#${rootId}-remove`);
         spinner = root.querySelector('.avatar-spinner');
+        replaceCircleVisual();
         _wireEvents();
     };
 
-    let currentUrl = initialUrl;
-    let circle, input, changeBtn, removeBtn, spinner;
-
     const setImage = (url) => {
         currentUrl = url;
-        circle.querySelectorAll('img, .avatar-fallback').forEach(el => el.remove());
-        const el = url
-            ? Object.assign(document.createElement('img'), { src: url, alt: t('avatar_alt', 'Аватар') })
-            : Object.assign(document.createElement('span'), { className: 'avatar-fallback', textContent: fallbackIcon });
-        circle.prepend(el);
+        replaceCircleVisual();
         removeBtn.classList.toggle('hidden', !url);
         paintAvatarEverywhere(url, fallbackIcon);
         onChange?.(url);
