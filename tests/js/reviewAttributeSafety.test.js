@@ -34,3 +34,17 @@ test('public review renderer uses attribute-safe escaping before DOMContentLoade
         main.indexOf("document.addEventListener('DOMContentLoaded'")
     );
 });
+
+test('patient review renderer is patched after server session bootstrap', async () => {
+    const entry = await source('wwwroot/assets/js/managers/patient/patientDashboardEntry.js');
+    const reviews = await source('wwwroot/assets/js/managers/public/myReviews.js');
+
+    assert.match(reviews, /data-original-text="\$\{this\._escape\(r\.text\)\}"/);
+    assert.match(entry, /import\s+\{\s*escapeHtmlAttribute\s*\}/);
+    assert.match(entry, /const\s+\{\s*MyReviewsManager\s*\}\s*=\s*await\s+import\('\.\.\/public\/myReviews\.js'\)/);
+    assert.match(entry, /MyReviewsManager\.prototype\._escape\s*=\s*escapeHtmlAttribute/);
+    assert.ok(
+        entry.indexOf("requireServerSession('patient')") <
+        entry.indexOf("import('../public/myReviews.js')")
+    );
+});
