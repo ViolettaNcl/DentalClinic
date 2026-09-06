@@ -256,7 +256,10 @@ namespace DentalClinic.Controllers
 
             foreach (var model in GeminiModels)
             {
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+                // Never put the real secret in a request URI. IHttpClientFactory's
+                // GeminiApiKeyHandler removes this compatibility marker and sends
+                // the configured key only in the x-goog-api-key header.
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
                 var response = await _http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
                 var raw = await response.Content.ReadAsStringAsync();
 
@@ -353,7 +356,9 @@ namespace DentalClinic.Controllers
 
             foreach (var model in GeminiModels)
             {
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={apiKey}";
+                // Same boundary as the non-streaming request: the real Gemini key
+                // stays out of URLs and is injected by GeminiApiKeyHandler.
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key=compat";
 
                 using var upstreamReq = new HttpRequestMessage(HttpMethod.Post, url)
                 {
