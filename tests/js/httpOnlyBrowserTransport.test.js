@@ -38,6 +38,19 @@ test('avatar mutations rely on same-origin HttpOnly cookie', async () => {
     assert.match(text, /method:\s*'DELETE',[\s\S]*?credentials:\s*'same-origin'/);
 });
 
+test('avatar URLs never cross an innerHTML attribute boundary', async () => {
+    const text = await source('wwwroot/assets/js/services/avatarService.js');
+
+    assert.match(text, /function createAvatarVisual\(url, fallbackIcon\)/);
+    assert.match(text, /img\.src\s*=\s*url/);
+    assert.match(text, /replaceChildren\(createAvatarVisual\(url, fallbackIcon\)\)/);
+    assert.match(text, /prepend\(createAvatarVisual\(currentUrl, fallbackIcon\)\)/);
+
+    assert.doesNotMatch(text, /<img\s+src=["'`]\$\{url\}/);
+    assert.doesNotMatch(text, /<img\s+src=["'`]\$\{currentUrl\}/);
+    assert.doesNotMatch(text, /<span\s+class=["']avatar-fallback["']>\$\{fallbackIcon\}/);
+});
+
 test('chat appointment transport keeps identity and status server-owned', async () => {
     const payload = buildChatAppointmentPayload(
         { name: 'Анна', phone: '+7 999 123-45-67', comment: 'Болит зуб' },
