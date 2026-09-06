@@ -6,11 +6,11 @@ namespace DentalClinic.Tests.Unit;
 public class ServiceCatalogPolicyTests
 {
     [Theory]
-    [InlineData(0, null, true)]
-    [InlineData(100, 100, true)]
-    [InlineData(100, 250, true)]
-    [InlineData(-1, null, false)]
-    [InlineData(100, 99, false)]
+    [InlineData(0.0, null, true)]
+    [InlineData(100.0, 100.0, true)]
+    [InlineData(100.0, 250.0, true)]
+    [InlineData(-1.0, null, false)]
+    [InlineData(100.0, 99.0, false)]
     public void PriceRange_ValidatesExpectedOrder(double from, double? to, bool expected)
     {
         Assert.Equal(expected, ServiceCatalogPolicy.IsValidPriceRange((decimal)from, to.HasValue ? (decimal)to.Value : null));
