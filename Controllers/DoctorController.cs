@@ -90,7 +90,9 @@ public class DoctorController : ControllerBase
         if (req.Specialization != null)
             doctor.Specialization = req.Specialization.Trim();
 
-        if (req.ExperienceYears.HasValue)
+        if (req.ClearExperienceYears)
+            doctor.ExperienceYears = null;
+        else if (req.ExperienceYears.HasValue)
             doctor.ExperienceYears = req.ExperienceYears;
 
         if (req.Bio != null)
