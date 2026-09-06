@@ -7,10 +7,12 @@ import { installDentaSafetyGuard } from '/assets/js/core/dentaSafetyGuard.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 import { installServiceDetailPriceManager } from '/assets/js/managers/public/serviceDetailPriceManager.js';
+import { installPublicDoctorCatalogSync } from '/assets/js/managers/public/publicDoctorCatalogManager.js';
 
 ChatBot.prototype._isBookingIntent = isBookingIntent;
 installDentaSafetyGuard(ChatBot);
 installServiceDetailPriceManager();
+installPublicDoctorCatalogSync();
 
 async function initializePage() {
     try {
