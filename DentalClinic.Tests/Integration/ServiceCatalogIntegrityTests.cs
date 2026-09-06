@@ -145,6 +145,99 @@ public class ServiceCatalogIntegrityTests : IClassFixture<CustomWebApplicationFa
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Create_PriceBeyondDecimal10_2Capacity_ReturnsBadRequest()
+    {
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PostAsJsonAsync("/api/service", new
+        {
+            category = "Test",
+            name = "Overflow price",
+            priceFrom = 100_000_000m,
+            pageUrl = $"/pages/services/test-{Guid.NewGuid():N}.html",
+            sortOrder = 0
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_OversizedName_ReturnsBadRequestAndPreservesStoredValue()
+    {
+        int serviceId;
+        const string originalName = "Persistence safe";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var service = new Service
+            {
+                Category = "Test",
+                Name = originalName,
+                PriceFrom = 100,
+                PageUrl = $"/pages/services/test-{Guid.NewGuid():N}.html",
+                SortOrder = 0,
+                IsActive = true
+            };
+            db.Services.Add(service);
+            await db.SaveChangesAsync();
+            serviceId = service.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/service/{serviceId}", new
+        {
+            name = new string('x', 201)
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.Services.FindAsync(serviceId);
+        Assert.NotNull(saved);
+        Assert.Equal(originalName, saved!.Name);
+    }
+
+    [Fact]
+    public async Task Update_PriceBeyondDecimal10_2Capacity_ReturnsBadRequestAndPreservesStoredValue()
+    {
+        int serviceId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var service = new Service
+            {
+                Category = "Test",
+                Name = "Bounded price",
+                PriceFrom = 250,
+                PriceTo = 500,
+                PageUrl = $"/pages/services/test-{Guid.NewGuid():N}.html",
+                SortOrder = 0,
+                IsActive = true
+            };
+            db.Services.Add(service);
+            await db.SaveChangesAsync();
+            serviceId = service.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/service/{serviceId}", new
+        {
+            priceFrom = 100_000_000m
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.Services.FindAsync(serviceId);
+        Assert.NotNull(saved);
+        Assert.Equal(250m, saved!.PriceFrom);
+        Assert.Equal(500m, saved.PriceTo);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedAdminClientAsync()
     {
         var email = $"admin-service-{Guid.NewGuid():N}@example.com";
