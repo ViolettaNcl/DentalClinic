@@ -13,6 +13,8 @@ namespace DentalClinic.Controllers;
 [Authorize(Roles = "Admin")]
 public class DoctorScheduleController : ControllerBase
 {
+    private const int MaxCalendarSpanDays = 31;
+
     private readonly ApplicationDbContext _db;
     private readonly AppointmentSchedulingService _scheduling;
 
@@ -30,35 +32,43 @@ public class DoctorScheduleController : ControllerBase
     public async Task<IActionResult> GetSchedule(
         [FromQuery] int doctorId,
         [FromQuery] string from,
-        [FromQuery] string to)
+        [FromQuery] string to,
+        CancellationToken cancellationToken)
     {
-        if (doctorId <= 0) return BadRequest("Нужен doctorId");
-        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
-            return BadRequest("Нужны параметры from и to (формат YYYY-MM-DD)");
+        if (doctorId <= 0)
+            return BadRequest(new { message = "Нужен doctorId" });
 
-        if (!DateTime.TryParse(from, out var fromDate) ||
-            !DateTime.TryParse(to, out var toDate))
-        {
-            return BadRequest("Неверный формат даты");
-        }
+        if (!TryParseCalendarRange(from, to, out var fromDate, out var toDate, out var error))
+            return BadRequest(new { message = error });
 
-        // включительно по to (по локальному времени, без UTC)
-        toDate = toDate.Date.AddDays(1).AddTicks(-1);
+        var doctorExists = await _db.Doctors
+            .AsNoTracking()
+            .AnyAsync(d => d.Id == doctorId && d.IsActive, cancellationToken);
+        if (!doctorExists)
+            return BadRequest(new { message = "Указан несуществующий или неактивный врач" });
+
+        // AppointmentDate хранится как локальное время без смещения. Используем
+        // полуоткрытый диапазон [from, day-after-to), чтобы не зависеть от точности
+        // DateTime и не строить конец дня через AddTicks(-1).
+        var fromDateTime = fromDate.ToDateTime(TimeOnly.MinValue);
+        var toExclusive = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
 
         var appointments = await _db.AppointmentRequests
+            .AsNoTracking()
             .Where(a => a.DoctorId == doctorId
                         && a.AppointmentDate != null
                         && a.Status == AppointmentStatuses.Confirmed
-                        && a.AppointmentDate >= fromDate
-                        && a.AppointmentDate <= toDate)
-            .ToListAsync();
+                        && a.AppointmentDate >= fromDateTime
+                        && a.AppointmentDate < toExclusive)
+            .OrderBy(a => a.AppointmentDate)
+            .ToListAsync(cancellationToken);
 
         // Отдаём строку без Z, чисто локальное ISO
         var result = appointments.Select(a => new
         {
             id = a.Id,
             appointmentDate = a.AppointmentDate.HasValue
-                ? a.AppointmentDate.Value.ToString("yyyy-MM-ddTHH:mm:ss")
+                ? a.AppointmentDate.Value.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)
                 : null,
             status = a.Status,
             patientName = a.FirstName
@@ -77,20 +87,14 @@ public class DoctorScheduleController : ControllerBase
         [FromQuery] string to,
         CancellationToken cancellationToken)
     {
-        if (doctorId <= 0) return BadRequest(new { message = "Нужен doctorId" });
+        if (doctorId <= 0)
+            return BadRequest(new { message = "Нужен doctorId" });
 
-        if (!DateOnly.TryParseExact(from, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fromDate)
-            || !DateOnly.TryParseExact(to, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var toDate))
-        {
-            return BadRequest(new { message = "Нужны корректные from и to в формате YYYY-MM-DD" });
-        }
-
-        if (toDate < fromDate)
-            return BadRequest(new { message = "Параметр to не может быть раньше from" });
-        if (toDate.DayNumber - fromDate.DayNumber > 31)
-            return BadRequest(new { message = "Диапазон календаря не может превышать 32 дня" });
+        if (!TryParseCalendarRange(from, to, out var fromDate, out var toDate, out var error))
+            return BadRequest(new { message = error });
 
         var doctorExists = await _db.Doctors
+            .AsNoTracking()
             .AnyAsync(d => d.Id == doctorId && d.IsActive, cancellationToken);
         if (!doctorExists)
             return BadRequest(new { message = "Указан несуществующий или неактивный врач" });
@@ -102,5 +106,47 @@ public class DoctorScheduleController : ControllerBase
             cancellationToken);
 
         return Ok(availability);
+    }
+
+    private static bool TryParseCalendarRange(
+        string? from,
+        string? to,
+        out DateOnly fromDate,
+        out DateOnly toDate,
+        out string? error)
+    {
+        var fromIsValid = DateOnly.TryParseExact(
+            from,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out fromDate);
+        var toIsValid = DateOnly.TryParseExact(
+            to,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out toDate);
+
+        if (!fromIsValid || !toIsValid)
+        {
+            error = "Нужны корректные from и to в формате YYYY-MM-DD";
+            return false;
+        }
+
+        if (toDate < fromDate)
+        {
+            error = "Параметр to не может быть раньше from";
+            return false;
+        }
+
+        if (toDate.DayNumber - fromDate.DayNumber > MaxCalendarSpanDays)
+        {
+            error = "Диапазон календаря не может превышать 32 дня";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 }
