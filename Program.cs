@@ -7,6 +7,7 @@ using DentalClinic.Middleware;
 using DentalClinic.Services;
 using DentalClinic.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -242,6 +243,16 @@ app.UseExceptionHandler(errApp =>
     {
         var feature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+
+        if (feature?.Error is BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge })
+        {
+            logger.LogWarning("Отклонён слишком большой request body на {Path}", context.Request.Path);
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+            await context.Response.WriteAsync("{\"message\":\"Request body is too large\"}");
+            return;
+        }
+
         if (feature?.Error != null)
             logger.LogError(feature.Error, "Необработанное исключение на {Path}", context.Request.Path);
 
@@ -266,6 +277,18 @@ app.Use(async (context, next) =>
 {
     if (PaidApiRoutePolicy.RequiresSameOrigin(context.Request.Method, context.Request.Path.Value))
     {
+        var maxBodySizeFeature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+        if (maxBodySizeFeature is { IsReadOnly: false })
+            maxBodySizeFeature.MaxRequestBodySize = PaidApiPayloadPolicy.MaxRequestBodyBytes;
+
+        if (PaidApiPayloadPolicy.IsKnownLengthTooLarge(context.Request.ContentLength))
+        {
+            context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"message\":\"Request body is too large\"}");
+            return;
+        }
+
         var allowDirectRequests = app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing");
         var allowed = PaidApiOriginPolicy.IsAllowed(
             context.Request.Headers.Origin.ToString(),
