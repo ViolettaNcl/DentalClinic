@@ -57,6 +57,10 @@ public class DoctorController : ControllerBase
         var doctor = new Doctor
         {
             FullName = req.FullName.Trim(),
+            FullNameEn = NormalizeOptional(req.FullNameEn),
+            FullNameFr = NormalizeOptional(req.FullNameFr),
+            FullNameEl = NormalizeOptional(req.FullNameEl),
+            FullNameAr = NormalizeOptional(req.FullNameAr),
             Specialization = req.Specialization?.Trim(),
             ExperienceYears = req.ExperienceYears,
             Bio = req.Bio?.Trim(),
@@ -72,8 +76,8 @@ public class DoctorController : ControllerBase
         return Ok(doctor);
     }
 
-    // Админ: изменить имя врача и/или активность (деактивировать вместо удаления,
-    // чтобы не потерять историю приёмов, где он указан как DoctorId)
+    // Админ: изменить профиль врача и/или активность (деактивировать вместо удаления,
+    // чтобы не потерять историю приёмов, где он указан как DoctorId).
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDoctorRequest req)
@@ -83,6 +87,15 @@ public class DoctorController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(req.FullName))
             doctor.FullName = req.FullName.Trim();
+
+        if (req.FullNameEn != null)
+            doctor.FullNameEn = NormalizeOptional(req.FullNameEn);
+        if (req.FullNameFr != null)
+            doctor.FullNameFr = NormalizeOptional(req.FullNameFr);
+        if (req.FullNameEl != null)
+            doctor.FullNameEl = NormalizeOptional(req.FullNameEl);
+        if (req.FullNameAr != null)
+            doctor.FullNameAr = NormalizeOptional(req.FullNameAr);
 
         if (req.IsActive.HasValue)
             doctor.IsActive = req.IsActive.Value;
@@ -104,5 +117,11 @@ public class DoctorController : ControllerBase
         _logger.LogInformation("Обновлён врач id={Id}: {FullName}, активен={IsActive}", doctor.Id, doctor.FullName, doctor.IsActive);
 
         return Ok(doctor);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return value.Trim();
     }
 }
