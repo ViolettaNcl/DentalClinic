@@ -49,7 +49,7 @@ public class DentaStructuredResponseTests
     }
 
     [Fact]
-    public void StructuredLinks_DropExternalUrls()
+    public void StructuredLinks_KeepOnlySafeLocalPages_WithoutMaliciousLinksStarvingValidOnes()
     {
         var structured = JsonSerializer.Serialize(new
         {
@@ -57,8 +57,12 @@ public class DentaStructuredResponseTests
             suggestions = Array.Empty<string>(),
             links = new object[]
             {
+                new { text = "External", url = "https://example.com/phishing" },
+                new { text = "Traversal", url = "/pages/../api/adminstats/summary" },
                 new { text = "Internal", url = "/pages/services/implants.html" },
-                new { text = "External", url = "https://example.com/phishing" }
+                new { text = "Backslash", url = "/pages/services\\implants.html" },
+                new { text = "Blank URL", url = "" },
+                new { text = "", url = "/pages/services/crowns.html" }
             },
             startBooking = false
         });
@@ -71,6 +75,9 @@ public class DentaStructuredResponseTests
 
         Assert.Contains("/pages/services/implants.html", legacy, StringComparison.Ordinal);
         Assert.DoesNotContain("example.com", legacy, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("../api", legacy, StringComparison.Ordinal);
+        Assert.DoesNotContain("services\\\\implants", legacy, StringComparison.Ordinal);
+        Assert.DoesNotContain("crowns.html", legacy, StringComparison.Ordinal);
     }
 
     [Fact]
