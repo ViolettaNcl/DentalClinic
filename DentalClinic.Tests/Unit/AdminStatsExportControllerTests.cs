@@ -43,7 +43,7 @@ public class AdminStatsExportControllerTests
         await using var db = CreateDb();
         db.AppointmentRequests.AddRange(
             Request(1, new DateTime(2026, 9, 6, 9, 0, 0, DateTimeKind.Utc), "Inside"),
-            Request(2, new DateTime(2026, 8, 7, 23, 59, 59, DateTimeKind.Utc), "Outside"));
+            Request(2, new DateTime(2026, 8, 6, 23, 59, 59, DateTimeKind.Utc), "Outside"));
         await db.SaveChangesAsync();
         var controller = CreateController(db);
 
