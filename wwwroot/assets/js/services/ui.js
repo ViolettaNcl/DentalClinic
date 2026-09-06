@@ -1,4 +1,5 @@
-﻿import { t } from '../core/i18n.js';
+import { t } from '../core/i18n.js';
+import { escapeHtmlAttribute } from './htmlAttributeSafety.js';
 
 function _getToastContainer() {
     let el = document.getElementById('toast-container');
@@ -209,14 +210,12 @@ export function showConfirm(message, options = {}) {
 
 /**
  * Экранирует HTML-спецсимволы перед вставкой пользовательских данных в innerHTML.
- * Обязательно для любых полей, которые ввёл посетитель сайта (имя, телефон,
- * комментарий и т.п.) — иначе злоумышленник может внедрить свой <script>,
- * который выполнится в браузере администратора при открытии панели.
+ * В том числе безопасен для значений в quoted HTML-атрибутах: кавычки тоже
+ * кодируются, поэтому данные не могут закрыть data-, aria- или title-атрибут
+ * и добавить новый обработчик события или произвольный атрибут.
  */
 export function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str ?? '';
-    return div.innerHTML;
+    return escapeHtmlAttribute(str);
 }
 
 /**
