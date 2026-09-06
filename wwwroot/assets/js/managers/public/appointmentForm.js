@@ -1,5 +1,41 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError } from '../../services/ui.js';
+import { getLang } from '../../core/i18n.js';
+
+const PUBLIC_APPOINTMENT_MESSAGES = Object.freeze({
+    ru: Object.freeze({
+        phoneRequired: 'Введите номер телефона!',
+        success: 'Заявка отправлена! Скоро мы вам перезвоним.',
+        submitError: 'Не удалось отправить заявку. Попробуйте ещё раз.'
+    }),
+    en: Object.freeze({
+        phoneRequired: 'Enter your phone number.',
+        success: "Request sent! We'll call you back soon.",
+        submitError: 'Could not send the appointment request. Please try again.'
+    }),
+    fr: Object.freeze({
+        phoneRequired: 'Veuillez saisir votre numéro de téléphone.',
+        success: 'Demande envoyée ! Nous vous rappellerons bientôt.',
+        submitError: "Impossible d’envoyer la demande de rendez-vous. Veuillez réessayer."
+    }),
+    el: Object.freeze({
+        phoneRequired: 'Παρακαλώ εισαγάγετε τον αριθμό τηλεφώνου σας.',
+        success: 'Το αίτημα στάλθηκε! Θα σας καλέσουμε σύντομα.',
+        submitError: 'Δεν ήταν δυνατή η αποστολή του αιτήματος ραντεβού. Δοκιμάστε ξανά.'
+    }),
+    ar: Object.freeze({
+        phoneRequired: 'يرجى إدخال رقم هاتفك.',
+        success: 'تم إرسال الطلب! سنتصل بك قريبًا.',
+        submitError: 'تعذر إرسال طلب الموعد. يرجى المحاولة مرة أخرى.'
+    })
+});
+
+function appointmentMessage(key) {
+    const lang = getLang();
+    return PUBLIC_APPOINTMENT_MESSAGES[lang]?.[key]
+        ?? PUBLIC_APPOINTMENT_MESSAGES.ru[key]
+        ?? key;
+}
 
 class AppointmentForm {
     constructor() {
@@ -50,7 +86,7 @@ class AppointmentForm {
         };
 
         if (!formData.Phone) {
-            showError('Введите номер телефона!');
+            showError(appointmentMessage('phoneRequired'));
             return;
         }
 
@@ -60,14 +96,18 @@ class AppointmentForm {
                 body: JSON.stringify(formData)
             });
 
-            showSuccess('Заявка отправлена! Скоро мы вам перезвоним.');
+            showSuccess(appointmentMessage('success'));
             this.form.reset();
 
             if (this.patientId) {
                 window.location.href = '/pages/patient-dashboard.html';
             }
         } catch (err) {
-            showError(err.message || 'Ошибка при отправке заявки');
+            console.error('Appointment request submission failed:', err);
+            // API error text is not guaranteed to be localized and may contain
+            // implementation details. Keep the public toast predictable and in the
+            // currently selected UI language instead of surfacing raw server text.
+            showError(appointmentMessage('submitError'));
         }
     }
 }
