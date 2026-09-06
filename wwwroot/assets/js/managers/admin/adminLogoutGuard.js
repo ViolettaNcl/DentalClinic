@@ -4,6 +4,7 @@ import { t } from '../../core/i18n.js';
 import { terminateAdminSession } from '../../core/adminSession.js';
 import { requireServerSession, clearSessionMetadata } from '../../core/sessionBootstrap.js';
 import { installAdminExportCookieGuard } from './adminExportGuard.js';
+import { installAdminAppointmentRenderGuard } from './adminAppointmentRenderGuard.js';
 
 let installed = false;
 let logoutInProgress = false;
@@ -39,6 +40,7 @@ export function installAdminLogoutGuard() {
     if (installed || typeof document === 'undefined') return;
     installed = true;
     installAdminExportCookieGuard();
+    installAdminAppointmentRenderGuard();
 
     document.addEventListener('click', async event => {
         const button = event.target?.closest?.('#btn-logout');
