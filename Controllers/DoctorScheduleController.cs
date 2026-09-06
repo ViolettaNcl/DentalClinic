@@ -115,8 +115,20 @@ public class DoctorScheduleController : ControllerBase
         out DateOnly toDate,
         out string? error)
     {
-        if (!DateOnly.TryParseExact(from, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fromDate)
-            || !DateOnly.TryParseExact(to, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out toDate))
+        var fromIsValid = DateOnly.TryParseExact(
+            from,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out fromDate);
+        var toIsValid = DateOnly.TryParseExact(
+            to,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out toDate);
+
+        if (!fromIsValid || !toIsValid)
         {
             error = "Нужны корректные from и to в формате YYYY-MM-DD";
             return false;
