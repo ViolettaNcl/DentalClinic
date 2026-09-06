@@ -17,8 +17,17 @@ test('review translation client sends only review identity and target language',
 
 test('review translation endpoint owns text, origin policy, cache key and Gemini secret transport', async () => {
     const text = await source('Controllers/ReviewController.cs');
+    const dtoStart = text.indexOf('public sealed class TranslateReviewRequest');
+    const endpointStart = text.indexOf('[HttpPost("translate")]', dtoStart);
 
-    assert.doesNotMatch(text, /public\s+string\s+Text\s*\{\s*get;\s*set;/);
+    assert.notEqual(dtoStart, -1);
+    assert.notEqual(endpointStart, -1);
+
+    const dto = text.slice(dtoStart, endpointStart);
+    assert.match(dto, /public\s+int\s+ReviewId\s*\{/);
+    assert.match(dto, /public\s+string\s+TargetLang\s*\{/);
+    assert.doesNotMatch(dto, /public\s+string\s+Text\s*\{/);
+
     assert.doesNotMatch(text, /req\.Text/);
     assert.doesNotMatch(text, /GetHashCode\(\)/);
     assert.match(text, /AsNoTracking\(\)/);
