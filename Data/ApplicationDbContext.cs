@@ -84,6 +84,14 @@ namespace DentalClinic.Data
             modelBuilder.Entity<AppointmentRequest>()
                 .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
 
+            // Analytics, exports, CRM ordering and stale-request maintenance all
+            // filter/order by request creation time. Keep this separate from the
+            // doctor-slot index so general CreatedAt scans stay index-backed as
+            // appointment history grows.
+            modelBuilder.Entity<AppointmentRequest>()
+                .HasIndex(a => a.CreatedAt)
+                .HasDatabaseName("IX_AppointmentRequests_CreatedAt");
+
             modelBuilder.Entity<AppointmentRequest>()
                 .ToTable(table => table.HasCheckConstraint(
                     "CK_AppointmentRequests_Status",
