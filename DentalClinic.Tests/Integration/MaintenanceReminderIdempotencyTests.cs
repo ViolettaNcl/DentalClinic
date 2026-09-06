@@ -41,7 +41,7 @@ public class MaintenanceReminderIdempotencyTests : IClassFixture<CustomWebApplic
             await db.SaveChangesAsync();
             patientId = patient.Id;
 
-            var appointment = new AppointmentRequest
+            var seededAppointment = new AppointmentRequest
             {
                 PatientId = patient.Id,
                 FirstName = patient.FirstName,
@@ -51,9 +51,9 @@ public class MaintenanceReminderIdempotencyTests : IClassFixture<CustomWebApplic
                 ReminderSent = false,
                 CreatedAt = DateTime.UtcNow
             };
-            db.AppointmentRequests.Add(appointment);
+            db.AppointmentRequests.Add(seededAppointment);
             await db.SaveChangesAsync();
-            appointmentId = appointment.Id;
+            appointmentId = seededAppointment.Id;
         }
 
         var client = _factory.CreateClient();
@@ -72,9 +72,9 @@ public class MaintenanceReminderIdempotencyTests : IClassFixture<CustomWebApplic
 
         using var verifyScope = _factory.Services.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var appointment = await verifyDb.AppointmentRequests.AsNoTracking()
+        var savedAppointment = await verifyDb.AppointmentRequests.AsNoTracking()
             .SingleAsync(a => a.Id == appointmentId);
-        Assert.True(appointment.ReminderSent);
+        Assert.True(savedAppointment.ReminderSent);
 
         var notification = Assert.Single(await verifyDb.Notifications.AsNoTracking()
             .Where(n => n.PatientId == patientId
