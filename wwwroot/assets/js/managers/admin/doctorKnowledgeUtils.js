@@ -29,7 +29,12 @@ export function buildDoctorPayload(values = {}, { edit = false } = {}) {
         bio,
     };
 
-    if (edit) payload.isActive = Boolean(values.isActive);
+    if (edit) {
+        payload.isActive = Boolean(values.isActive);
+        payload.clearExperienceYears = experienceYears === null;
+        if (experienceYears === null) delete payload.experienceYears;
+    }
+
     return { ok: true, payload };
 }
 
