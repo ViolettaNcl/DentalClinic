@@ -2,17 +2,44 @@ import { apiFetch } from '../../services/apiClient.js';
 import { showConfirm, showError } from '../../services/ui.js';
 import { t } from '../../core/i18n.js';
 import { terminateAdminSession } from '../../core/adminSession.js';
+import { requireServerSession, clearSessionMetadata } from '../../core/sessionBootstrap.js';
+import { installAdminExportCookieGuard } from './adminExportGuard.js';
 
 let installed = false;
 let logoutInProgress = false;
+let bootstrappedAdminSession = null;
+
+// This module is imported by doctorsManager.js, one of the parser-inserted admin
+// dashboard modules. Top-level await keeps DOMContentLoaded behind the cookie
+// session check so adminDashboard.js sees restored metadata even in a new tab.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    try {
+        bootstrappedAdminSession = await requireServerSession('admin');
+        if (bootstrappedAdminSession) {
+            const nameEl = document.querySelector('.panel-user-name');
+            const emailEl = document.querySelector('.panel-user-email');
+            if (nameEl) nameEl.textContent = bootstrappedAdminSession.name || 'Администратор';
+            if (emailEl) emailEl.textContent = bootstrappedAdminSession.email || '—';
+        }
+    } catch (err) {
+        console.error('Admin session bootstrap failed:', err?.message || err);
+        const message = document.createElement('div');
+        message.className = 'panel-error';
+        message.style.margin = '16px';
+        message.textContent = 'Не удалось проверить сеанс администратора. Обновите страницу или проверьте соединение.';
+        document.body.prepend(message);
+    }
+}
+
+export function getBootstrappedAdminSession() {
+    return bootstrappedAdminSession;
+}
 
 export function installAdminLogoutGuard() {
     if (installed || typeof document === 'undefined') return;
     installed = true;
+    installAdminExportCookieGuard();
 
-    // adminDashboard.js still has the legacy local-only logout listener. This
-    // capture-phase guard runs before that bubble listener so an HttpOnly-cookie
-    // session cannot survive after the UI claims that the admin logged out.
     document.addEventListener('click', async event => {
         const button = event.target?.closest?.('#btn-logout');
         if (!button) return;
@@ -39,7 +66,7 @@ export function installAdminLogoutGuard() {
         try {
             await terminateAdminSession({
                 requestLogout: () => apiFetch('/auth/logout', { method: 'POST' }),
-                clearSession: () => sessionStorage.clear(),
+                clearSession: () => clearSessionMetadata(),
                 redirect: url => window.location.replace(url)
             });
         } catch (err) {
