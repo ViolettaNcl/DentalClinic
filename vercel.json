@@ -20,6 +20,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/maintenance/follow-ups",
+      "schedule": "10 6 * * *"
+    },
+    {
       "path": "/api/maintenance/cleanup",
       "schedule": "15 6 * * *"
     },
