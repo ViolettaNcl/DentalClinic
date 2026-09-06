@@ -24,29 +24,117 @@ public sealed class AdminAnalyticsService
 
     public async Task<AdminAnalyticsSummary> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var rawRows = await _db.AppointmentRequests
+        var clinicNow = _clock.Now;
+
+        // Aggregate the lifetime cards in SQL instead of materializing every
+        // appointment request into the web process. This keeps dashboard memory
+        // bounded as CRM history grows while preserving the legacy normalization
+        // rules for status values with casing/whitespace drift.
+        var statusGroups = await _db.AppointmentRequests
             .AsNoTracking()
-            .Select(a => new AnalyticsAppointmentRow(
-                a.Status,
-                a.AppointmentDate,
-                a.DoctorId,
-                a.PatientId,
-                a.Comment,
-                a.CreatedAt))
+            .GroupBy(a => a.Status == null ? string.Empty : a.Status.Trim().ToLower())
+            .Select(group => new StatusCount(group.Key, group.Count()))
             .ToListAsync(cancellationToken);
 
-        // CreatedAt is stored in UTC, while the dashboard is interpreted in the
-        // clinic's local calendar. Normalize before month/day aggregation so a
-        // request around UTC midnight is counted on the correct clinic-local day.
-        var rows = rawRows
-            .Select(row => row with { CreatedAt = _clock.FromUtc(row.CreatedAt) })
+        var total = statusGroups.Sum(group => group.Count);
+        var pending = CountStatus(statusGroups, AppointmentStatuses.Pending);
+        var confirmed = CountStatus(statusGroups, AppointmentStatuses.Confirmed);
+        var completed = CountStatus(statusGroups, AppointmentStatuses.Completed);
+        var cancelled = CountStatus(statusGroups, AppointmentStatuses.Cancelled);
+        var unknown = total - pending - confirmed - completed - cancelled;
+        var confirmedLike = confirmed + completed;
+        var confirmedOrCompletedRate = total == 0
+            ? 0
+            : Math.Round(confirmedLike * 100d / total, 1, MidpointRounding.AwayFromZero);
+
+        // Sources are deliberately mutually exclusive. Denta wins even when a
+        // signed-in patient created the chat booking, matching Calculate().
+        var denta = await _db.AppointmentRequests
+            .AsNoTracking()
+            .CountAsync(a => a.Comment != null && a.Comment.Contains(DentaMarker), cancellationToken);
+        var registered = await _db.AppointmentRequests
+            .AsNoTracking()
+            .CountAsync(a => (a.Comment == null || !a.Comment.Contains(DentaMarker))
+                             && a.PatientId > 0,
+                cancellationToken);
+        var guest = total - denta - registered;
+
+        // CreatedAt is stored in UTC, while dashboard periods are clinic-local.
+        // Convert local period boundaries to UTC before filtering in SQL; this also
+        // preserves correct behavior across DST transitions without per-row timezone
+        // conversion for the full historical table.
+        var monthStartLocal = new DateTime(clinicNow.Year, clinicNow.Month, 1);
+        var nextMonthLocal = monthStartLocal.AddMonths(1);
+        var monthStartUtc = _clock.ToUtc(monthStartLocal);
+        var nextMonthUtc = _clock.ToUtc(nextMonthLocal);
+        var thisMonth = await _db.AppointmentRequests
+            .AsNoTracking()
+            .CountAsync(a => a.CreatedAt >= monthStartUtc && a.CreatedAt < nextMonthUtc, cancellationToken);
+
+        // Only the 30-day chart needs individual timestamps. Bound materialization
+        // to exactly that clinic-local window, then convert those rows for grouping.
+        var dayStartLocal = clinicNow.Date.AddDays(-29);
+        var dayEndExclusiveLocal = clinicNow.Date.AddDays(1);
+        var dayStartUtc = _clock.ToUtc(dayStartLocal);
+        var dayEndExclusiveUtc = _clock.ToUtc(dayEndExclusiveLocal);
+        var recentCreatedAtUtc = await _db.AppointmentRequests
+            .AsNoTracking()
+            .Where(a => a.CreatedAt >= dayStartUtc && a.CreatedAt < dayEndExclusiveUtc)
+            .Select(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var dayCounts = Enumerable.Range(0, 30)
+            .Select(offset => dayStartLocal.AddDays(offset))
+            .ToDictionary(date => date, _ => 0);
+        foreach (var createdAtUtc in recentCreatedAtUtc)
+        {
+            var localDate = _clock.FromUtc(createdAtUtc).Date;
+            if (dayCounts.ContainsKey(localDate))
+                dayCounts[localDate]++;
+        }
+
+        var byDay = dayCounts
+            .OrderBy(pair => pair.Key)
+            .Select(pair => new AdminAnalyticsDay(pair.Key.ToString("yyyy-MM-dd"), pair.Value))
             .ToArray();
 
-        var doctorNames = await _db.Doctors
+        // Lifetime doctor totals are aggregated in SQL. Materialize one row per
+        // doctor rather than one row per appointment, fetch names only for doctors
+        // that actually appear in history, then keep the existing count/name sort.
+        var doctorCounts = await _db.AppointmentRequests
             .AsNoTracking()
-            .ToDictionaryAsync(d => d.Id, d => d.FullName, cancellationToken);
+            .Where(a => a.DoctorId.HasValue)
+            .GroupBy(a => a.DoctorId!.Value)
+            .Select(group => new DoctorCount(group.Key, group.Count()))
+            .ToListAsync(cancellationToken);
 
-        return Calculate(rows, doctorNames, _clock.Now);
+        var doctorIds = doctorCounts.Select(row => row.DoctorId).ToArray();
+        var doctorNames = doctorIds.Length == 0
+            ? new Dictionary<int, string>()
+            : await _db.Doctors
+                .AsNoTracking()
+                .Where(doctor => doctorIds.Contains(doctor.Id))
+                .ToDictionaryAsync(doctor => doctor.Id, doctor => doctor.FullName, cancellationToken);
+
+        var byDoctor = doctorCounts
+            .Select(row => new AdminAnalyticsDoctor(
+                row.DoctorId,
+                doctorNames.TryGetValue(row.DoctorId, out var name) ? name : $"Врач #{row.DoctorId}",
+                row.Count))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.DoctorName, StringComparer.CurrentCulture)
+            .Take(8)
+            .ToArray();
+
+        return new AdminAnalyticsSummary(
+            GeneratedAt: DateTime.SpecifyKind(clinicNow, DateTimeKind.Unspecified),
+            TotalRequests: total,
+            ThisMonthRequests: thisMonth,
+            ConfirmedOrCompletedRate: confirmedOrCompletedRate,
+            Statuses: new AdminAnalyticsStatuses(pending, confirmed, completed, cancelled, unknown),
+            Sources: new AdminAnalyticsSources(registered, guest, denta),
+            ByDay: byDay,
+            ByDoctor: byDoctor);
     }
 
     internal static AdminAnalyticsSummary Calculate(
@@ -80,9 +168,6 @@ public sealed class AdminAnalyticsService
         var denta = 0;
         foreach (var row in rows)
         {
-            // Sources are deliberately mutually exclusive. Denta wins even when
-            // a signed-in patient created the chat booking, so chart totals always
-            // add up exactly to TotalRequests.
             if (!string.IsNullOrEmpty(row.Comment)
                 && row.Comment.Contains(DentaMarker, StringComparison.Ordinal))
             {
@@ -137,8 +222,14 @@ public sealed class AdminAnalyticsService
             ByDoctor: byDoctor);
     }
 
+    private static int CountStatus(IEnumerable<StatusCount> groups, string status)
+        => groups.Where(group => group.Status == status).Sum(group => group.Count);
+
     private static string NormalizeStatus(string? status) =>
         AppointmentStatuses.TryNormalize(status, out var normalized) ? normalized : string.Empty;
+
+    private sealed record StatusCount(string Status, int Count);
+    private sealed record DoctorCount(int DoctorId, int Count);
 
     internal sealed record AnalyticsAppointmentRow(
         string? Status,

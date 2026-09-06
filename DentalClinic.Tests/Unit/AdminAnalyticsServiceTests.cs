@@ -22,10 +22,10 @@ public class AdminAnalyticsServiceTests
             new Doctor { Id = 2, FullName = "Dr. Two" });
 
         db.AppointmentRequests.AddRange(
-            Request(1, AppointmentStatuses.Pending, new DateTime(2026, 9, 6, 10, 0, 0), doctorId: 1, patientId: 10,
+            Request(1, " PENDING ", new DateTime(2026, 9, 6, 10, 0, 0), doctorId: 1, patientId: 10,
                 createdAt: new DateTime(2026, 9, 6, 7, 0, 0, DateTimeKind.Utc)),
             // The appointment itself is next month, but the request was created this month.
-            Request(2, AppointmentStatuses.Confirmed, new DateTime(2026, 10, 5, 11, 0, 0), doctorId: 1,
+            Request(2, "CONFIRMED", new DateTime(2026, 10, 5, 11, 0, 0), doctorId: 1,
                 createdAt: new DateTime(2026, 9, 5, 8, 0, 0, DateTimeKind.Utc)),
             Request(3, AppointmentStatuses.Completed, new DateTime(2026, 9, 1, 12, 0, 0), doctorId: 2, patientId: 20,
                 comment: "[Заявка через чат] Имплант",
@@ -109,6 +109,58 @@ public class AdminAnalyticsServiceTests
 
         Assert.Equal(1, summary.ThisMonthRequests);
         Assert.Equal(1, summary.ByDay.Single(x => x.Date == "2026-09-01").Count);
+    }
+
+    [Fact]
+    public async Task Summary_OldHistoryStillAffectsLifetimeAggregatesButNotRecentSeries()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"analytics-history-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+
+        db.Doctors.AddRange(
+            new Doctor { Id = 20, FullName = "Zulu Historical" },
+            new Doctor { Id = 21, FullName = "Alpha Recent" });
+        db.AppointmentRequests.AddRange(
+            Request(20, AppointmentStatuses.Pending, new DateTime(2020, 1, 10, 10, 0, 0), doctorId: 20, patientId: 100,
+                createdAt: new DateTime(2020, 1, 1, 8, 0, 0, DateTimeKind.Utc)),
+            Request(21, AppointmentStatuses.Confirmed, new DateTime(2026, 9, 7, 10, 0, 0), doctorId: 21,
+                comment: "[Заявка через чат] Recent",
+                createdAt: new DateTime(2026, 9, 6, 8, 0, 0, DateTimeKind.Utc)));
+        await db.SaveChangesAsync();
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scheduling:TimeZoneId"] = "UTC" })
+            .Build();
+        var time = new FixedTimeProvider(new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero));
+        var service = new AdminAnalyticsService(db, new ClinicClock(config, time));
+
+        var summary = await service.GetSummaryAsync();
+
+        Assert.Equal(2, summary.TotalRequests);
+        Assert.Equal(1, summary.ThisMonthRequests);
+        Assert.Equal(1, summary.Statuses.Pending);
+        Assert.Equal(1, summary.Statuses.Confirmed);
+        Assert.Equal(1, summary.Sources.Registered);
+        Assert.Equal(1, summary.Sources.Denta);
+        Assert.Equal(1, summary.ByDay.Single(day => day.Date == "2026-09-06").Count);
+        Assert.Equal(1, summary.ByDay.Sum(day => day.Count));
+
+        // Equal lifetime counts retain the existing secondary doctor-name ordering.
+        Assert.Collection(summary.ByDoctor,
+            first =>
+            {
+                Assert.Equal(21, first.DoctorId);
+                Assert.Equal("Alpha Recent", first.DoctorName);
+                Assert.Equal(1, first.Count);
+            },
+            second =>
+            {
+                Assert.Equal(20, second.DoctorId);
+                Assert.Equal("Zulu Historical", second.DoctorName);
+                Assert.Equal(1, second.Count);
+            });
     }
 
     [Fact]
