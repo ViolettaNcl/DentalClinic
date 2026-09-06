@@ -11,6 +11,15 @@ export function buildChatAppointmentPayload(booking, { parsedDate, noComment, vi
     };
 }
 
+export function escapeChatBookingHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
 export async function submitChatAppointment(payload, { fetchImpl = fetch } = {}) {
     return fetchImpl('/api/AppointmentRequest', {
         method: 'POST',
@@ -29,6 +38,57 @@ export async function submitChatAppointment(payload, { fetchImpl = fetch } = {})
 // authentication logic in the chat UI.
 export function installChatBookingCookieTransport(ChatBotClass) {
     if (!ChatBotClass?.prototype) return;
+
+    // The legacy confirmation card interpolated user-entered name/phone/date/comment
+    // directly into innerHTML. Escape every user-controlled field before rendering so
+    // the booking flow cannot become a DOM-XSS sink.
+    ChatBotClass.prototype._showBookingConfirmation = function () {
+        const booking = this.booking;
+        const messages = document.getElementById('chat-messages');
+        if (!messages) return;
+
+        const safeName = escapeChatBookingHtml(booking.name);
+        const safePhone = escapeChatBookingHtml(booking.phone);
+        const safeDate = escapeChatBookingHtml(booking.date);
+        const safeComment = escapeChatBookingHtml(booking.comment);
+        const dateSuffix = this._parseDate(booking.date)
+            ? ''
+            : escapeChatBookingHtml(this._tr('chat_booking_date_tbc', ' (уточним при звонке)'));
+
+        const card = document.createElement('div');
+        card.className = 'chat-booking-card';
+        card.innerHTML = `
+      <div class="chat-booking-title">${this._tr('chat_booking_confirm_title', '📋 Проверьте данные заявки')}</div>
+      <div class="chat-booking-row"><span>${this._tr('chat_booking_label_name', 'Имя:')}</span><strong>${safeName}</strong></div>
+      <div class="chat-booking-row"><span>${this._tr('chat_booking_label_phone', 'Телефон:')}</span><strong>${safePhone}</strong></div>
+      <div class="chat-booking-row"><span>${this._tr('chat_booking_label_date', 'Дата:')}</span><strong>${safeDate}${dateSuffix}</strong></div>
+      <div class="chat-booking-row"><span>${this._tr('chat_booking_label_comment', 'Комментарий:')}</span><strong>${safeComment}</strong></div>
+      <div class="chat-booking-actions">
+        <button class="chat-booking-confirm" id="book-yes">${this._tr('chat_booking_btn_confirm', '✅ Данные верны, отправить')}</button>
+        <button class="chat-booking-cancel" id="book-no">${this._tr('chat_booking_btn_edit', '✏️ Изменить данные')}</button>
+      </div>`;
+
+        messages.appendChild(card);
+        messages.scrollTop = messages.scrollHeight;
+
+        card.querySelector('#book-yes')?.addEventListener('click', () => {
+            card.remove();
+            this._submitBooking();
+        });
+        card.querySelector('#book-no')?.addEventListener('click', () => {
+            card.remove();
+            this.booking.step = 'idle';
+            this._addBotMessage(
+                this._tr('chat_booking_restart', 'Хорошо, давайте начнём заново. Как вас зовут?'),
+                [],
+                []
+            );
+            this.booking.step = 'ask_name';
+            const input = document.getElementById('chat-input');
+            if (input)
+                input.placeholder = this._tr('chat_booking_name_placeholder', 'Введите ваше имя...');
+        });
+    };
 
     ChatBotClass.prototype._submitBooking = async function () {
         this._addBotMessage(
