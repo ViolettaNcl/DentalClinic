@@ -18,7 +18,10 @@ attributes in the code.
 | `Email` | `string` | required | Used as the login |
 | `Phone` | `string?` | optional | Contact phone |
 | `PasswordHash` | `string` | required | Password hash (BCrypt); the plain-text password is **never** stored |
-| `AvatarUrl` | `string?` | optional | Link to the avatar file in `wwwroot/uploads/avatars/` |
+| `AvatarUrl` | `string?` | optional | Cache-busted authenticated URL used by the browser (`/api/avatar/content?...`) |
+| `AvatarData` | `byte[]?` | optional | Durable avatar bytes stored in SQL; does not depend on server-local disk |
+| `AvatarContentType` | `string?` | ≤50 chars | MIME type for the stored avatar (`image/jpeg`, `image/png`, `image/webp`) |
+| `TokenVersion` | `int` | defaults to `0` | Session-revocation version embedded in JWTs; incrementing it invalidates older tokens |
 | `CreatedAt` | `DateTime` | defaults to `UtcNow` | Registration date |
 
 ## Admins
@@ -28,7 +31,10 @@ attributes in the code.
 | `Id` | `int` | PK | Identifier |
 | `Email` | `string` | required | Admin login |
 | `PasswordHash` | `string` | required | Password hash (BCrypt) |
-| `AvatarUrl` | `string?` | optional | Avatar shown in the admin panel |
+| `AvatarUrl` | `string?` | optional | Cache-busted authenticated URL used by the browser |
+| `AvatarData` | `byte[]?` | optional | Durable avatar bytes stored in SQL |
+| `AvatarContentType` | `string?` | ≤50 chars | MIME type for the stored avatar |
+| `TokenVersion` | `int` | defaults to `0` | Session-revocation version embedded in JWTs |
 | `CreatedAt` | `DateTime` | defaults to `UtcNow` | Account creation date |
 
 ## Doctors

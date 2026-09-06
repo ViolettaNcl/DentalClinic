@@ -17,7 +17,10 @@
 | `Email` | `string` | обязательно | Используется как логин |
 | `Phone` | `string?` | необязательно | Контактный телефон |
 | `PasswordHash` | `string` | обязательно | Хэш пароля (BCrypt), пароль в открытом виде **никогда** не хранится |
-| `AvatarUrl` | `string?` | необязательно | Ссылка на файл аватара в `wwwroot/uploads/avatars/` |
+| `AvatarUrl` | `string?` | необязательно | Cache-busted URL для авторизованной выдачи аватара (`/api/avatar/content?...`) |
+| `AvatarData` | `byte[]?` | необязательно | Байты аватара, устойчиво хранящиеся в SQL и не зависящие от локального диска сервера |
+| `AvatarContentType` | `string?` | ≤50 симв. | MIME-тип аватара (`image/jpeg`, `image/png`, `image/webp`) |
+| `TokenVersion` | `int` | по умолч. `0` | Версия сессии в JWT; увеличение сразу отзывает ранее выданные токены |
 | `CreatedAt` | `DateTime` | по умолч. `UtcNow` | Дата регистрации |
 
 ## Admins — администраторы
@@ -27,7 +30,10 @@
 | `Id` | `int` | PK | Идентификатор |
 | `Email` | `string` | обязательно | Логин администратора |
 | `PasswordHash` | `string` | обязательно | Хэш пароля (BCrypt) |
-| `AvatarUrl` | `string?` | необязательно | Аватар в панели администратора |
+| `AvatarUrl` | `string?` | необязательно | Cache-busted URL для авторизованной выдачи аватара |
+| `AvatarData` | `byte[]?` | необязательно | Байты аватара, устойчиво хранящиеся в SQL |
+| `AvatarContentType` | `string?` | ≤50 симв. | MIME-тип сохранённого аватара |
+| `TokenVersion` | `int` | по умолч. `0` | Версия сессии в JWT для немедленного отзыва старых токенов |
 | `CreatedAt` | `DateTime` | по умолч. `UtcNow` | Дата создания учётной записи |
 
 ## Doctors — врачи

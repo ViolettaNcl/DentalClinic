@@ -10,8 +10,8 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/.NET-9.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 9">
-  <img src="https://img.shields.io/badge/EF_Core-9.0-512BD4?style=flat-square" alt="EF Core 9">
+  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 10">
+  <img src="https://img.shields.io/badge/EF_Core-10.0-512BD4?style=flat-square" alt="EF Core 10">
   <img src="https://img.shields.io/badge/SQL_Server-2019+-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" alt="SQL Server">
   <img src="https://img.shields.io/badge/SignalR-realtime-512BD4?style=flat-square" alt="SignalR">
   <img src="https://img.shields.io/badge/AI-Gemini-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini AI">
@@ -120,8 +120,8 @@ DentalClinic — full-stack веб-платформа для стоматоло�
 
 | Слой | Технологии |
 |---|---|
-| **Backend** | ASP.NET Core 9 (Web API), C# |
-| **Данные** | Entity Framework Core 9, SQL Server |
+| **Backend** | ASP.NET Core 10 (Web API), C# |
+| **Данные** | Entity Framework Core 10, SQL Server |
 | **Аутентификация** | JWT Bearer, BCrypt.Net (хэширование паролей) |
 | **Реалтайм** | SignalR |
 | **AI-интеграции** | Google Gemini API (чат + перевод), ElevenLabs API (озвучка, TTS) |
@@ -241,25 +241,26 @@ dotnet run
 
 Помимо самой документации, в репозитории уже настроено:
 
-- **CI** (`.github/workflows/ci.yml`) — GitHub Actions автоматически собирает проект на
-  каждый push и Pull Request — статус виден бейджем вверху этого README
-- **Postman-коллекция** (`docs/DentalClinic.postman_collection.json`) — готовый набор
-  запросов ко всем эндпоинтам для ручного тестирования API
-- **`.editorconfig`** — единые правила форматирования кода (отступы, стиль C#/JS)
+- **CI + CodeQL** (`.github/workflows/`) — сборка, автоматические проверки и анализ безопасности на push/Pull Request;
+- **автоматические unit/integration и Node/JS regression tests** — проверяют API, БД, безопасность, CRM, Denta и frontend-контракты;
+- **Vercel Git deployment для `main`** — production merge запускает деплой автоматически, а feature-ветки не создают лишние container images;
+- **Postman-коллекция** (`docs/DentalClinic.postman_collection.json`) — готовый набор запросов ко всем эндпоинтам для ручного тестирования API;
+- **`.editorconfig`** — единые правила форматирования кода (отступы, стиль C#/JS).
 
 ## 🧭 Известные ограничения и план развития
 
-Проект делался для реального клиента, но без production-нагрузки тысяч пользователей —
-поэтому часть архитектурных решений сознательно упрощена под текущий масштаб одной
-клиники. Ниже — честный список того, что стоит доработать при дальнейшем росте:
+Проект делался для реального клиента и уже прошёл значительный production-hardening. Ниже —
+актуальный статус, чтобы README не выдавал уже закрытые задачи за незавершённые:
 
-- [ ] Нет автоматических тестов (unit/integration) — проверка пока только вручную через Swagger/UI
-- [ ] Есть CI (автосборка на push/PR), но нет CD — деплой на прод пока выполняется вручную
-- [ ] Загрузка аватаров хранит файлы на диске сервера, а не в объектном хранилище (S3/Blob) — при масштабировании на несколько серверов потребуется вынести в общее хранилище
-- [ ] Rate limiting работает по IP в памяти процесса — при горизонтальном масштабировании (несколько инстансов) потребуется общий стор (например, Redis)
-- [ ] Нет ролей «второй администратор / супер-админ» — только плоское разделение пациент/админ
+- [x] Автоматические unit/integration/JS regression tests и CI/CodeQL
+- [x] Автоматический production deploy из `main` через Vercel Git integration
+- [x] Аватары хранятся устойчиво в SQL, а не зависят от локального диска serverless/container-инстанса
+- [x] Платные AI-маршруты дополнительно защищены распределённой SQL-квотой между инстансами
+- [ ] Общий ASP.NET Core rate limiter для части неплатных маршрутов остаётся process-local; при горизонтальном масштабировании его стоит перенести в shared store
+- [ ] Нет ролей «второй администратор / супер-админ» — пока используется разделение patient/admin
+- [ ] Для Vercel Container Registry нужно периодически удалять старые images/настроить операционный cleanup, чтобы не упираться в лимит репозитория
 
-Это же список первых задач, если проект продолжит расти вместе с клиникой.
+Это же список следующих инфраструктурных задач при дальнейшем росте клиники.
 
 ## 👤 Автор
 

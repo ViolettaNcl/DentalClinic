@@ -10,8 +10,8 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/.NET-9.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 9">
-  <img src="https://img.shields.io/badge/EF_Core-9.0-512BD4?style=flat-square" alt="EF Core 9">
+  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 10">
+  <img src="https://img.shields.io/badge/EF_Core-10.0-512BD4?style=flat-square" alt="EF Core 10">
   <img src="https://img.shields.io/badge/SQL_Server-2019+-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" alt="SQL Server">
   <img src="https://img.shields.io/badge/SignalR-realtime-512BD4?style=flat-square" alt="SignalR">
   <img src="https://img.shields.io/badge/AI-Gemini-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini AI">
@@ -121,8 +121,8 @@ The project demonstrates hands-on experience with:
 
 | Layer | Technologies |
 |---|---|
-| **Backend** | ASP.NET Core 9 (Web API), C# |
-| **Data** | Entity Framework Core 9, SQL Server |
+| **Backend** | ASP.NET Core 10 (Web API), C# |
+| **Data** | Entity Framework Core 10, SQL Server |
 | **Auth** | JWT Bearer, BCrypt.Net (password hashing) |
 | **Realtime** | SignalR |
 | **AI integrations** | Google Gemini API (chat + translation), ElevenLabs API (TTS) |
@@ -240,27 +240,28 @@ Full template — in [`appsettings.Example.json`](appsettings.Example.json). Key
 
 ## 🧰 Developer tooling
 
-Beyond the documentation itself, the repository already includes:
+Beyond the documentation itself, the repository now includes:
 
-- **CI** (`.github/workflows/ci.yml`) — GitHub Actions automatically builds the project
-  on every push and Pull Request — status shown by the badge at the top of this README
-- **A Postman collection** (`docs/DentalClinic.postman_collection.json`) — a ready set of
-  requests for every endpoint, for manual API testing
-- **`.editorconfig`** — consistent code formatting rules (indentation, C#/JS style)
+- **CI + CodeQL** (`.github/workflows/`) — builds, automated checks and security analysis on pushes/Pull Requests;
+- **automated unit/integration and Node/JS regression tests** covering API, database, security, CRM, Denta and frontend contracts;
+- **Vercel Git deployment for `main`** — production merges deploy automatically while feature branches no longer create unnecessary container images;
+- **a Postman collection** (`docs/DentalClinic.postman_collection.json`) — a ready set of requests for manual API testing;
+- **`.editorconfig`** — consistent code formatting rules (indentation, C#/JS style).
 
 ## 🧭 Known limitations & roadmap
 
-This project was built for a real client, but not for production-scale traffic across
-thousands of users — so some architectural choices are intentionally simplified for the
-current scale of a single clinic. Here's an honest list of what's worth improving as it grows:
+The project was built for a real client and has already gone through substantial production
+hardening. This is the current status rather than the original pre-hardening task list:
 
-- [ ] No automated tests (unit/integration) yet — currently verified manually via Swagger/UI
-- [ ] CI is in place (auto-build on push/PR), but there's no CD yet — production deploys are still manual
-- [ ] Avatar uploads are stored on the server's local disk rather than object storage (S3/Blob) — scaling to multiple servers would require shared storage
-- [ ] Rate limiting is in-process, per IP — horizontal scaling (multiple instances) would need a shared store (e.g. Redis)
-- [ ] No "second admin / super-admin" role — only a flat patient/admin split
+- [x] Automated unit/integration/JS regression tests plus CI/CodeQL
+- [x] Automatic production deployment from `main` through Vercel Git integration
+- [x] Avatars are stored durably in SQL instead of relying on a serverless/container local disk
+- [x] Paid AI routes have an additional distributed SQL quota shared across instances
+- [ ] The general ASP.NET Core limiter for some non-paid routes is still process-local; horizontal scaling should move it to a shared store
+- [ ] There is no second-admin/super-admin role yet — authorization currently uses the patient/admin split
+- [ ] Vercel Container Registry needs periodic old-image cleanup/operational retention management to avoid reaching the repository image limit
 
-This also doubles as a ready-made task list if the project keeps growing alongside the clinic.
+These are the next infrastructure tasks if the clinic grows further.
 
 ## 👤 Author
 
