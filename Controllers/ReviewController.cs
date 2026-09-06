@@ -61,7 +61,9 @@ public class ReviewController : ControllerBase
 
     [HttpPost("translate")]
     [EnableRateLimiting("translate")]
-    public async Task<IActionResult> TranslateReview([FromBody] TranslateReviewRequest req)
+    public async Task<IActionResult> TranslateReview(
+        [FromBody] TranslateReviewRequest req,
+        CancellationToken cancellationToken)
     {
         if (!IsAllowedOrigin())
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Cross-origin review translation is not allowed" });
@@ -75,7 +77,7 @@ public class ReviewController : ControllerBase
 
         var review = await _context.Reviews
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == req.ReviewId);
+            .FirstOrDefaultAsync(r => r.Id == req.ReviewId, cancellationToken);
 
         if (review == null)
             return NotFound();
@@ -119,14 +121,22 @@ public class ReviewController : ControllerBase
             {
                 for (var attempt = 0; attempt < 2; attempt++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     try
                     {
                         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
-                        var response = await http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
+                        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+                        using var response = await http.PostAsync(url, content, cancellationToken);
 
                         if ((int)response.StatusCode == 429)
                         {
-                            if (attempt == 0) { await Task.Delay(400); continue; }
+                            if (attempt == 0)
+                            {
+                                await Task.Delay(400, cancellationToken);
+                                continue;
+                            }
+
                             break;
                         }
                         if ((int)response.StatusCode == 404)
@@ -138,7 +148,7 @@ public class ReviewController : ControllerBase
                             return originalText;
                         }
 
-                        var raw = await response.Content.ReadAsStringAsync();
+                        var raw = await response.Content.ReadAsStringAsync(cancellationToken);
                         using var doc = JsonDocument.Parse(raw);
                         var result = doc.RootElement
                             .GetProperty("candidates")[0]
@@ -150,6 +160,10 @@ public class ReviewController : ControllerBase
                         _cache.Set(cacheKey, result, TimeSpan.FromDays(30));
                         return result;
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Не удалось перевести отзыв (модель {Model})", model);
@@ -159,7 +173,7 @@ public class ReviewController : ControllerBase
             }
 
             return originalText;
-        });
+        }, cancellationToken);
 
         return Ok(new { text = translated });
     }
