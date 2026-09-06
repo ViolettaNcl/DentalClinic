@@ -41,4 +41,57 @@ public class GeminiTranslateLimiterTests
 
         Assert.Equal(1, maxObservedConcurrency);
     }
+
+    [Fact]
+    public async Task RunAsync_PreCancelledRequest_DoesNotInvokeProviderAction()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var invoked = false;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            GeminiTranslateLimiter.RunAsync(
+                () =>
+                {
+                    invoked = true;
+                    return Task.FromResult(1);
+                },
+                cts.Token));
+
+        Assert.False(invoked);
+    }
+
+    [Fact]
+    public async Task RunAsync_CancelledWaiter_DoesNotRunAfterGateIsReleased()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var holder = GeminiTranslateLimiter.RunAsync(async () =>
+        {
+            entered.SetResult();
+            await release.Task;
+            return 1;
+        });
+
+        await entered.Task;
+
+        using var cts = new CancellationTokenSource();
+        var secondInvoked = false;
+        var waiter = GeminiTranslateLimiter.RunAsync(
+            () =>
+            {
+                secondInvoked = true;
+                return Task.FromResult(2);
+            },
+            cts.Token);
+
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiter);
+
+        release.SetResult();
+        await holder;
+
+        Assert.False(secondInvoked);
+    }
 }
