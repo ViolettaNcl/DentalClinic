@@ -13,7 +13,11 @@ namespace DentalClinic.Services;
 /// </summary>
 public static class PrintableReportService
 {
-    public static string BuildReportHtml(string title, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
+    public static string BuildReportHtml(
+        string title,
+        IReadOnlyList<string> headers,
+        IReadOnlyList<IReadOnlyList<string>> rows,
+        DateTime generatedAt)
     {
         var sb = new StringBuilder();
         sb.Append($$"""
@@ -37,7 +41,7 @@ public static class PrintableReportService
         <body>
         <button class="print-btn" onclick="window.print()">🖨️ Сохранить как PDF</button>
         <h1>{{WebUtility.HtmlEncode(title)}}</h1>
-        <div class="meta">Сформировано: {{DateTime.Now:dd.MM.yyyy HH:mm}}</div>
+        <div class="meta">Сформировано: {{generatedAt:dd.MM.yyyy HH:mm}}</div>
         <table><thead><tr>
         """);
 

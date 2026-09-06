@@ -69,7 +69,11 @@ public class AdminStatsController : ControllerBase
             return BadRequest(new { message = error });
 
         var (headers, rows, periodLabel) = await BuildAppointmentsTable(fromLocal, toLocal, cancellationToken);
-        var html = PrintableReportService.BuildReportHtml($"Отчёт по заявкам — {periodLabel}", headers, rows);
+        var html = PrintableReportService.BuildReportHtml(
+            $"Отчёт по заявкам — {periodLabel}",
+            headers,
+            rows,
+            _clock.Now);
         return Content(html, "text/html");
     }
 
