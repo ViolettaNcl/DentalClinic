@@ -8,6 +8,18 @@
     margin-bottom: 50px;
 }
 
+.card__live-price {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #e9f8f4;
+    color: #087c6d;
+    font-size: clamp(13px, 1.6vw, 15px);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
 .tech-section {
     background: linear-gradient(135deg, #f5f8f7 0%, #e8f5f2 100%);
     padding: clamp(40px, 6vw, 60px) 20px;
