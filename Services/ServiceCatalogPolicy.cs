@@ -12,10 +12,9 @@ public static class ServiceCatalogPolicy
     public const decimal MaxPersistedPrice = 99_999_999.99m;
 
     public static bool IsValidPriceRange(decimal priceFrom, decimal? priceTo) =>
-        priceFrom >= 0
-        && priceFrom <= MaxPersistedPrice
+        IsPersistablePrice(priceFrom)
         && (!priceTo.HasValue
-            || (priceTo.Value >= priceFrom && priceTo.Value <= MaxPersistedPrice));
+            || (priceTo.Value >= priceFrom && IsPersistablePrice(priceTo.Value)));
 
     public static bool IsValidSortOrder(int sortOrder) => sortOrder >= 0;
 
@@ -29,4 +28,12 @@ public static class ServiceCatalogPolicy
                && !value.Contains('\\')
                && !value.Contains("//", StringComparison.Ordinal);
     }
+
+    private static bool IsPersistablePrice(decimal value) =>
+        value >= 0
+        && value <= MaxPersistedPrice
+        // SQL decimal(10,2) stores two fractional digits. Reject extra non-zero
+        // precision at the API boundary instead of letting the provider round it
+        // during persistence and surprise the administrator with a changed price.
+        && decimal.Round(value, 2, MidpointRounding.ToEven) == value;
 }

@@ -28,6 +28,19 @@ public class ServiceCatalogPolicyTests
     }
 
     [Fact]
+    public void PriceRange_AllowsEquivalentTrailingZeroPrecision()
+    {
+        Assert.True(ServiceCatalogPolicy.IsValidPriceRange(123.450m, 200.000m));
+    }
+
+    [Fact]
+    public void PriceRange_RejectsMoreThanTwoFractionalDigits()
+    {
+        Assert.False(ServiceCatalogPolicy.IsValidPriceRange(123.456m, null));
+        Assert.False(ServiceCatalogPolicy.IsValidPriceRange(123.45m, 200.001m));
+    }
+
+    [Fact]
     public void PriceRange_RejectsPriceFromBeyondDecimal10_2Maximum()
     {
         Assert.False(ServiceCatalogPolicy.IsValidPriceRange(100_000_000m, null));
