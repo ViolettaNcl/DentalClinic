@@ -14,17 +14,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="cabinet-body">
-    <script>
-        (function () {
-            var id = sessionStorage.getItem('patientId');
-            var role = sessionStorage.getItem('userRole');
-            if (!id || role?.toLowerCase() === 'admin') {
-                window.location.href = '/index.html';
-            }
-        })();
-    </script>
-
-
     <main class="panel-main">
         <div class="panel-layout">
 
@@ -208,7 +197,6 @@
         </div>
     </main>
 
-    <!-- Модальное окно переноса записи -->
     <div id="reschedule-modal" class="panel-modal hidden">
         <div class="panel-modal-backdrop"></div>
         <div class="panel-modal-dialog">
@@ -233,7 +221,6 @@
         </div>
     </div>
 
-    <!-- Модалка: оставить отзыв -->
     <div id="review-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -262,7 +249,6 @@
     <script type="module" src="/assets/js/main.js"></script>
     <script src="/assets/js/core/scrollReveal.js" defer></script>
     <script src="/assets/js/core/wowEffects.js" defer></script>
-    <script type="module" src="/assets/js/managers/patient/patientDashboard.js"></script>
-    <script type="module" src="/assets/js/managers/public/myReviews.js"></script>
+    <script type="module" src="/assets/js/managers/patient/patientDashboardEntry.js"></script>
 </body>
 </html>
