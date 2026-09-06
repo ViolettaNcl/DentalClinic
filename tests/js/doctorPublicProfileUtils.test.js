@@ -41,11 +41,12 @@ test('findDoctorByRenderedName matches any stored localized doctor name', () => 
 test('experience and booking labels are localized without inventing clinical data', () => {
     assert.equal(doctorExperienceText(doctor, 'en'), '12+ years of experience');
     assert.equal(doctorExperienceText({ experienceYears: null }, 'ru'), '');
+    assert.equal(doctorExperienceText({ experienceYears: '' }, 'ru'), '');
     assert.equal(bookingLabel('fr'), 'Prendre rendez-vous');
     assert.equal(bookingLabel('ar'), 'احجز موعدًا');
 });
 
-test('doctorInitials uses localized visible name', () => {
-    assert.equal(doctorInitials(doctor, 'en'), 'DR');
+test('doctorInitials ignores the professional title prefix', () => {
+    assert.equal(doctorInitials(doctor, 'en'), 'RN');
     assert.equal(doctorInitials({ fullName: 'Анна Тестова' }, 'ru'), 'АТ');
 });
