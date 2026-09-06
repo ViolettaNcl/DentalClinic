@@ -28,23 +28,24 @@ public class JwtTokenServiceTests
     {
         var service = CreateService();
 
-        var token = service.GenerateToken(1, "patient@example.com", "Иван", "Patient");
+        var token = service.GenerateToken(1, "patient@example.com", "Иван", "Patient", 0);
 
         Assert.False(string.IsNullOrWhiteSpace(token));
         Assert.Equal(3, token.Split('.').Length); // header.payload.signature
     }
 
     [Fact]
-    public void GenerateToken_EmbedsExpectedClaims()
+    public void GenerateToken_EmbedsExpectedClaimsIncludingTokenVersion()
     {
         var service = CreateService();
 
-        var token = service.GenerateToken(42, "admin@example.com", "Администратор", "Admin");
+        var token = service.GenerateToken(42, "admin@example.com", "Администратор", "Admin", 7);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
         Assert.Equal("42", jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
         Assert.Equal("admin@example.com", jwt.Claims.First(c => c.Type == ClaimTypes.Email).Value);
         Assert.Equal("Admin", jwt.Claims.First(c => c.Type == ClaimTypes.Role).Value);
+        Assert.Equal("7", jwt.Claims.First(c => c.Type == JwtTokenService.TokenVersionClaim).Value);
         Assert.Equal("TestIssuer", jwt.Issuer);
     }
 
@@ -54,7 +55,7 @@ public class JwtTokenServiceTests
         var service = CreateService(expiryMinutes: 5);
 
         var before = DateTime.UtcNow;
-        var token = service.GenerateToken(1, "a@b.com", "Имя", "Patient");
+        var token = service.GenerateToken(1, "a@b.com", "Имя", "Patient", 0);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
         // ValidFrom не задаётся явно (нет claim "nbf"), поэтому сравниваем ValidTo
@@ -73,6 +74,6 @@ public class JwtTokenServiceTests
         var service = new JwtTokenService(emptyConfig);
 
         Assert.Throws<InvalidOperationException>(() =>
-            service.GenerateToken(1, "a@b.com", "Имя", "Patient"));
+            service.GenerateToken(1, "a@b.com", "Имя", "Patient", 0));
     }
 }
