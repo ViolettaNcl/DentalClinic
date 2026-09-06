@@ -1,6 +1,10 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
-import { buildServicePayload, formatServicePrice } from './serviceKnowledgeUtils.js';
+import {
+    buildServicePayload,
+    formatServicePrice,
+    SERVICE_FIELD_LIMITS,
+} from './serviceKnowledgeUtils.js';
 
 class ServiceKnowledgeManager {
     constructor() {
@@ -92,16 +96,16 @@ class ServiceKnowledgeManager {
                     <form id="service-knowledge-form" class="panel-form">
                         <input type="hidden" name="id">
                         <div class="knowledge-form-grid">
-                            <div class="panel-form-group"><label>Категория *</label><input name="category" maxlength="120" required></div>
-                            <div class="panel-form-group"><label>Название *</label><input name="name" maxlength="180" required></div>
-                            <div class="panel-form-group"><label>Цена от, ₽ *</label><input name="priceFrom" inputmode="decimal" required></div>
-                            <div class="panel-form-group"><label>Цена до, ₽</label><input name="priceTo" inputmode="decimal" placeholder="необязательно"></div>
-                            <div class="panel-form-group"><label>Единица</label><input name="unit" maxlength="80" placeholder="зуб, процедура, курс"></div>
-                            <div class="panel-form-group"><label>Порядок</label><input name="sortOrder" type="number" value="0"></div>
+                            <div class="panel-form-group"><label>Категория *</label><input name="category" maxlength="${SERVICE_FIELD_LIMITS.category}" required></div>
+                            <div class="panel-form-group"><label>Название *</label><input name="name" maxlength="${SERVICE_FIELD_LIMITS.name}" required></div>
+                            <div class="panel-form-group"><label>Цена от, ₽ *</label><input name="priceFrom" inputmode="decimal" maxlength="11" placeholder="0,00" required></div>
+                            <div class="panel-form-group"><label>Цена до, ₽</label><input name="priceTo" inputmode="decimal" maxlength="11" placeholder="необязательно"></div>
+                            <div class="panel-form-group"><label>Единица</label><input name="unit" maxlength="${SERVICE_FIELD_LIMITS.unit}" placeholder="зуб, процедура, курс"></div>
+                            <div class="panel-form-group"><label>Порядок</label><input name="sortOrder" type="number" min="0" step="1" value="0"></div>
                         </div>
-                        <div class="panel-form-group"><label>Ключевые слова для Денты</label><input name="keywords" maxlength="500" placeholder="имплант, all-on-4, отсутствует зуб"></div>
-                        <div class="panel-form-group"><label>Локальная страница</label><input name="pageUrl" maxlength="300" placeholder="/pages/services/implants.html"></div>
-                        <div class="panel-form-group"><label>Описание</label><textarea name="description" rows="4" maxlength="1000"></textarea></div>
+                        <div class="panel-form-group"><label>Ключевые слова для Денты</label><input name="keywords" maxlength="${SERVICE_FIELD_LIMITS.keywords}" placeholder="имплант, all-on-4, отсутствует зуб"></div>
+                        <div class="panel-form-group"><label>Локальная страница</label><input name="pageUrl" maxlength="${SERVICE_FIELD_LIMITS.pageUrl}" placeholder="/pages/services/implants.html"></div>
+                        <div class="panel-form-group"><label>Описание</label><textarea name="description" rows="4" maxlength="${SERVICE_FIELD_LIMITS.description}"></textarea></div>
                         <div class="panel-form-group hidden" id="service-knowledge-active-group"><label><input name="isActive" type="checkbox"> Активна на сайте и в базе Денты</label></div>
                         <div class="panel-modal-footer">
                             <button type="button" class="panel-btn-secondary" data-close-service-modal>Отмена</button>
