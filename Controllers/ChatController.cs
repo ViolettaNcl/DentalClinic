@@ -27,6 +27,12 @@ namespace DentalClinic.Controllers
         private static readonly string[] GeminiModels =
             { "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash" };
 
+        // Админская аналитика должна оставаться предсказуемой по памяти даже если
+        // чат накопит большой исторический объём. Точные totals/byDay считаются в БД,
+        // а текстовая topic-аналитика работает на ограниченном недавнем срезе.
+        private const int MaxStatsTopicMessages = 5000;
+        private const int MaxRecentSessionMessages = 10000;
+
         // Fallback links are intentionally multilingual. Structured Gemini links are
         // preferred, but when the provider returns none this table must work for all
         // five supported UI languages rather than silently becoming Russian-only.
@@ -397,7 +403,6 @@ namespace DentalClinic.Controllers
 
                 await using var stream = await upstreamResp.Content.ReadAsStreamAsync();
                 using var reader = new StreamReader(stream);
-
                 string? line;
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
@@ -572,9 +577,13 @@ namespace DentalClinic.Controllers
             var logs = await _db.ChatMessageLogs
                 .AsNoTracking()
                 .Where(m => recentSessionIds.Contains(m.SessionId))
-                .OrderBy(m => m.CreatedAt)
-                .ThenBy(m => m.Id)
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Take(MaxRecentSessionMessages)
                 .ToListAsync(cancellationToken);
+
+            if (logs.Count == MaxRecentSessionMessages)
+                Response.Headers["X-Chat-Analytics-Truncated"] = "true";
 
             var sessions = logs
                 .GroupBy(m => m.SessionId)
@@ -598,49 +607,64 @@ namespace DentalClinic.Controllers
             return Ok(sessions);
         }
 
-        // Агрегированная статистика: сколько сообщений/диалогов, и какие темы
-        // спрашивают чаще всего (по тем же ключевым словам, что используются
-        // для авто-ссылок) — прямая подсказка какие услуги продвигать.
+        // Агрегированная статистика: totals и дневные значения считаются в БД,
+        // а текстовый topic-анализ ограничен недавним срезом, чтобы один год
+        // активного чата не загружал все сообщения в память веб-процесса.
         [HttpGet("admin/stats")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetStats([FromQuery] int days = 30)
+        public async Task<IActionResult> GetStats(
+            [FromQuery] int days = 30,
+            CancellationToken cancellationToken = default)
         {
             days = Math.Clamp(days, 1, 365);
             var since = DateTime.UtcNow.AddDays(-days);
 
-            var userMessages = await _db.ChatMessageLogs
-                .Where(m => m.Role == "user" && m.CreatedAt >= since)
-                .Select(m => new { m.Text, m.CreatedAt })
-                .ToListAsync();
+            var periodQuery = _db.ChatMessageLogs
+                .AsNoTracking()
+                .Where(m => m.CreatedAt >= since);
+            var userQuery = periodQuery.Where(m => m.Role == "user");
 
-            var totalSessions = await _db.ChatMessageLogs
-                .Where(m => m.CreatedAt >= since)
+            var totalMessages = await userQuery.CountAsync(cancellationToken);
+            var totalSessions = await periodQuery
                 .Select(m => m.SessionId)
                 .Distinct()
-                .CountAsync();
+                .CountAsync(cancellationToken);
+
+            var byDayRows = await userQuery
+                .GroupBy(m => m.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .OrderBy(g => g.Date)
+                .ToListAsync(cancellationToken);
+
+            var topicMessages = await userQuery
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Select(m => m.Text)
+                .Take(MaxStatsTopicMessages)
+                .ToListAsync(cancellationToken);
 
             var topics = PageKeywords
                 .Select(kv => new
                 {
                     topic = kv.Value.names["ru"].Replace(" →", ""),
-                    count = userMessages.Count(m => kv.Key.Any(kw => m.Text.Contains(kw, StringComparison.OrdinalIgnoreCase)))
+                    count = topicMessages.Count(text => kv.Key.Any(kw => text.Contains(kw, StringComparison.OrdinalIgnoreCase)))
                 })
                 .Where(t => t.count > 0)
                 .OrderByDescending(t => t.count)
                 .ToList();
 
-            var byDay = userMessages
-                .GroupBy(m => m.CreatedAt.Date)
-                .Select(g => new { date = g.Key.ToString("yyyy-MM-dd"), count = g.Count() })
-                .OrderBy(g => g.date)
+            var byDay = byDayRows
+                .Select(g => new { date = g.Date.ToString("yyyy-MM-dd"), count = g.Count })
                 .ToList();
 
             return Ok(new
             {
-                totalMessages = userMessages.Count,
+                totalMessages,
                 totalSessions,
                 topics,
-                byDay
+                byDay,
+                analyzedMessages = topicMessages.Count,
+                topicsSampled = totalMessages > topicMessages.Count
             });
         }
 
