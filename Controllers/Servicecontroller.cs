@@ -9,20 +9,18 @@ namespace DentalClinic.Controllers;
 
 // Прайс клиники как обычные данные в БД, а не строка в системном промпте
 // чат-бота. Публичный GET используется страницей /pages/services.html,
-// админские методы — панелью администратора. Любое изменение сразу видно
-// AI-ассистенту (Дента) — см. ChatKnowledgeService.Invalidate().
+// админские методы — панелью администратора. Дента читает ограниченный актуальный
+// снимок из БД на каждый AI-запрос, поэтому изменения видны всем экземплярам сразу.
 [ApiController]
 [Route("api/[controller]")]
 public class ServiceController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
-    private readonly ChatKnowledgeService _knowledge;
     private readonly ILogger<ServiceController> _logger;
 
-    public ServiceController(ApplicationDbContext db, ChatKnowledgeService knowledge, ILogger<ServiceController> logger)
+    public ServiceController(ApplicationDbContext db, ILogger<ServiceController> logger)
     {
         _db = db;
-        _knowledge = knowledge;
         _logger = logger;
     }
 
@@ -99,7 +97,6 @@ public class ServiceController : ControllerBase
 
         _db.Services.Add(service);
         await _db.SaveChangesAsync();
-        _knowledge.Invalidate();
 
         _logger.LogInformation("Добавлена услуга: {Category}/{Name} (id={Id})", service.Category, service.Name, service.Id);
 
@@ -148,7 +145,6 @@ public class ServiceController : ControllerBase
         if (req.IsActive.HasValue) service.IsActive = req.IsActive.Value;
 
         await _db.SaveChangesAsync();
-        _knowledge.Invalidate();
 
         _logger.LogInformation("Обновлена услуга id={Id}: {Category}/{Name}", service.Id, service.Category, service.Name);
 
@@ -165,7 +161,6 @@ public class ServiceController : ControllerBase
 
         service.IsActive = false;
         await _db.SaveChangesAsync();
-        _knowledge.Invalidate();
 
         return Ok(service);
     }

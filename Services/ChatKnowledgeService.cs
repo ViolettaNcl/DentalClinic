@@ -1,7 +1,6 @@
 ﻿using DentalClinic.Data;
 using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using System.Text;
 
 namespace DentalClinic.Services
@@ -13,50 +12,38 @@ namespace DentalClinic.Services
     //  deliberately structured and language-neutral: source values may be stored
     //  in Russian, while the model is instructed by ChatController to render them
     //  in the active UI language without changing URLs or numeric prices.
+    //
+    //  Deliberately no process-local cache: on multi-instance/serverless deployments
+    //  invalidating IMemoryCache in one instance cannot invalidate the others. A chat
+    //  request already performs a much more expensive external Gemini call, so two
+    //  bounded no-tracking reads are a small cost for server-authoritative fresh facts.
     // ═══════════════════════════════════════════════════════════════════
     public class ChatKnowledgeService
     {
         private readonly ApplicationDbContext _db;
-        private readonly IMemoryCache _cache;
         private readonly IConfiguration _config;
 
-        private const string CacheKey = "chat_knowledge_prompt_v4";
-        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(2);
-
-        public ChatKnowledgeService(ApplicationDbContext db, IMemoryCache cache, IConfiguration config)
+        public ChatKnowledgeService(ApplicationDbContext db, IConfiguration config)
         {
             _db = db;
-            _cache = cache;
             _config = config;
         }
 
-        public void Invalidate()
+        public async Task<string> GetKnowledgeBlockAsync(CancellationToken cancellationToken = default)
         {
-            _cache.Remove(CacheKey);
-            // Clear previous keys as well during rolling deployments.
-            _cache.Remove("chat_knowledge_prompt_v3");
-            _cache.Remove("chat_knowledge_prompt_v2");
-            _cache.Remove("chat_knowledge_prompt_v1");
-        }
-
-        public async Task<string> GetKnowledgeBlockAsync()
-        {
-            if (_cache.TryGetValue(CacheKey, out string? cached) && cached != null)
-                return cached;
-
             var doctors = await _db.Doctors
                 .AsNoTracking()
                 .Where(d => d.IsActive)
                 .OrderBy(d => d.FullName)
                 .Take(20)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var services = await _db.Services
                 .AsNoTracking()
                 .Where(s => s.IsActive)
                 .OrderBy(s => s.Category).ThenBy(s => s.SortOrder).ThenBy(s => s.Id)
                 .Take(80)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var sb = new StringBuilder();
             AppendClinicalSafetyPolicy(sb);
@@ -97,9 +84,7 @@ namespace DentalClinic.Services
                     sb.AppendLine(FormatServiceLine(s));
             }
 
-            var block = sb.ToString();
-            _cache.Set(CacheKey, block, CacheTtl);
-            return block;
+            return sb.ToString();
         }
 
         private static void AppendClinicalSafetyPolicy(StringBuilder sb)
