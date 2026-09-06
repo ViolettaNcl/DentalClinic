@@ -9,12 +9,20 @@ namespace DentalClinic.Models;
 public class ChatMessageLog
 {
     private string? _clientIp;
+    private string _sessionId = string.Empty;
 
     [Key]
     public int Id { get; set; }
 
+    // SessionId comes from the browser and is therefore untrusted. The database
+    // column is nvarchar(64); normalize unusual/oversized values to a stable hash
+    // so analytics logging cannot be disabled by submitting a too-long identifier.
     [Required, StringLength(64)]
-    public string SessionId { get; set; } = null!;
+    public string SessionId
+    {
+        get => _sessionId;
+        set => _sessionId = NormalizeSessionId(value);
+    }
 
     public int? PatientId { get; set; }
 
@@ -38,6 +46,26 @@ public class ChatMessageLog
     {
         get => _clientIp;
         set => _clientIp = NormalizeClientIp(value);
+    }
+
+    private static string NormalizeSessionId(string? value)
+    {
+        var normalized = value?.Trim() ?? string.Empty;
+        if (normalized.Length == 0) return string.Empty;
+
+        // Standard client ids are UUID/hex-like values. Preserve them verbatim so
+        // existing analytics grouping stays readable and backwards compatible.
+        if (normalized.Length <= 64
+            && normalized.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+        {
+            return normalized;
+        }
+
+        // Hash instead of truncating: two malicious ids with the same 64-character
+        // prefix must not collapse into one analytics session.
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
+            .ToLowerInvariant();
     }
 
     private static string? NormalizeClientIp(string? value)
