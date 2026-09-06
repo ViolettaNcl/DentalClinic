@@ -7,6 +7,7 @@ using DentalClinic.Models;
 using DentalClinic.Data;
 using DentalClinic.Services;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -22,6 +23,7 @@ public class ReviewController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IMemoryCache _cache;
     private readonly ILogger<ReviewController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     // Тот же список моделей Gemini, что и в ChatController — от самой дешёвой
     // (для короткой задачи перевода этого достаточно) к более умной как фолбэк.
@@ -43,7 +45,8 @@ public class ReviewController : ControllerBase
         IHttpClientFactory httpFactory,
         IConfiguration config,
         IMemoryCache cache,
-        ILogger<ReviewController> logger)
+        ILogger<ReviewController> logger,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _notifications = notifications;
@@ -51,18 +54,19 @@ public class ReviewController : ControllerBase
         _config = config;
         _cache = cache;
         _logger = logger;
+        _environment = environment;
     }
 
     // =========================
     // Перевод текста отзыва на выбранный пользователем язык интерфейса.
-    // Сам текст отзыва — это слова пациента, они всегда хранятся в БД
-    // как есть (на языке автора); здесь мы только переводим его "на лету"
-    // для отображения и кэшируем результат, чтобы не звать AI повторно.
+    // Клиент передаёт только идентификатор отзыва и целевой язык. Исходный текст
+    // всегда загружается сервером из БД, иначе публичный endpoint можно было бы
+    // использовать как бесплатный прокси для перевода произвольных 1000 символов,
+    // тратя квоту Gemini клиники.
     // =========================
-    public class TranslateReviewRequest
+    public sealed class TranslateReviewRequest
     {
         public int ReviewId { get; set; }
-        public string Text { get; set; } = "";
         public string TargetLang { get; set; } = "en";
     }
 
@@ -70,25 +74,49 @@ public class ReviewController : ControllerBase
     [EnableRateLimiting("translate")]
     public async Task<IActionResult> TranslateReview([FromBody] TranslateReviewRequest req)
     {
-        var lang = (req.TargetLang ?? "").ToLowerInvariant();
+        // Endpoint нужен и гостям для публичной карусели. В production разрешаем
+        // только same-origin browser requests, чтобы сторонний сайт не мог расходовать
+        // квоту перевода клиники напрямую из браузеров своих посетителей.
+        if (!IsAllowedOrigin())
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Cross-origin review translation is not allowed" });
 
-        // Русский — язык, на котором пишут авторы отзывов по умолчанию,
-        // переводить самого себя не нужно.
-        if (lang == "ru" || string.IsNullOrWhiteSpace(req.Text))
-            return Ok(new { text = req.Text });
+        if (req.ReviewId <= 0)
+            return BadRequest(new { message = "Invalid review id" });
 
-        if (!TargetLangNames.TryGetValue(lang, out var langName))
-            return Ok(new { text = req.Text }); // неизвестный язык — отдаём как есть, а не ломаем страницу
+        var lang = (req.TargetLang ?? "").Trim().ToLowerInvariant();
+        if (lang != "ru" && !TargetLangNames.TryGetValue(lang, out _))
+            return BadRequest(new { message = "Unsupported language" });
 
-        var cacheKey = $"review-translate:{req.ReviewId}:{lang}:{req.Text.GetHashCode()}";
+        var review = await _context.Reviews
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == req.ReviewId);
+
+        if (review == null)
+            return NotFound();
+
+        // Одобренные отзывы публичны. Pending/rejected доступны для перевода только
+        // самому автору или администратору — те же правила, что и для списка отзывов
+        // пациента. Это не даёт перебором ID читать приватный текст модерации.
+        if (!string.Equals(review.Status, "approved", StringComparison.OrdinalIgnoreCase)
+            && !IsOwnerOrAdmin(review.PatientId))
+        {
+            return Forbid();
+        }
+
+        var originalText = review.Text ?? string.Empty;
+
+        // Русский — язык оригинала отзывов по умолчанию; AI для него не нужен.
+        if (lang == "ru" || string.IsNullOrWhiteSpace(originalText))
+            return Ok(new { text = originalText });
+
+        var langName = TargetLangNames[lang];
+        var safeText = originalText.Length > 1000 ? originalText[..1000] : originalText;
+        var cacheKey = BuildReviewTranslationCacheKey(review.Id, lang, safeText);
         if (_cache.TryGetValue(cacheKey, out string? cached) && cached != null)
             return Ok(new { text = cached });
 
-        var apiKey = _config["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey))
-            return Ok(new { text = req.Text }); // нет ключа — молча отдаём оригинал, лучше так чем ломать страницу
-
-        var safeText = req.Text.Length > 1000 ? req.Text[..1000] : req.Text;
+        if (string.IsNullOrWhiteSpace(_config["Gemini:ApiKey"]))
+            return Ok(new { text = originalText });
 
         var systemPrompt =
             $"Translate the user's text to {langName}. " +
@@ -115,7 +143,9 @@ public class ReviewController : ControllerBase
                 {
                     try
                     {
-                        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+                        // Реальный ключ не кладём в URL. Общий GeminiApiKeyHandler
+                        // заменяет compatibility key заголовком x-goog-api-key.
+                        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
                         var response = await http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
 
                         if ((int)response.StatusCode == 429)
@@ -129,7 +159,7 @@ public class ReviewController : ControllerBase
                         if (!response.IsSuccessStatusCode)
                         {
                             _logger.LogWarning("Ошибка перевода отзыва ({Status}) для модели {Model}", (int)response.StatusCode, model);
-                            return req.Text;
+                            return originalText;
                         }
 
                         var raw = await response.Content.ReadAsStringAsync();
@@ -139,7 +169,7 @@ public class ReviewController : ControllerBase
                             .GetProperty("content")
                             .GetProperty("parts")[0]
                             .GetProperty("text")
-                            .GetString()?.Trim() ?? req.Text;
+                            .GetString()?.Trim() ?? originalText;
 
                         _cache.Set(cacheKey, result, TimeSpan.FromDays(30));
                         return result;
@@ -152,11 +182,33 @@ public class ReviewController : ControllerBase
                 }
             }
 
-            // Все модели недоступны/перегружены — отдаём оригинал, чтобы страница не сломалась
-            return req.Text;
+            // Все модели недоступны/перегружены — отдаём оригинал, чтобы страница не сломалась.
+            return originalText;
         });
 
         return Ok(new { text = translated });
+    }
+
+    internal static string BuildReviewTranslationCacheKey(int reviewId, string lang, string text)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"review\n{reviewId}\n{lang}\n{text}"));
+        return $"review-translate:{Convert.ToHexString(bytes)}";
+    }
+
+    private bool IsAllowedOrigin()
+    {
+        var origin = Request.Headers.Origin.ToString();
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            var fetchSite = Request.Headers["Sec-Fetch-Site"].ToString();
+            if (string.Equals(fetchSite, "same-origin", StringComparison.OrdinalIgnoreCase)) return true;
+            return _environment.IsDevelopment() || _environment.IsEnvironment("Testing");
+        }
+
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri)) return false;
+        return string.Equals(originUri.Scheme, Request.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(originUri.Host, Request.Host.Host, StringComparison.OrdinalIgnoreCase)
+            && originUri.Port == (Request.Host.Port ?? (Request.IsHttps ? 443 : 80));
     }
 
     // =========================
@@ -373,6 +425,6 @@ public class ReviewController : ControllerBase
     {
         if (User.IsInRole("Admin")) return true;
         var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return idClaim != null && int.Parse(idClaim) == patientId;
+        return int.TryParse(idClaim, out var id) && id == patientId;
     }
 }
