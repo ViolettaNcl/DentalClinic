@@ -12,18 +12,15 @@ namespace DentalClinic.Controllers;
 public class DoctorController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
-    private readonly ChatKnowledgeService _knowledge;
     private readonly ClinicClock _clock;
     private readonly ILogger<DoctorController> _logger;
 
     public DoctorController(
         ApplicationDbContext db,
-        ChatKnowledgeService knowledge,
         ClinicClock clock,
         ILogger<DoctorController> logger)
     {
         _db = db;
-        _knowledge = knowledge;
         _clock = clock;
         _logger = logger;
     }
@@ -90,7 +87,6 @@ public class DoctorController : ControllerBase
 
         _db.Doctors.Add(doctor);
         await _db.SaveChangesAsync(cancellationToken);
-        _knowledge.Invalidate();
 
         _logger.LogInformation("Добавлен новый врач: {FullName} (id={Id})", doctor.FullName, doctor.Id);
 
@@ -163,7 +159,6 @@ public class DoctorController : ControllerBase
             doctor.Bio = NormalizeOptional(req.Bio);
 
         await _db.SaveChangesAsync(cancellationToken);
-        _knowledge.Invalidate();
 
         _logger.LogInformation("Обновлён врач id={Id}: {FullName}, активен={IsActive}", doctor.Id, doctor.FullName, doctor.IsActive);
 
