@@ -166,11 +166,6 @@ public class AppointmentRequestController : ControllerBase
         if (!AppointmentStatuses.TryNormalize(request.Status, out var previousStatus))
             return Conflict(new { message = "У заявки сохранён неизвестный статус. Исправьте данные вручную" });
 
-        if (dto.ClearAppointmentDate && dto.AppointmentDate.HasValue)
-            return BadRequest(new { message = "Нельзя одновременно задать и очистить время приёма" });
-        if (dto.ClearDoctorId && dto.DoctorId.HasValue)
-            return BadRequest(new { message = "Нельзя одновременно назначить и убрать врача" });
-
         var nextStatus = previousStatus;
         if (!string.IsNullOrWhiteSpace(dto.Status))
         {
@@ -181,18 +176,16 @@ public class AppointmentRequestController : ControllerBase
                 return BadRequest(new { message = $"Переход статуса {previousStatus} → {nextStatus} запрещён" });
         }
 
-        var nextDate = dto.ClearAppointmentDate
-            ? null
-            : dto.AppointmentDate.HasValue
+        // Explicit JSON null now means "clear this field", while an omitted property
+        // means "leave it unchanged". UpdateAppointmentRequest tracks property presence
+        // in its setters, which preserves partial-update semantics for nullable values.
+        var nextDate = dto.AppointmentDateSpecified
+            ? dto.AppointmentDate.HasValue
                 ? _scheduling.Normalize(dto.AppointmentDate.Value)
-                : request.AppointmentDate;
-        var nextDoctorId = dto.ClearDoctorId
-            ? null
-            : dto.DoctorId ?? request.DoctorId;
-        var scheduleChanged = dto.ClearAppointmentDate
-            || dto.ClearDoctorId
-            || dto.AppointmentDate.HasValue
-            || dto.DoctorId.HasValue;
+                : null
+            : request.AppointmentDate;
+        var nextDoctorId = dto.DoctorIdSpecified ? dto.DoctorId : request.DoctorId;
+        var scheduleChanged = dto.AppointmentDateSpecified || dto.DoctorIdSpecified;
         var becomingConfirmed = previousStatus != AppointmentStatuses.Confirmed
             && nextStatus == AppointmentStatuses.Confirmed;
         var reactivating = previousStatus != AppointmentStatuses.Pending
@@ -219,30 +212,18 @@ public class AppointmentRequestController : ControllerBase
             if (!validation.IsValid) return SchedulingError(validation);
         }
 
-        if (dto.ClearAppointmentDate)
-        {
-            request.AppointmentDate = null;
-            request.ReminderSent = false;
-        }
-        else if (dto.AppointmentDate.HasValue)
+        if (dto.AppointmentDateSpecified)
         {
             request.AppointmentDate = nextDate;
             request.ReminderSent = false;
         }
 
-        // Empty string is a deliberate clear operation for free-text comments;
-        // omitted/null still means "leave unchanged" for partial update clients.
-        if (dto.Comment != null)
+        if (dto.CommentSpecified)
             request.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
 
         request.Status = nextStatus;
 
-        if (dto.ClearDoctorId)
-        {
-            request.DoctorId = null;
-            request.ReminderSent = false;
-        }
-        else if (dto.DoctorId.HasValue)
+        if (dto.DoctorIdSpecified)
         {
             request.DoctorId = dto.DoctorId;
             request.ReminderSent = false;
