@@ -9,6 +9,8 @@
 //   showError(t('err_generic'));
 // =====================================================
 
+import { applyTranslationQualityOverrides } from './translationQualityOverrides.js';
+
 const DEFAULT_LANG = 'ru';
 const STORAGE_KEY = 'site_lang';
 const I18N_BASE_URL = '/assets/i18n/';
@@ -29,7 +31,7 @@ async function loadDictionary(code) {
     try {
         const res = await fetch(`${I18N_BASE_URL}${code}.json`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = applyTranslationQualityOverrides(code, await res.json());
         cache[code] = data;
         return data;
     } catch (err) {
