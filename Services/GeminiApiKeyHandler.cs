@@ -235,13 +235,13 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             var links = structured["links"]?.AsArray()
                 .Select(x => x as JsonObject)
                 .Where(x => x != null)
-                .Take(2)
                 .Select(x => new Dictionary<string, string>
                 {
-                    ["text"] = x!["text"]?.GetValue<string>() ?? "",
-                    ["url"] = x["url"]?.GetValue<string>() ?? ""
+                    ["text"] = x!["text"]?.GetValue<string>()?.Trim() ?? "",
+                    ["url"] = x["url"]?.GetValue<string>()?.Trim() ?? ""
                 })
-                .Where(x => x["url"].StartsWith("/pages/", StringComparison.Ordinal))
+                .Where(x => !string.IsNullOrWhiteSpace(x["text"]) && IsSafeLocalPageLink(x["url"]))
+                .Take(2)
                 .ToList() ?? new List<Dictionary<string, string>>();
 
             var startBooking = structured["startBooking"]?.GetValue<bool>() == true;
@@ -263,6 +263,10 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return false;
         }
     }
+
+    private static bool IsSafeLocalPageLink(string url) =>
+        url.StartsWith("/pages/", StringComparison.Ordinal)
+        && ServiceCatalogPolicy.IsValidPageUrl(url);
 
     private static string BookingSuggestionFor(string language) => language switch
     {
