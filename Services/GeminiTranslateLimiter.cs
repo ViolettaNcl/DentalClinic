@@ -18,9 +18,15 @@ public static class GeminiTranslateLimiter
     private static DateTime _lastCallUtc = DateTime.MinValue;
     private static readonly object TimeLock = new();
 
-    public static async Task<T> RunAsync<T>(Func<Task<T>> action)
+    public static Task<T> RunAsync<T>(Func<Task<T>> action)
+        => RunAsync(action, CancellationToken.None);
+
+    public static async Task<T> RunAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync();
+        // A disconnected browser must not keep occupying the global translation gate
+        // or wait out the spacing delay only to spend Gemini quota after the caller is
+        // already gone. Propagate request cancellation through both waits.
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             TimeSpan waitFor;
@@ -30,7 +36,9 @@ public static class GeminiTranslateLimiter
                 waitFor = earliestAllowed > DateTime.UtcNow ? earliestAllowed - DateTime.UtcNow : TimeSpan.Zero;
             }
             if (waitFor > TimeSpan.Zero)
-                await Task.Delay(waitFor);
+                await Task.Delay(waitFor, cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
