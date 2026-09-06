@@ -9,11 +9,16 @@ public class NotificationService
 {
     private readonly ApplicationDbContext _db;
     private readonly IHubContext<NotificationHub> _hub;
+    private readonly ILogger<NotificationService> _logger;
 
-    public NotificationService(ApplicationDbContext db, IHubContext<NotificationHub> hub)
+    public NotificationService(
+        ApplicationDbContext db,
+        IHubContext<NotificationHub> hub,
+        ILogger<NotificationService> logger)
     {
         _db = db;
         _hub = hub;
+        _logger = logger;
     }
 
     public async Task NotifyAsync(int patientId, string type, string message, int? relatedId = null)
@@ -30,35 +35,59 @@ public class NotificationService
             CreatedAt = DateTime.UtcNow
         };
 
+        // Persistence is the durable source of truth for patient notifications.
+        // Realtime delivery is only an optimization for an already-open browser tab.
+        // Do not let a transient SignalR failure turn a successfully committed
+        // appointment/review operation into an HTTP 500 that the user may retry.
         _db.Notifications.Add(notification);
         await _db.SaveChangesAsync();
 
-        // Realtime: толкаем событие пациенту, если он сейчас онлайн (открыта вкладка сайта).
-        // Если нет соединения — ничего страшного, колокольчик подтянет его при следующем
-        // опросе/логине через обычный GET /api/notification.
-        await _hub.Clients.Group($"patient-{patientId}").SendAsync("ReceiveNotification", new
+        try
         {
-            notification.Id,
-            notification.Type,
-            notification.Message,
-            notification.RelatedId,
-            notification.IsRead,
-            notification.CreatedAt
-        });
+            await _hub.Clients.Group($"patient-{patientId}").SendAsync("ReceiveNotification", new
+            {
+                notification.Id,
+                notification.Type,
+                notification.Message,
+                notification.RelatedId,
+                notification.IsRead,
+                notification.CreatedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Realtime delivery failed for persisted notification {NotificationId} to patient {PatientId}",
+                notification.Id,
+                patientId);
+        }
     }
 
     /// <summary>
     /// Уведомление для всех подключённых администраторов (новая заявка, новый отзыв на
     /// модерацию и т.п.) — не сохраняется в БД, только живой пуш в открытые вкладки админки.
+    /// Это побочный realtime-канал: его отказ не должен отменять уже сохранённую заявку/отзыв.
     /// </summary>
     public async Task NotifyAdminsAsync(string type, string message, int? relatedId = null)
     {
-        await _hub.Clients.Group("admins").SendAsync("ReceiveAdminNotification", new
+        try
         {
-            type,
-            message,
-            relatedId,
-            createdAt = DateTime.UtcNow
-        });
+            await _hub.Clients.Group("admins").SendAsync("ReceiveAdminNotification", new
+            {
+                type,
+                message,
+                relatedId,
+                createdAt = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Realtime admin notification delivery failed for type {Type} and related id {RelatedId}",
+                type,
+                relatedId);
+        }
     }
 }
