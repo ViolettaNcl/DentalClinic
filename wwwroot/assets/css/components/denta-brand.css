@@ -1,0 +1,63 @@
+/* Denta bot branding -------------------------------------------------------
+   The floating launcher and chat header use the dedicated Denta logo.
+   Message bubbles intentionally keep the simple tooth avatar (🦷) so the
+   conversation stays visually light and readable, as requested. */
+
+.chat-toggle > svg {
+    display: none;
+}
+
+.chat-toggle::after {
+    content: '';
+    position: relative;
+    z-index: 1;
+    width: 58px;
+    height: 58px;
+    display: block;
+    background: url('/assets/images/denta-logo.svg') center / contain no-repeat;
+    filter: drop-shadow(0 4px 8px rgba(4, 53, 103, .22));
+    pointer-events: none;
+}
+
+.chat-toggle {
+    background: linear-gradient(145deg, #f9fdff 0%, #dff9ff 52%, #bfeaff 100%);
+    box-shadow: 0 8px 28px rgba(0, 126, 214, .34), 0 0 0 1px rgba(255,255,255,.9) inset;
+    overflow: visible;
+}
+
+.chat-toggle:hover {
+    box-shadow: 0 12px 38px rgba(0, 126, 214, .42);
+}
+
+.chat-avatar {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    font-size: 0;
+    background-color: rgba(255,255,255,.96);
+    background-image: url('/assets/images/denta-logo.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 112%;
+    border: 2px solid rgba(255,255,255,.78);
+    border-radius: 18px;
+    box-shadow: 0 6px 18px rgba(3, 64, 117, .24), 0 0 0 4px rgba(255,255,255,.1);
+}
+
+/* Keep responses intentionally minimal: only the tooth, not the full logo. */
+.chat-bubble-avatar {
+    font-size: 1rem;
+}
+
+@media (max-width: 480px) {
+    .chat-toggle::after {
+        width: 52px;
+        height: 52px;
+    }
+
+    .chat-avatar {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+    }
+}
