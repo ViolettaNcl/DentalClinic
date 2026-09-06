@@ -71,7 +71,7 @@ public class ServiceController : ControllerBase
             return BadRequest(new { message = "Укажите категорию и название услуги" });
 
         if (!ServiceCatalogPolicy.IsValidPriceRange(req.PriceFrom, req.PriceTo))
-            return BadRequest(new { message = "Проверьте диапазон цен: значения не могут быть отрицательными, а цена 'до' не может быть ниже цены 'от'" });
+            return BadRequest(new { message = "Проверьте диапазон цен: от 0 до 99 999 999,99, не более 2 знаков после запятой; цена 'до' не может быть ниже цены 'от'" });
 
         if (!ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
             return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
@@ -124,7 +124,7 @@ public class ServiceController : ControllerBase
         var nextIsActive = req.IsActive ?? service.IsActive;
 
         if (!ServiceCatalogPolicy.IsValidPriceRange(nextPriceFrom, nextPriceTo))
-            return BadRequest(new { message = "Проверьте диапазон цен: значения не могут быть отрицательными, а цена 'до' не может быть ниже цены 'от'" });
+            return BadRequest(new { message = "Проверьте диапазон цен: от 0 до 99 999 999,99, не более 2 знаков после запятой; цена 'до' не может быть ниже цены 'от'" });
 
         if (req.PageUrl != null && !ServiceCatalogPolicy.IsValidPageUrl(req.PageUrl))
             return BadRequest(new { message = "Ссылка услуги должна вести на локальную страницу /pages/..." });
