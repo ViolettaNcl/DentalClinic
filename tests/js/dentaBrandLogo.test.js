@@ -17,7 +17,7 @@ test('Denta brand stylesheet is loaded after the base chat styles', async () => 
     assert.ok(brandIndex > baseIndex);
 });
 
-test('Denta launcher and header use the dedicated logo asset', async () => {
+test('Denta launcher and header use the dedicated full logo asset', async () => {
     const brandCss = await source('wwwroot/assets/css/components/denta-brand.css');
     const logo = await source('wwwroot/assets/images/denta-logo.svg');
 
@@ -26,9 +26,15 @@ test('Denta launcher and header use the dedicated logo asset', async () => {
     assert.match(logo, /Denta AI assistant logo/);
 });
 
-test('bot replies keep the simple tooth avatar rather than the full wordmark', async () => {
+test('bot replies use the dedicated mascot avatar without a wordmark', async () => {
+    const brandCss = await source('wwwroot/assets/css/components/denta-brand.css');
+    const avatar = await source('wwwroot/assets/images/denta-avatar.svg');
     const chatBot = await source('wwwroot/assets/js/core/chatBot.js');
 
-    const toothAvatars = chatBot.match(/class="chat-bubble-avatar">🦷<\/span>/g) || [];
-    assert.ok(toothAvatars.length >= 2, 'streaming and non-streaming bot replies should keep the tooth avatar');
+    assert.match(brandCss, /\.chat-bubble--bot\s+\.chat-bubble-avatar[\s\S]*denta-avatar\.svg/);
+    assert.match(avatar, /Denta reply avatar/);
+    assert.doesNotMatch(avatar, />\s*Denta\s*</i);
+
+    const toothFallbacks = chatBot.match(/class="chat-bubble-avatar">🦷<\/span>/g) || [];
+    assert.ok(toothFallbacks.length >= 2);
 });
