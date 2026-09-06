@@ -162,6 +162,22 @@ public class ServiceCatalogIntegrityTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task Create_PriceWithMoreThanTwoFractionalDigits_ReturnsBadRequest()
+    {
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PostAsJsonAsync("/api/service", new
+        {
+            category = "Test",
+            name = "Over precise price",
+            priceFrom = 123.456m,
+            pageUrl = $"/pages/services/test-{Guid.NewGuid():N}.html",
+            sortOrder = 0
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Update_OversizedName_ReturnsBadRequestAndPreservesStoredValue()
     {
         int serviceId;
@@ -226,6 +242,45 @@ public class ServiceCatalogIntegrityTests : IClassFixture<CustomWebApplicationFa
         var response = await client.PutAsJsonAsync($"/api/service/{serviceId}", new
         {
             priceFrom = 100_000_000m
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var verificationScope = _factory.Services.CreateScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await verificationDb.Services.FindAsync(serviceId);
+        Assert.NotNull(saved);
+        Assert.Equal(250m, saved!.PriceFrom);
+        Assert.Equal(500m, saved.PriceTo);
+    }
+
+    [Fact]
+    public async Task Update_OverPrecisePrice_ReturnsBadRequestAndPreservesStoredValue()
+    {
+        int serviceId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var service = new Service
+            {
+                Category = "Test",
+                Name = "Precise price",
+                PriceFrom = 250,
+                PriceTo = 500,
+                PageUrl = $"/pages/services/test-{Guid.NewGuid():N}.html",
+                SortOrder = 0,
+                IsActive = true
+            };
+            db.Services.Add(service);
+            await db.SaveChangesAsync();
+            serviceId = service.Id;
+        }
+
+        var client = await CreateAuthenticatedAdminClientAsync();
+        var response = await client.PutAsJsonAsync($"/api/service/{serviceId}", new
+        {
+            priceFrom = 250.555m
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
