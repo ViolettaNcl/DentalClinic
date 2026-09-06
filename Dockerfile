@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ============ 1. Build & Publish ============
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Кэшируем restore отдельным слоем: пересобирается только если поменялся .csproj
@@ -16,20 +16,16 @@ RUN dotnet publish ./DentalClinic.csproj \
     --no-restore
 
 # ============ 2. Runtime ============
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Непривилегированный пользователь вместо root
-RUN adduser --disabled-password --gecos "" appuser
-
+# .NET 10 images already ship with the non-root `app` account (APP_UID=1654).
+# Make the published tree and avatar upload directory writable by that account.
 COPY --from=build /app/publish .
-
-# Папка для загруженных файлов (аватары) — монтируется как volume в compose,
-# поэтому сразу отдаём её в собственность appuser
 RUN mkdir -p /app/wwwroot/uploads/avatars \
-    && chown -R appuser:appuser /app
+    && chown -R app:app /app
 
-USER appuser
+USER $APP_UID
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080

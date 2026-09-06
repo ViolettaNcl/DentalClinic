@@ -20,7 +20,7 @@ jobs:
           ref: main
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
       - run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
       - run: dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release --logger "console;verbosity=normal"
 
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         if: steps.ftp.outputs.configured == 'true'
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Publish ASP.NET Core app
         if: steps.ftp.outputs.configured == 'true'
