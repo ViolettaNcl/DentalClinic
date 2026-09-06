@@ -1,7 +1,7 @@
 /* Denta bot branding -------------------------------------------------------
    The floating launcher and chat header use the dedicated Denta logo.
-   Message bubbles intentionally keep the simple tooth avatar (🦷) so the
-   conversation stays visually light and readable, as requested. */
+   Bot replies use the compact tooth-only Denta mascot, so the conversation keeps
+   the same character without repeating the full wordmark on every message. */
 
 .chat-toggle > svg {
     display: none;
@@ -44,9 +44,21 @@
     box-shadow: 0 6px 18px rgba(3, 64, 117, .24), 0 0 0 4px rgba(255,255,255,.1);
 }
 
-/* Keep responses intentionally minimal: only the tooth, not the full logo. */
+/* Tooth-only Denta mascot for every bot reply. The legacy 🦷 text remains in the
+   DOM as a harmless fallback, but is visually replaced by the branded asset. */
 .chat-bubble-avatar {
-    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    font-size: 0;
+    background-color: transparent;
+    background-image: url('/assets/images/denta-reply-avatar.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    border: 0;
+    border-radius: 0;
+    filter: drop-shadow(0 2px 5px rgba(3, 64, 117, .18));
 }
 
 @media (max-width: 480px) {
@@ -59,5 +71,11 @@
         width: 48px;
         height: 48px;
         flex-basis: 48px;
+    }
+
+    .chat-bubble-avatar {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
     }
 }
