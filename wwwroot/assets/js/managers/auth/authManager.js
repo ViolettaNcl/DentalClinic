@@ -1,6 +1,7 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, showConfirm, queueToast } from '../../services/ui.js';
 import { t, onLanguageChange } from '../../core/i18n.js';
+import { shouldTryAdminFallback } from './authLoginPolicy.js';
 
 class AuthManager {
     constructor() {
@@ -87,6 +88,11 @@ class AuthManager {
                         body: JSON.stringify(data)
                     });
                 } catch (patientErr) {
+                    // The form is shared by patients and admins, but an admin lookup is
+                    // appropriate only after the patient endpoint explicitly rejects the
+                    // credentials. Do not double traffic on 429/5xx/network failures.
+                    if (!shouldTryAdminFallback(patientErr)) throw patientErr;
+
                     res = await apiFetch('/auth/admin/login', {
                         method: 'POST',
                         body: JSON.stringify(data)

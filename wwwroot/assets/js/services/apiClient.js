@@ -1,5 +1,21 @@
 const API_BASE = '/api';
 
+export class ApiError extends Error {
+    constructor(message, status, payload = null) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = Number.isInteger(status) ? status : null;
+        this.payload = payload;
+    }
+}
+
+function clearLocalSessionMetadata() {
+    if (typeof sessionStorage === 'undefined') return;
+
+    ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken']
+        .forEach(key => sessionStorage.removeItem(key));
+}
+
 export async function apiFetch(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
 
@@ -19,15 +35,14 @@ export async function apiFetch(endpoint, options = {}) {
     try {
         const response = await fetch(url, config);
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            if (response.status === 401) {
-                sessionStorage.removeItem('patientId');
-                sessionStorage.removeItem('patientName');
-                sessionStorage.removeItem('patientEmail');
-                sessionStorage.removeItem('userRole');
-                sessionStorage.removeItem('authToken'); // remove legacy tokens after upgrade
-            }
-            throw new Error(error.message || `Ошибка ${response.status}`);
+            const payload = await response.json().catch(() => ({}));
+            if (response.status === 401)
+                clearLocalSessionMetadata();
+
+            // Preserve HTTP status for callers that need to distinguish an
+            // authentication failure from rate limits, server failures or a bad request.
+            // This is particularly important for the shared patient/admin login form.
+            throw new ApiError(payload.message || `Ошибка ${response.status}`, response.status, payload);
         }
 
         if (response.status === 204) return null;
