@@ -51,7 +51,7 @@ public class TranslateController : ControllerBase
     [EnableRateLimiting("translate")]
     public async Task<IActionResult> Translate(
         [FromBody] TranslateRequest req,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         // The endpoint stays available to guests because public doctor/review pages
         // use it. In production, only same-origin browser requests are accepted so
