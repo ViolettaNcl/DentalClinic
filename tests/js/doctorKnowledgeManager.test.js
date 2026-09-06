@@ -22,7 +22,7 @@ test('builds normalized doctor knowledge payload', () => {
     });
 });
 
-test('edit payload carries active state', () => {
+test('edit payload carries active state and can explicitly clear experience', () => {
     const result = buildDoctorPayload({
         fullName: 'Dr. Test',
         experienceYears: '',
@@ -30,8 +30,21 @@ test('edit payload carries active state', () => {
     }, { edit: true });
 
     assert.equal(result.ok, true);
-    assert.equal(result.payload.experienceYears, null);
+    assert.equal(result.payload.clearExperienceYears, true);
     assert.equal(result.payload.isActive, false);
+    assert.equal('experienceYears' in result.payload, false);
+});
+
+test('edit payload preserves a supplied experience value', () => {
+    const result = buildDoctorPayload({
+        fullName: 'Dr. Test',
+        experienceYears: '14',
+        isActive: true,
+    }, { edit: true });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.payload.clearExperienceYears, false);
+    assert.equal(result.payload.experienceYears, 14);
 });
 
 test('rejects missing name and invalid experience', () => {
