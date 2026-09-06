@@ -15,10 +15,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           ref: main
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: '10.0.x'
       - run: dotnet restore DentalClinic.Tests/DentalClinic.Tests.csproj
@@ -47,12 +47,12 @@ jobs:
             echo "::warning::FTPS backup deployment skipped. Configure FTP_SERVER, FTP_USERNAME, FTP_PASSWORD and FTP_SERVER_DIR in the production environment/repository secrets."
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         if: steps.ftp.outputs.configured == 'true'
         with:
           ref: main
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6.0.0
         if: steps.ftp.outputs.configured == 'true'
         with:
           dotnet-version: '10.0.x'
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload published app over FTPS
         if: steps.ftp.outputs.configured == 'true'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
@@ -85,10 +85,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           ref: main
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4.5.2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -96,7 +96,7 @@ jobs:
       - name: Compute lowercase image name
         id: image
         run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
