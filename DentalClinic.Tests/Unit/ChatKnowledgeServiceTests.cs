@@ -2,7 +2,6 @@ using DentalClinic.Data;
 using DentalClinic.Models;
 using DentalClinic.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -44,7 +43,6 @@ public class ChatKnowledgeServiceTests
         });
         await db.SaveChangesAsync();
 
-        using var cache = new MemoryCache(new MemoryCacheOptions());
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Clinic:Phone"] = "+7 999 000-00-00",
@@ -53,7 +51,7 @@ public class ChatKnowledgeServiceTests
             ["Clinic:Hours"] = "Mon-Sat 9-20"
         }).Build();
 
-        var service = new ChatKnowledgeService(db, cache, config);
+        var service = new ChatKnowledgeService(db, config);
         var block = await service.GetKnowledgeBlockAsync();
         var contacts = service.GetContactsBlock();
 
@@ -108,9 +106,8 @@ public class ChatKnowledgeServiceTests
             });
         await db.SaveChangesAsync();
 
-        using var cache = new MemoryCache(new MemoryCacheOptions());
         var config = new ConfigurationBuilder().Build();
-        var service = new ChatKnowledgeService(db, cache, config);
+        var service = new ChatKnowledgeService(db, config);
 
         var block = await service.GetKnowledgeBlockAsync();
 
@@ -119,5 +116,45 @@ public class ChatKnowledgeServiceTests
         Assert.Contains("Active Service", block, StringComparison.Ordinal);
         Assert.DoesNotContain("Inactive Service", block, StringComparison.Ordinal);
         Assert.DoesNotContain("evil.example", block, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task KnowledgeBlock_SeesDatabaseChangesMadeByAnotherApplicationInstanceImmediately()
+    {
+        var dbName = $"knowledge-freshness-{Guid.NewGuid():N}";
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .Options;
+        var config = new ConfigurationBuilder().Build();
+
+        await using var firstInstanceDb = new ApplicationDbContext(options);
+        firstInstanceDb.Services.Add(new Service
+        {
+            Category = "Care",
+            Name = "Original Price",
+            PriceFrom = 100m,
+            IsActive = true
+        });
+        await firstInstanceDb.SaveChangesAsync();
+
+        var firstInstanceKnowledge = new ChatKnowledgeService(firstInstanceDb, config);
+        var before = await firstInstanceKnowledge.GetKnowledgeBlockAsync();
+        Assert.Contains("price_from=100", before, StringComparison.Ordinal);
+
+        await using (var adminInstanceDb = new ApplicationDbContext(options))
+        {
+            var service = await adminInstanceDb.Services.SingleAsync();
+            service.PriceFrom = 250m;
+            service.Name = "Updated Price";
+            await adminInstanceDb.SaveChangesAsync();
+        }
+
+        // No local Invalidate() signal is sent to the first instance. A fresh DB read
+        // must still observe the change, which is what production multi-instance
+        // deployments need when another container handled the admin update.
+        var after = await firstInstanceKnowledge.GetKnowledgeBlockAsync();
+        Assert.Contains("name=Updated Price", after, StringComparison.Ordinal);
+        Assert.Contains("price_from=250", after, StringComparison.Ordinal);
+        Assert.DoesNotContain("name=Original Price", after, StringComparison.Ordinal);
     }
 }
