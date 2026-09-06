@@ -111,5 +111,6 @@ public class MaintenanceFollowUpTests : IClassFixture<CustomWebApplicationFactor
 
         var notification = Assert.Single(notifications);
         Assert.Contains("отзыв", notification.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal($"appointment-followup:{appointmentId}", notification.IdempotencyKey);
     }
 }
