@@ -7,8 +7,15 @@ namespace DentalClinic.Services;
 /// </summary>
 public static class ServiceCatalogPolicy
 {
+    // SQL persistence uses decimal(10,2), so values above this cannot be stored
+    // safely even if they pass the business checks for non-negative price/order.
+    public const decimal MaxPersistedPrice = 99_999_999.99m;
+
     public static bool IsValidPriceRange(decimal priceFrom, decimal? priceTo) =>
-        priceFrom >= 0 && (!priceTo.HasValue || priceTo.Value >= priceFrom);
+        priceFrom >= 0
+        && priceFrom <= MaxPersistedPrice
+        && (!priceTo.HasValue
+            || (priceTo.Value >= priceFrom && priceTo.Value <= MaxPersistedPrice));
 
     public static bool IsValidSortOrder(int sortOrder) => sortOrder >= 0;
 
