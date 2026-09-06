@@ -18,6 +18,7 @@ namespace DentalClinic.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Service> Services { get; set; }
         public DbSet<ChatMessageLog> ChatMessageLogs { get; set; }
+        public DbSet<PaidApiUsageWindow> PaidApiUsageWindows { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -101,6 +102,19 @@ namespace DentalClinic.Data
                 .HasIndex(c => c.SessionId);
             modelBuilder.Entity<ChatMessageLog>()
                 .HasIndex(c => c.CreatedAt);
+
+            modelBuilder.Entity<PaidApiUsageWindow>()
+                .HasKey(x => new { x.Bucket, x.ClientKey });
+            modelBuilder.Entity<PaidApiUsageWindow>()
+                .Property(x => x.Bucket)
+                .HasMaxLength(32);
+            modelBuilder.Entity<PaidApiUsageWindow>()
+                .Property(x => x.ClientKey)
+                .HasMaxLength(64);
+            modelBuilder.Entity<PaidApiUsageWindow>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_PaidApiUsageWindows_RequestCount",
+                    "[RequestCount] >= 0"));
         }
     }
 }

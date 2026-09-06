@@ -31,6 +31,7 @@ builder.Services.AddSingleton<ClinicClock>();
 builder.Services.AddScoped<AppointmentSchedulingService>();
 builder.Services.AddScoped<AppointmentMaintenanceService>();
 builder.Services.AddScoped<AdminAnalyticsService>();
+builder.Services.AddScoped<DistributedPaidApiQuotaService>();
 var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
 
 if (!isVercel)
@@ -197,7 +198,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 40,
+                PermitLimit = PaidApiQuotaPolicy.TranslatePermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
@@ -305,6 +306,34 @@ app.Use(async (context, next) =>
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync("{\"message\":\"Cross-origin AI requests are not allowed\"}");
             return;
+        }
+
+        // The built-in ASP.NET limiter below is process-local. In production also
+        // reserve the same client budget in SQL so spinning up another Vercel/container
+        // instance cannot multiply paid Gemini/ElevenLabs quota.
+        if (!app.Environment.IsDevelopment()
+            && !app.Environment.IsEnvironment("Testing")
+            && PaidApiQuotaPolicy.TryResolve(context.Request.Path.Value, out var quotaProfile))
+        {
+            var quota = context.RequestServices.GetRequiredService<DistributedPaidApiQuotaService>();
+            var clientKey = PaidApiQuotaPolicy.CreateClientKey(
+                context.Connection.RemoteIpAddress?.ToString());
+            var acquired = await quota.TryAcquireAsync(
+                quotaProfile.Bucket,
+                clientKey,
+                quotaProfile.PermitLimit,
+                context.RequestAborted);
+
+            if (!acquired)
+            {
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                context.Response.ContentType = "application/json";
+                context.Response.Headers["Retry-After"] = "60";
+                await context.Response.WriteAsync(
+                    "{\"message\":\"Слишком много платных AI-запросов. Попробуйте через минуту.\"}",
+                    context.RequestAborted);
+                return;
+            }
         }
     }
 
