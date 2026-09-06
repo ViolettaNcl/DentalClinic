@@ -62,6 +62,36 @@ public class ReviewModerationIdempotencyTests : IClassFixture<CustomWebApplicati
     }
 
     [Fact]
+    public async Task Moderate_ParallelIdenticalApprovals_CreateOneTransitionAndOneNotification()
+    {
+        var (_, reviewId) = await CreatePatientReviewAsync();
+        var adminClient = await CreateAdminClientAsync();
+        var url = $"/api/review/admin/{reviewId}/moderate";
+
+        var requests = new[]
+        {
+            adminClient.PutAsJsonAsync(url, new ModerateReviewRequest { Status = "approved" }),
+            adminClient.PutAsJsonAsync(url, new ModerateReviewRequest { Status = " APPROVED " })
+        };
+
+        var responses = await Task.WhenAll(requests);
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+
+        var bodies = await Task.WhenAll(responses.Select(response =>
+            response.Content.ReadFromJsonAsync<JsonElement>()));
+        Assert.Equal(1, bodies.Count(body => body.GetProperty("idempotent").GetBoolean()));
+        Assert.Equal(1, bodies.Count(body => !body.GetProperty("idempotent").GetBoolean()));
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = await db.Reviews.AsNoTracking().SingleAsync(r => r.Id == reviewId);
+        Assert.Equal("approved", saved.Status);
+        Assert.NotNull(saved.ModeratedAt);
+        Assert.Equal(1, await db.Notifications.CountAsync(n =>
+            n.RelatedId == reviewId && n.Type == "review_approved"));
+    }
+
+    [Fact]
     public async Task Moderate_ReplayedRejectionWithEquivalentTrimmedReason_IsIdempotent()
     {
         var (patientClient, reviewId) = await CreatePatientReviewAsync();

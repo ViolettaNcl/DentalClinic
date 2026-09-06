@@ -22,15 +22,20 @@ public class NotificationService
         _logger = logger;
     }
 
-    public async Task NotifyAsync(int patientId, string type, string message, int? relatedId = null)
+    public async Task NotifyAsync(
+        int patientId,
+        string type,
+        string message,
+        int? relatedId = null,
+        CancellationToken cancellationToken = default)
     {
         var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey: null);
 
         // Persistence is the durable source of truth for patient notifications.
         // Realtime delivery is only an optimization for an already-open browser tab.
         _db.Notifications.Add(notification);
-        await _db.SaveChangesAsync();
-        await DeliverPatientRealtimeBestEffortAsync(notification);
+        await _db.SaveChangesAsync(cancellationToken);
+        await DeliverPatientRealtimeBestEffortAsync(notification, cancellationToken);
     }
 
     /// <summary>
