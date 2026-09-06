@@ -10,13 +10,12 @@ public static class PaidApiOriginPolicy
         int? requestPort,
         bool allowDirectRequests)
     {
+        // Fetch-Metadata headers are useful browser signals, but they are ordinary
+        // client-controlled HTTP headers and can be forged by curl/bots. For paid
+        // production APIs, missing Origin therefore cannot be treated as proof of
+        // same-origin. Direct calls without Origin stay available only in local/test.
         if (string.IsNullOrWhiteSpace(origin))
-        {
-            if (string.Equals(fetchSite, "same-origin", StringComparison.OrdinalIgnoreCase))
-                return true;
-
             return allowDirectRequests;
-        }
 
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
             return false;

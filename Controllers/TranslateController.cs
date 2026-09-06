@@ -150,21 +150,11 @@ public class TranslateController : ControllerBase
     }
 
     private bool IsAllowedOrigin()
-    {
-        var origin = Request.Headers.Origin.ToString();
-        if (string.IsNullOrWhiteSpace(origin))
-        {
-            // Browser same-origin fetches can be identified even when a user agent
-            // omits Origin. Direct tools/curl without browser metadata are allowed
-            // only in local/test environments.
-            var fetchSite = Request.Headers["Sec-Fetch-Site"].ToString();
-            if (string.Equals(fetchSite, "same-origin", StringComparison.OrdinalIgnoreCase)) return true;
-            return _environment.IsDevelopment() || _environment.IsEnvironment("Testing");
-        }
-
-        if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri)) return false;
-        return string.Equals(originUri.Scheme, Request.Scheme, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(originUri.Host, Request.Host.Host, StringComparison.OrdinalIgnoreCase)
-            && originUri.Port == (Request.Host.Port ?? (Request.IsHttps ? 443 : 80));
-    }
+        => PaidApiOriginPolicy.IsAllowed(
+            Request.Headers.Origin.ToString(),
+            Request.Headers["Sec-Fetch-Site"].ToString(),
+            Request.Scheme,
+            Request.Host.Host,
+            Request.Host.Port,
+            _environment.IsDevelopment() || _environment.IsEnvironment("Testing"));
 }
