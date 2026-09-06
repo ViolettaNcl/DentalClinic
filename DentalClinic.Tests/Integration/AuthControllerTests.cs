@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DentalClinic.Data;
 using DentalClinic.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace DentalClinic.Tests.Integration;
@@ -66,6 +69,92 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
             value => value.Contains("dc_auth=", StringComparison.OrdinalIgnoreCase)
                 && (value.Contains("expires=", StringComparison.OrdinalIgnoreCase)
                     || value.Contains("max-age=0", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task Logout_RevokesPreviouslyIssuedPatientTokenServerSide()
+    {
+        var client = _factory.CreateClient();
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            ValidRegisterRequest(UniqueEmail("logout-revoke")));
+        var oldToken = ExtractAuthToken(register);
+
+        var logout = await client.PostAsync("/api/auth/logout", null);
+        Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+
+        var replayClient = CreateBearerClient(oldToken);
+        var replay = await replayClient.GetAsync("/api/auth/profile");
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordChange_RevokesOldTokenAndNewLoginSucceeds()
+    {
+        var client = _factory.CreateClient();
+        var email = UniqueEmail("password-revoke");
+        const string oldPassword = "password123";
+        const string newPassword = "password456";
+
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            ValidRegisterRequest(email, oldPassword));
+        var oldToken = ExtractAuthToken(register);
+
+        var changed = await client.PutAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest
+        {
+            CurrentPassword = oldPassword,
+            NewPassword = newPassword
+        });
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+
+        var replayClient = CreateBearerClient(oldToken);
+        var replay = await replayClient.GetAsync("/api/auth/profile");
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = email,
+            Password = newPassword
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var profile = await client.GetAsync("/api/auth/profile");
+        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminLogout_RevokesPreviouslyIssuedAdminTokenServerSide()
+    {
+        var email = UniqueEmail("admin-revoke");
+        const string password = "admin-test-password";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Admins.Add(new Admin
+            {
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = _factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/api/auth/admin/login", new LoginRequest
+        {
+            Email = email,
+            Password = password
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var oldToken = ExtractAuthToken(login);
+
+        var logout = await client.PostAsync("/api/auth/logout", null);
+        Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+
+        var replayClient = CreateBearerClient(oldToken);
+        var replay = await replayClient.GetAsync("/api/auth/admin/profile");
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
     }
 
     [Fact]
@@ -153,5 +242,20 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private HttpClient CreateBearerClient(string token)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    private static string ExtractAuthToken(HttpResponseMessage response)
+    {
+        var cookie = response.Headers.GetValues("Set-Cookie")
+            .Single(value => value.StartsWith("dc_auth=", StringComparison.OrdinalIgnoreCase));
+        var pair = cookie.Split(';', 2)[0];
+        return pair["dc_auth=".Length..];
     }
 }

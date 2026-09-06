@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -103,6 +104,37 @@ builder.Services.AddAuthentication(options =>
             }
 
             return Task.CompletedTask;
+        },
+        OnTokenValidated = async context =>
+        {
+            // JWT signature/expiry validation alone cannot revoke a token that was
+            // copied before logout or password change. Match the token's version to
+            // the current account row on every authenticated request so those events
+            // invalidate all previously issued sessions immediately.
+            var idText = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var role = context.Principal?.FindFirstValue(ClaimTypes.Role);
+            var versionText = context.Principal?.FindFirstValue(JwtTokenService.TokenVersionClaim);
+
+            if (!int.TryParse(idText, out var userId)
+                || !int.TryParse(versionText, out var tokenVersion)
+                || string.IsNullOrWhiteSpace(role))
+            {
+                context.Fail("Authentication session metadata is invalid.");
+                return;
+            }
+
+            var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+            var isCurrent = string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase)
+                ? await db.Patients.AsNoTracking().AnyAsync(
+                    p => p.Id == userId && p.TokenVersion == tokenVersion,
+                    context.HttpContext.RequestAborted)
+                : string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                    && await db.Admins.AsNoTracking().AnyAsync(
+                        a => a.Id == userId && a.TokenVersion == tokenVersion,
+                        context.HttpContext.RequestAborted);
+
+            if (!isCurrent)
+                context.Fail("Authentication session has been revoked.");
         }
     };
 });

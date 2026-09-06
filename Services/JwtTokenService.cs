@@ -7,6 +7,8 @@ namespace DentalClinic.Services;
 
 public class JwtTokenService
 {
+    public const string TokenVersionClaim = "dc_token_version";
+
     private readonly IConfiguration _config;
 
     public JwtTokenService(IConfiguration config)
@@ -20,7 +22,7 @@ public class JwtTokenService
 
     public DateTime GetExpiryUtc() => DateTime.UtcNow.AddMinutes(ExpiryMinutes);
 
-    public string GenerateToken(int id, string email, string name, string role)
+    public string GenerateToken(int id, string email, string name, string role, int tokenVersion)
     {
         var claims = new[]
         {
@@ -28,6 +30,7 @@ public class JwtTokenService
             new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Name, name),
             new Claim(ClaimTypes.Role, role),
+            new Claim(TokenVersionClaim, tokenVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
 

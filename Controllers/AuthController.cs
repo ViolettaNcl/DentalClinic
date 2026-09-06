@@ -75,7 +75,12 @@ namespace DentalClinic.Controllers
                 $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷",
                 null);
 
-            IssueSessionCookie(_tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient"));
+            IssueSessionCookie(_tokens.GenerateToken(
+                patient.Id,
+                patient.Email,
+                patient.FirstName,
+                "Patient",
+                patient.TokenVersion));
 
             return Ok(new
             {
@@ -108,7 +113,12 @@ namespace DentalClinic.Controllers
             }
 
             _logger.LogInformation("Вход пациента id={Id}", patient.Id);
-            IssueSessionCookie(_tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient"));
+            IssueSessionCookie(_tokens.GenerateToken(
+                patient.Id,
+                patient.Email,
+                patient.FirstName,
+                "Patient",
+                patient.TokenVersion));
 
             return Ok(new
             {
@@ -139,7 +149,12 @@ namespace DentalClinic.Controllers
             }
 
             _logger.LogInformation("Вход администратора id={Id}", admin.Id);
-            IssueSessionCookie(_tokens.GenerateToken(admin.Id, admin.Email, "Администратор", "Admin"));
+            IssueSessionCookie(_tokens.GenerateToken(
+                admin.Id,
+                admin.Email,
+                "Администратор",
+                "Admin",
+                admin.TokenVersion));
 
             return Ok(new
             {
@@ -154,15 +169,34 @@ namespace DentalClinic.Controllers
         }
 
         [HttpPost("logout")]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            Response.Cookies.Delete(AuthCookieName, new CookieOptions
+            // Deleting the browser cookie is not enough if the JWT was copied or is
+            // still present in another tab/device. Bump the account token version so
+            // every token issued before this logout fails OnTokenValidated immediately.
+            if (User.Identity?.IsAuthenticated == true)
             {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            });
+                var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var role = User.FindFirstValue(ClaimTypes.Role);
+                if (int.TryParse(userIdText, out var userId))
+                {
+                    if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var patient = await _db.Patients.FindAsync(userId);
+                        if (patient != null) patient.TokenVersion = checked(patient.TokenVersion + 1);
+                    }
+                    else if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var admin = await _db.Admins.FindAsync(userId);
+                        if (admin != null) admin.TokenVersion = checked(admin.TokenVersion + 1);
+                    }
+
+                    if (_db.ChangeTracker.HasChanges())
+                        await _db.SaveChangesAsync();
+                }
+            }
+
+            DeleteSessionCookie();
             return Ok(new { message = "Выход выполнен" });
         }
 
@@ -238,18 +272,11 @@ namespace DentalClinic.Controllers
                 return BadRequest(new { message = "❌ Новый пароль должен быть не короче 6 символов" });
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+            patient.TokenVersion = checked(patient.TokenVersion + 1);
             await _db.SaveChangesAsync();
-            _logger.LogInformation("Пациент {Id} сменил пароль", patient.Id);
+            _logger.LogInformation("Пациент {Id} сменил пароль и отозвал прежние сессии", patient.Id);
 
-            // Invalidate the browser's old JWT immediately. The user signs in again and
-            // receives a fresh token after a password change.
-            Response.Cookies.Delete(AuthCookieName, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            });
+            DeleteSessionCookie();
 
             return Ok(new { message = "✅ Пароль успешно изменён. Войдите снова." });
         }
@@ -266,6 +293,17 @@ namespace DentalClinic.Controllers
                 Path = "/",
                 IsEssential = true,
                 Expires = new DateTimeOffset(_tokens.GetExpiryUtc())
+            });
+        }
+
+        private void DeleteSessionCookie()
+        {
+            Response.Cookies.Delete(AuthCookieName, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Strict,
+                Path = "/"
             });
         }
 
