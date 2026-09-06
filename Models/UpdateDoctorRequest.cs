@@ -7,6 +7,18 @@ public class UpdateDoctorRequest
     [StringLength(150, MinimumLength = 1)]
     public string? FullName { get; set; }
 
+    [StringLength(150)]
+    public string? FullNameEn { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameFr { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameEl { get; set; }
+
+    [StringLength(150)]
+    public string? FullNameAr { get; set; }
+
     public bool? IsActive { get; set; }
 
     [StringLength(300)]
