@@ -6,9 +6,11 @@ import { isBookingIntent } from '/assets/js/core/bookingIntent.js';
 import { installDentaSafetyGuard } from '/assets/js/core/dentaSafetyGuard.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
+import { installServiceDetailPriceManager } from '/assets/js/managers/public/serviceDetailPriceManager.js';
 
 ChatBot.prototype._isBookingIntent = isBookingIntent;
 installDentaSafetyGuard(ChatBot);
+installServiceDetailPriceManager();
 
 async function initializePage() {
     try {
