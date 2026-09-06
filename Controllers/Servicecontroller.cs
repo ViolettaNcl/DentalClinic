@@ -28,7 +28,7 @@ public class ServiceController : ControllerBase
     // Keywords и другие внутренние поля остаются доступны администратору и Денте,
     // но не публикуются автоматически в unauthenticated API.
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var services = await _db.Services
             .AsNoTracking()
@@ -44,7 +44,7 @@ public class ServiceController : ControllerBase
                 s.Unit,
                 s.PageUrl,
                 s.SortOrder))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(services);
     }
@@ -52,18 +52,21 @@ public class ServiceController : ControllerBase
     // Админ: весь прайс, включая деактивированные позиции
     [HttpGet("admin/all")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAllAdmin()
+    public async Task<IActionResult> GetAllAdmin(CancellationToken cancellationToken)
     {
         var services = await _db.Services
+            .AsNoTracking()
             .OrderBy(s => s.Category).ThenBy(s => s.SortOrder).ThenBy(s => s.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(services);
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] Service req)
+    public async Task<IActionResult> Create(
+        [FromBody] Service req,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.Category) || string.IsNullOrWhiteSpace(req.Name))
             return BadRequest(new { message = "Укажите категорию и название услуги" });
@@ -78,7 +81,7 @@ public class ServiceController : ControllerBase
             return BadRequest(new { message = "Порядок отображения не может быть отрицательным" });
 
         var pageUrl = req.PageUrl?.Trim();
-        if (await HasActivePageSlotConflictAsync(pageUrl, req.SortOrder))
+        if (await HasActivePageSlotConflictAsync(pageUrl, req.SortOrder, cancellationToken: cancellationToken))
             return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
 
         var service = new Service
@@ -96,7 +99,7 @@ public class ServiceController : ControllerBase
         };
 
         _db.Services.Add(service);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Добавлена услуга: {Category}/{Name} (id={Id})", service.Category, service.Name, service.Id);
 
@@ -105,9 +108,12 @@ public class ServiceController : ControllerBase
 
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateServiceRequest req)
+    public async Task<IActionResult> Update(
+        int id,
+        [FromBody] UpdateServiceRequest req,
+        CancellationToken cancellationToken)
     {
-        var service = await _db.Services.FindAsync(id);
+        var service = await _db.Services.FindAsync([id], cancellationToken);
         if (service == null) return NotFound();
 
         // Рассчитываем будущие значения заранее, чтобы частичное обновление не
@@ -129,7 +135,7 @@ public class ServiceController : ControllerBase
         if (!ServiceCatalogPolicy.IsValidSortOrder(nextSortOrder))
             return BadRequest(new { message = "Порядок отображения не может быть отрицательным" });
 
-        if (nextIsActive && await HasActivePageSlotConflictAsync(nextPageUrl, nextSortOrder, id))
+        if (nextIsActive && await HasActivePageSlotConflictAsync(nextPageUrl, nextSortOrder, id, cancellationToken))
             return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
 
         if (!string.IsNullOrWhiteSpace(req.Category)) service.Category = req.Category.Trim();
@@ -144,7 +150,7 @@ public class ServiceController : ControllerBase
         if (req.SortOrder.HasValue) service.SortOrder = req.SortOrder.Value;
         if (req.IsActive.HasValue) service.IsActive = req.IsActive.Value;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Обновлена услуга id={Id}: {Category}/{Name}", service.Id, service.Category, service.Name);
 
@@ -154,18 +160,22 @@ public class ServiceController : ControllerBase
     // Деактивация вместо удаления — как и у врачей, чтобы не терять историю
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Deactivate(int id)
+    public async Task<IActionResult> Deactivate(int id, CancellationToken cancellationToken)
     {
-        var service = await _db.Services.FindAsync(id);
+        var service = await _db.Services.FindAsync([id], cancellationToken);
         if (service == null) return NotFound();
 
         service.IsActive = false;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         return Ok(service);
     }
 
-    private async Task<bool> HasActivePageSlotConflictAsync(string? pageUrl, int sortOrder, int? excludeId = null)
+    private async Task<bool> HasActivePageSlotConflictAsync(
+        string? pageUrl,
+        int sortOrder,
+        int? excludeId = null,
+        CancellationToken cancellationToken = default)
     {
         if (sortOrder <= 0 || string.IsNullOrWhiteSpace(pageUrl)) return false;
 
@@ -177,6 +187,6 @@ public class ServiceController : ControllerBase
         if (excludeId.HasValue)
             query = query.Where(s => s.Id != excludeId.Value);
 
-        return await query.AnyAsync();
+        return await query.AnyAsync(cancellationToken);
     }
 }
