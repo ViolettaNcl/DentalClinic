@@ -779,7 +779,12 @@ namespace DentalClinic.Controllers
                 if (idxL >= 0)
                 {
                     var linksJson = afterS[(idxL + 6)..].Trim();
-                    try { links = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(linksJson) ?? new(); } catch { }
+                    try
+                    {
+                        var parsedLinks = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(linksJson) ?? new();
+                        links = DentaLinkPolicy.Filter(parsedLinks);
+                    }
+                    catch { }
                 }
             }
 
