@@ -22,6 +22,7 @@ public sealed class SecurityResponseHeadersMiddleware
             headers["X-Frame-Options"] = "SAMEORIGIN";
             headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
             headers["X-Permitted-Cross-Domain-Policies"] = "none";
+            headers["Permissions-Policy"] = "camera=(), geolocation=(self), payment=(), usb=()";
 
             // Authenticated API data (CRM, profile, admin analytics, etc.) must
             // not be stored in a shared/proxy/browser HTTP cache. Static assets
