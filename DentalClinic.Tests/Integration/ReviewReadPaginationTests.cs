@@ -24,7 +24,7 @@ public class ReviewReadPaginationTests : IClassFixture<CustomWebApplicationFacto
     {
         var patientEmail = UniqueEmail("review-page-patient");
         var adminEmail = UniqueEmail("review-page-admin");
-        const string adminPassword = "admin-test-password";
+        const string adminPassword = "AdminTestPassword1!";
         int patientId;
 
         using (var scope = _factory.Services.CreateScope())
@@ -34,7 +34,7 @@ public class ReviewReadPaginationTests : IClassFixture<CustomWebApplicationFacto
             {
                 FirstName = "Pagination",
                 Email = patientEmail,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!")
             };
             db.Patients.Add(patient);
             db.Admins.Add(new Admin
@@ -82,7 +82,7 @@ public class ReviewReadPaginationTests : IClassFixture<CustomWebApplicationFacto
     {
         var patientEmail = UniqueEmail("review-legacy-patient");
         var adminEmail = UniqueEmail("review-legacy-admin");
-        const string adminPassword = "admin-test-password";
+        const string adminPassword = "AdminTestPassword1!";
         int patientId;
 
         using (var scope = _factory.Services.CreateScope())
@@ -92,7 +92,7 @@ public class ReviewReadPaginationTests : IClassFixture<CustomWebApplicationFacto
             {
                 FirstName = "LegacyCap",
                 Email = patientEmail,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!")
             };
             db.Patients.Add(patient);
             db.Admins.Add(new Admin
@@ -140,7 +140,7 @@ public class ReviewReadPaginationTests : IClassFixture<CustomWebApplicationFacto
         {
             FirstName = "PatientCap",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
