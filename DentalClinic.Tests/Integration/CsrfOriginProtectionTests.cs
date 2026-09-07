@@ -24,7 +24,7 @@ public class CsrfOriginProtectionTests : IClassFixture<CustomWebApplicationFacto
             {
                 FirstName = "Cross Site",
                 Email = $"csrf-register-{Guid.NewGuid():N}@example.com",
-                Password = "password123"
+                Password = "Password123!"
             })
         };
         request.Headers.TryAddWithoutValidation("Origin", "https://attacker.example");
@@ -45,7 +45,7 @@ public class CsrfOriginProtectionTests : IClassFixture<CustomWebApplicationFacto
         {
             FirstName = "Patient",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
@@ -75,7 +75,7 @@ public class CsrfOriginProtectionTests : IClassFixture<CustomWebApplicationFacto
         {
             FirstName = "Patient",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
