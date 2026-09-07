@@ -31,6 +31,7 @@ builder.Services.AddSingleton<ClinicClock>();
 builder.Services.AddScoped<AppointmentSchedulingService>();
 builder.Services.AddScoped<AppointmentMaintenanceService>();
 builder.Services.AddScoped<AdminAnalyticsService>();
+builder.Services.AddScoped<AdminAccessService>();
 builder.Services.AddScoped<DistributedRequestQuotaService>();
 var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
 

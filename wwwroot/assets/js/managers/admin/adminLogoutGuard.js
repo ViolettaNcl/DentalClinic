@@ -15,6 +15,10 @@ let bootstrappedAdminSession = null;
 // session check so adminDashboard.js sees restored metadata even in a new tab.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     try {
+        // Access management is browser-only. Keep the dynamic import inside this
+        // guard so Node regression tests can import this session module without a DOM.
+        await import('./adminAccessManager.js');
+
         bootstrappedAdminSession = await requireServerSession('admin');
         if (bootstrappedAdminSession) {
             const nameEl = document.querySelector('.panel-user-name');

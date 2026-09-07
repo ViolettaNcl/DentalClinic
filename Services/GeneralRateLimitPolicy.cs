@@ -28,7 +28,8 @@ public static class GeneralRateLimitPolicy
         }
 
         if (string.Equals(normalizedPath, "/api/auth/register", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedPath, "/api/auth/login", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(normalizedPath, "/api/auth/login", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/auth/admin/login", StringComparison.OrdinalIgnoreCase))
         {
             profile = new GeneralRateLimitProfile("auth", AuthPermitLimit);
             return true;

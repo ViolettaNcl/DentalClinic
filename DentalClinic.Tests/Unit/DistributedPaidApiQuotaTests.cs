@@ -73,6 +73,8 @@ public class DistributedRequestQuotaTests
     [InlineData("/api/auth/register", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     [InlineData("/api/auth/login", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     [InlineData("/api/auth/login/", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
+    [InlineData("/api/auth/admin/login", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
+    [InlineData("/api/auth/admin/login/", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     [InlineData("/API/AUTH/LOGIN", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     public void GeneralPolicy_MapsProtectedPostRoutesToSharedProductionBudget(string path, string bucket, int limit)
     {
