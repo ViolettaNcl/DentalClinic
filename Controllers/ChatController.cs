@@ -732,7 +732,6 @@ namespace DentalClinic.Controllers
                 "\n" +
                 "=== ДАННЫЕ КЛИНИКИ ===\n" +
                 contactsBlock + "\n" +
-                "Технологии: ИИ-диагностика, цифровой рентген, лазер, 3D-сканирование, седация\n" +
                 "\n" +
                 knowledgeBlock +
                 "\n" +
