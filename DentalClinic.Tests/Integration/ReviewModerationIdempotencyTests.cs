@@ -166,7 +166,7 @@ public class ReviewModerationIdempotencyTests : IClassFixture<CustomWebApplicati
         {
             FirstName = "ReviewPatient",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
@@ -183,7 +183,7 @@ public class ReviewModerationIdempotencyTests : IClassFixture<CustomWebApplicati
     private async Task<HttpClient> CreateAdminClientAsync()
     {
         var email = $"moderation-admin-{Guid.NewGuid():N}@example.com";
-        const string password = "admin-test-password";
+        const string password = "AdminTestPassword1!";
 
         using (var scope = _factory.Services.CreateScope())
         {

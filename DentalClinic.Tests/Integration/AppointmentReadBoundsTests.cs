@@ -28,7 +28,7 @@ public class AppointmentReadBoundsTests : IClassFixture<CustomWebApplicationFact
         {
             FirstName = "Bounds",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
@@ -83,7 +83,7 @@ public class AppointmentReadBoundsTests : IClassFixture<CustomWebApplicationFact
     public async Task AdminFeed_BoundsHistory_WithoutDroppingRecentActiveRows()
     {
         var email = $"appointment-admin-bounds-{Guid.NewGuid():N}@example.com";
-        const string password = "admin-test-password";
+        const string password = "AdminTestPassword1!";
         var marker = $"admin-bounds-{Guid.NewGuid():N}";
         var now = DateTime.UtcNow;
 

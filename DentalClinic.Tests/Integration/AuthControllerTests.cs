@@ -11,6 +11,7 @@ namespace DentalClinic.Tests.Integration;
 
 public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
 {
+    private const string DefaultPassword = "Password123!";
     private readonly CustomWebApplicationFactory _factory;
 
     public AuthControllerTests(CustomWebApplicationFactory factory)
@@ -18,7 +19,7 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         _factory = factory;
     }
 
-    private static RegisterRequest ValidRegisterRequest(string email, string password = "password123") => new()
+    private static RegisterRequest ValidRegisterRequest(string email, string password = DefaultPassword) => new()
     {
         FirstName = "Тест",
         Email = email,
@@ -79,7 +80,7 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     public async Task SessionEndpoint_WithAdminCookie_ReturnsAdminMetadata()
     {
         var email = UniqueEmail("session-admin");
-        const string password = "admin-test-password";
+        const string password = "AdminTestPassword1!";
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -153,8 +154,8 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var email = UniqueEmail("password-revoke");
-        const string oldPassword = "password123";
-        const string newPassword = "password456";
+        const string oldPassword = DefaultPassword;
+        const string newPassword = "NewPassword456!";
 
         var register = await client.PostAsJsonAsync(
             "/api/auth/register",
@@ -184,10 +185,33 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task PasswordChange_WeakNewPassword_IsRejectedWithoutRevokingCurrentSession()
+    {
+        var client = _factory.CreateClient();
+        var email = UniqueEmail("password-weak-change");
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            ValidRegisterRequest(email));
+        Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        var currentToken = ExtractAuthToken(register);
+
+        var changed = await client.PutAsJsonAsync("/api/auth/change-password", new ChangePasswordRequest
+        {
+            CurrentPassword = DefaultPassword,
+            NewPassword = "password456!"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, changed.StatusCode);
+
+        var replayClient = CreateBearerClient(currentToken);
+        var replay = await replayClient.GetAsync("/api/auth/profile");
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+    }
+
+    [Fact]
     public async Task AdminLogout_RevokesPreviouslyIssuedAdminTokenServerSide()
     {
         var email = UniqueEmail("admin-revoke");
-        const string password = "admin-test-password";
+        const string password = "AdminTestPassword1!";
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -229,13 +253,18 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         Assert.True(second.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict);
     }
 
-    [Fact]
-    public async Task Register_PasswordTooShort_ReturnsBadRequest()
+    [Theory]
+    [InlineData("123")]
+    [InlineData("password123!")]
+    [InlineData("PASSWORD123!")]
+    [InlineData("Password!!!!")]
+    [InlineData("Password123")]
+    public async Task Register_WeakPassword_ReturnsBadRequest(string password)
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync(
             "/api/auth/register",
-            ValidRegisterRequest(UniqueEmail("shortpass"), password: "123"));
+            ValidRegisterRequest(UniqueEmail("weakpass"), password));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -256,7 +285,7 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var email = UniqueEmail("login");
-        const string password = "password123";
+        const string password = DefaultPassword;
 
         await client.PostAsJsonAsync("/api/auth/register", ValidRegisterRequest(email, password));
         await client.PostAsync("/api/auth/logout", null);

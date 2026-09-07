@@ -24,7 +24,7 @@ public class ReviewControllerValidationTests : IClassFixture<CustomWebApplicatio
         {
             FirstName = "ReviewTester",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
