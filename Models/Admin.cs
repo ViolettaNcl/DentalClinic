@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace DentalClinic.Models
 {
@@ -6,7 +6,13 @@ namespace DentalClinic.Models
     {
         public int Id { get; set; }
         public required string Email { get; set; }
-        public required string PasswordHash { get; set; }  // Вместо Password
+        public required string PasswordHash { get; set; }
+
+        // Operational administrators all keep the JWT role "Admin" for backwards
+        // compatibility. Sensitive account-management actions check this database
+        // flag on every request so promotion/demotion is immediate and cannot be
+        // delayed by a previously issued token.
+        public bool IsSuperAdmin { get; set; }
 
         // Keep a browser-facing cache-busted URL while storing the actual image in
         // SQL so serverless/container restarts cannot erase administrator avatars.
