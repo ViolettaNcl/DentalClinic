@@ -269,6 +269,7 @@ app.UseResponseCompression();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseUnsafeRequestOriginProtection();
 
 app.Use(async (context, next) =>
 {
