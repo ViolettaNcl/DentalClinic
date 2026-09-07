@@ -1,6 +1,6 @@
 ﻿/**
  * Public contact/location page behavior. Clinic facts come from server configuration
- * instead of placeholder addresses/coordinates embedded in JavaScript.
+ * instead of placeholder addresses/coordinates embedded in JavaScript or markup.
  */
 import { t, onLanguageChange } from '../../core/i18n.js';
 import { getPublicClinicProfile } from '../../core/publicClinicProfile.js';
@@ -16,12 +16,11 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 }
 
 function hydrateContactCards(profile) {
-    const cards = Array.from(document.querySelectorAll('.contact-cards-grid .contact-card'));
-    const values = [profile.email, profile.phone, profile.address, profile.hours];
-
-    cards.forEach((card, index) => {
-        const value = values[index] || null;
+    document.querySelectorAll('.contact-cards-grid .contact-card').forEach(card => {
+        const field = card.dataset.clinicField;
+        const value = field && typeof profile[field] === 'string' ? profile[field] : null;
         const text = card.querySelector('.card__text');
+
         if (!text || !value) {
             card.hidden = true;
             return;
@@ -162,8 +161,6 @@ function initRouteBuilder(profile) {
 }
 
 async function initContactPage() {
-    // Hide embedded placeholder facts immediately. They are fallback markup for a
-    // static file only and must never be presented as authoritative clinic details.
     prepareContactFactsForLoading();
 
     try {
