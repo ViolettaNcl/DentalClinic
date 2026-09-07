@@ -39,7 +39,7 @@ public class SecurityResponseHeadersTests : IClassFixture<CustomWebApplicationFa
         {
             FirstName = "Security",
             Email = email,
-            Password = "password123"
+            Password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
 
