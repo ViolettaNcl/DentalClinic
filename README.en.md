@@ -40,15 +40,10 @@ Target production domain:
 > [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md); the app intentionally refuses to
 > start without them.
 
-**Test credentials to try out the functionality:**
-
-| Role | Email | Password |
-|---|---|---|
-| 🧑‍⚕️ Patient | `anna@test` | `123` |
-| 👑 Administrator | `admin@admin` | `123` |
-
-*These are demo accounts for exploring the project — please don't enter real personal
-data when using them.*
+**Accounts:** the application does not provision any known demo/default passwords.
+Patients can create an account through normal registration. Administrative access must
+be provisioned separately by the deployment owner with a unique strong password; do not
+use publicly known test credentials in production.
 
 **UI languages:** the site fully supports 5 languages — 🇷🇺 Russian, 🇬🇧 English,
 🇬🇷 Greek, 🇸🇦 Arabic, 🇫🇷 French — switching is instant, with no page reload, via the
