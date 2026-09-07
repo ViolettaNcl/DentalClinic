@@ -7,10 +7,12 @@ public static class PaidApiRoutePolicy
         if (!string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return string.Equals(path, "/api/chat", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/chat/stream", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/chat/tts", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/translate", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/review/translate", StringComparison.OrdinalIgnoreCase);
+        var normalizedPath = ApiRoutePath.Normalize(path);
+
+        return string.Equals(normalizedPath, "/api/chat", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/chat/stream", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/chat/tts", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/translate", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/review/translate", StringComparison.OrdinalIgnoreCase);
     }
 }

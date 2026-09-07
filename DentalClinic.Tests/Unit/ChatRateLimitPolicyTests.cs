@@ -7,6 +7,7 @@ public class ChatRateLimitPolicyTests
 {
     [Theory]
     [InlineData("/api/chat/tts")]
+    [InlineData("/api/chat/tts/")]
     [InlineData("/API/CHAT/TTS")]
     public void Resolve_TtsRoute_UsesDedicatedPaidQuotaBucket(string path)
     {
@@ -19,6 +20,7 @@ public class ChatRateLimitPolicyTests
 
     [Theory]
     [InlineData("/api/chat")]
+    [InlineData("/api/chat/")]
     [InlineData("/api/chat/stream")]
     [InlineData(null)]
     public void Resolve_OtherChatRoutes_KeepNormalChatBudget(string? path)

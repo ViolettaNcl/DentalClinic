@@ -7,18 +7,18 @@ using Microsoft.EntityFrameworkCore;
 namespace DentalClinic.Services;
 
 /// <summary>
-/// Database-backed fixed-window quota for paid external-provider endpoints.
-/// ASP.NET's built-in rate limiter is process-local; this layer makes the same
-/// per-client budget hold across multiple Vercel/container instances.
+/// Database-backed fixed-window quota shared across application instances.
+/// ASP.NET Core's built-in limiter remains the fast process-local first line; this
+/// service makes the effective per-client budget hold across Vercel/container replicas.
 /// </summary>
-public sealed class DistributedPaidApiQuotaService
+public sealed class DistributedRequestQuotaService
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> InMemoryGates = new();
 
     private readonly ApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
 
-    public DistributedPaidApiQuotaService(ApplicationDbContext db, TimeProvider timeProvider)
+    public DistributedRequestQuotaService(ApplicationDbContext db, TimeProvider timeProvider)
     {
         _db = db;
         _timeProvider = timeProvider;
@@ -60,10 +60,10 @@ public sealed class DistributedPaidApiQuotaService
                 IsolationLevel.ReadCommitted,
                 cancellationToken);
 
-            // SQL Server application locks serialize the exact client+bucket row even
-            // before it exists. That closes the cold-start race where two instances
-            // could both observe a missing counter and insert/allow independently.
-            var resource = $"dental-paid-api:{bucket}:{clientKey}";
+            // Application locks serialize the exact client+bucket row before it exists,
+            // closing the cold-start race where separate instances could both allow the
+            // first request in the same fixed window.
+            var resource = $"dental-request-quota:{bucket}:{clientKey}";
             await _db.Database.ExecuteSqlInterpolatedAsync($$"""
 DECLARE @lockResult int;
 EXEC @lockResult = sys.sp_getapplock
@@ -72,7 +72,7 @@ EXEC @lockResult = sys.sp_getapplock
     @LockOwner='Transaction',
     @LockTimeout=5000;
 IF @lockResult < 0
-    THROW 51000, 'Unable to acquire paid API quota lock', 1;
+    THROW 51000, 'Unable to acquire request quota lock', 1;
 """, cancellationToken);
 
             var allowed = await AcquireRowAsync(
@@ -86,9 +86,6 @@ IF @lockResult < 0
             return allowed;
         }
 
-        // The production provider is SQL Server. Keep a safe relational fallback for
-        // alternate providers used by operators/tests: serializable isolation protects
-        // the read/update window as strongly as the provider supports.
         await using (var transaction = await _db.Database.BeginTransactionAsync(
                          IsolationLevel.Serializable,
                          cancellationToken))
@@ -111,6 +108,9 @@ IF @lockResult < 0
         DateTime windowStartUtc,
         CancellationToken cancellationToken)
     {
+        // PaidApiUsageWindows is the historical schema name. Reusing the same bounded
+        // bucket/client table avoids an unnecessary production migration while safely
+        // namespacing both paid and general request quotas by Bucket.
         var row = await _db.PaidApiUsageWindows
             .SingleOrDefaultAsync(
                 x => x.Bucket == bucket && x.ClientKey == clientKey,
@@ -137,8 +137,8 @@ IF @lockResult < 0
             return true;
         }
 
-        // If the stored window is unexpectedly in the future, fail closed instead of
-        // resetting the quota and creating an unlimited path during clock anomalies.
+        // Future windows indicate clock/storage anomalies. Fail closed rather than
+        // resetting the budget and creating an unlimited path.
         if (row.WindowStartUtc > windowStartUtc || row.RequestCount >= permitLimit)
             return false;
 
