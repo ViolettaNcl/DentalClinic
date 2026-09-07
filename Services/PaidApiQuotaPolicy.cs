@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace DentalClinic.Services;
 
 public readonly record struct PaidApiQuotaProfile(string Bucket, int PermitLimit);
@@ -36,16 +33,5 @@ public static class PaidApiQuotaPolicy
     }
 
     public static string CreateClientKey(string? remoteAddress)
-    {
-        var normalized = string.IsNullOrWhiteSpace(remoteAddress)
-            ? "unknown"
-            : remoteAddress.Trim();
-
-        // Never persist raw IP addresses in quota rows. The fixed-length digest is
-        // sufficient for rate-limit partitioning and follows the chat-log privacy
-        // model already used elsewhere in the application.
-        return Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
-            .ToLowerInvariant();
-    }
+        => RateLimitClientKey.Create(remoteAddress);
 }
