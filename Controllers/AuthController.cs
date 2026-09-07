@@ -30,23 +30,18 @@ namespace DentalClinic.Controllers
 
         [HttpPost("register")]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> Register(
-            [FromBody] RegisterRequest req,
-            CancellationToken cancellationToken)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest req, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(req.FirstName) ||
-                string.IsNullOrWhiteSpace(req.Email) ||
-                string.IsNullOrWhiteSpace(req.Password))
+            if (string.IsNullOrWhiteSpace(req.FirstName) || string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
                 return BadRequest(new { message = "❌ Все поля обязательны" });
 
             if (!System.Text.RegularExpressions.Regex.IsMatch(req.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 return BadRequest(new { message = "❌ Некорректный формат email" });
 
-            if (req.Password.Length < 6)
-                return BadRequest(new { message = "❌ Пароль должен быть не короче 6 символов" });
+            if (!PasswordPolicy.IsValid(req.Password))
+                return BadRequest(new { message = PasswordPolicy.ErrorMessage() });
 
             var email = NormalizeEmail(req.Email);
-
             if (await _db.Patients.AnyAsync(p => p.Email == email, cancellationToken))
                 return BadRequest(new { message = "❌ Email уже зарегистрирован" });
 
@@ -58,267 +53,18 @@ namespace DentalClinic.Controllers
             };
 
             _db.Patients.Add(patient);
-            try
-            {
-                await _db.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException)
-            {
-                return Conflict(new { message = "❌ Email уже зарегистрирован" });
-            }
+            try { await _db.SaveChangesAsync(cancellationToken); }
+            catch (DbUpdateException) { return Conflict(new { message = "❌ Email уже зарегистрирован" }); }
 
-            _logger.LogInformation("Зарегистрирован новый пациент id={Id}", patient.Id);
+            await _notifications.NotifyAsync(patient.Id, "welcome", $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷", null, cancellationToken);
+            IssueSessionCookie(_tokens.GenerateToken(patient.Id, patient.Email, patient.FirstName, "Patient", patient.TokenVersion));
 
-            await _notifications.NotifyAsync(
-                patient.Id,
-                "welcome",
-                $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷",
-                null,
-                cancellationToken);
-
-            IssueSessionCookie(_tokens.GenerateToken(
-                patient.Id,
-                patient.Email,
-                patient.FirstName,
-                "Patient",
-                patient.TokenVersion));
-
-            return Ok(new
-            {
-                message = "✅ Регистрация успешна!",
-                id = patient.Id,
-                name = patient.FirstName,
-                email = patient.Email,
-                avatarUrl = patient.AvatarUrl,
-                role = "patient",
-                expiresAt = _tokens.GetExpiryUtc()
-            });
-        }
-
-        [HttpPost("login")]
-        [EnableRateLimiting("auth")]
-        public async Task<IActionResult> Login(
-            [FromBody] LoginRequest req,
-            CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-                return BadRequest(new { message = "❌ Email и пароль обязательны" });
-
-            var email = NormalizeEmail(req.Email);
-            var patient = await _db.Patients
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Email == email, cancellationToken);
-
-            if (patient == null || !BCrypt.Net.BCrypt.Verify(req.Password, patient.PasswordHash))
-            {
-                _logger.LogWarning("Неудачная попытка входа пациента");
-                return Unauthorized(new { message = "❌ Email или пароль неверный" });
-            }
-
-            _logger.LogInformation("Вход пациента id={Id}", patient.Id);
-            IssueSessionCookie(_tokens.GenerateToken(
-                patient.Id,
-                patient.Email,
-                patient.FirstName,
-                "Patient",
-                patient.TokenVersion));
-
-            return Ok(new
-            {
-                message = "✅ Вход успешен!",
-                id = patient.Id,
-                name = patient.FirstName,
-                email = patient.Email,
-                avatarUrl = patient.AvatarUrl,
-                role = "patient",
-                expiresAt = _tokens.GetExpiryUtc()
-            });
-        }
-
-        [HttpPost("admin/login")]
-        [EnableRateLimiting("auth")]
-        public async Task<IActionResult> AdminLogin(
-            [FromBody] LoginRequest req,
-            CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-                return BadRequest(new { message = "❌ Email и пароль обязательны" });
-
-            var email = NormalizeEmail(req.Email);
-            var admin = await _db.Admins
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Email == email, cancellationToken);
-
-            if (admin == null || !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
-            {
-                _logger.LogWarning("Неудачная попытка входа администратора");
-                return Unauthorized(new { message = "❌ Email или пароль неверный" });
-            }
-
-            _logger.LogInformation("Вход администратора id={Id}", admin.Id);
-            IssueSessionCookie(_tokens.GenerateToken(
-                admin.Id,
-                admin.Email,
-                "Администратор",
-                "Admin",
-                admin.TokenVersion));
-
-            return Ok(new
-            {
-                message = "✅ Вход администратора выполнен",
-                id = admin.Id,
-                name = "Администратор",
-                email = admin.Email,
-                avatarUrl = admin.AvatarUrl,
-                role = "admin",
-                expiresAt = _tokens.GetExpiryUtc()
-            });
-        }
-
-        [HttpPost("logout")]
-        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
-        {
-            if (User.Identity?.IsAuthenticated == true)
-            {
-                var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var role = User.FindFirstValue(ClaimTypes.Role);
-                if (int.TryParse(userIdText, out var userId))
-                {
-                    if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var patient = await _db.Patients.FindAsync([userId], cancellationToken);
-                        if (patient != null) patient.TokenVersion = checked(patient.TokenVersion + 1);
-                    }
-                    else if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var admin = await _db.Admins.FindAsync([userId], cancellationToken);
-                        if (admin != null) admin.TokenVersion = checked(admin.TokenVersion + 1);
-                    }
-
-                    if (_db.ChangeTracker.HasChanges())
-                        await _db.SaveChangesAsync(cancellationToken);
-                }
-            }
-
-            DeleteSessionCookie();
-            return Ok(new { message = "Выход выполнен" });
-        }
-
-        [HttpGet("session")]
-        [Authorize]
-        public async Task<IActionResult> GetSession(CancellationToken cancellationToken)
-        {
-            var userId = GetCurrentUserId();
-            var role = User.FindFirstValue(ClaimTypes.Role);
-
-            if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
-            {
-                var patient = await _db.Patients
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
-                if (patient == null) return Unauthorized();
-
-                return Ok(new
-                {
-                    id = patient.Id,
-                    name = patient.FirstName,
-                    email = patient.Email,
-                    avatarUrl = patient.AvatarUrl,
-                    role = "patient"
-                });
-            }
-
-            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                var admin = await _db.Admins
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.Id == userId, cancellationToken);
-                if (admin == null) return Unauthorized();
-
-                return Ok(new
-                {
-                    id = admin.Id,
-                    name = "Администратор",
-                    email = admin.Email,
-                    avatarUrl = admin.AvatarUrl,
-                    role = "admin"
-                });
-            }
-
-            return Forbid();
-        }
-
-        [HttpGet("profile")]
-        [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
-        {
-            var patientId = GetCurrentUserId();
-            var patient = await _db.Patients
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
-            if (patient == null) return NotFound();
-
-            return Ok(new
-            {
-                id = patient.Id,
-                firstName = patient.FirstName,
-                email = patient.Email,
-                phone = patient.Phone,
-                avatarUrl = patient.AvatarUrl,
-                createdAt = patient.CreatedAt
-            });
-        }
-
-        [HttpGet("admin/profile")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAdminProfile(CancellationToken cancellationToken)
-        {
-            var adminId = GetCurrentUserId();
-            var admin = await _db.Admins
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == adminId, cancellationToken);
-            if (admin == null) return NotFound();
-
-            return Ok(new
-            {
-                id = admin.Id,
-                email = admin.Email,
-                avatarUrl = admin.AvatarUrl,
-                createdAt = admin.CreatedAt
-            });
-        }
-
-        [HttpPut("profile")]
-        [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> UpdateProfile(
-            [FromBody] UpdateProfileRequest req,
-            CancellationToken cancellationToken)
-        {
-            var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
-            if (patient == null) return NotFound();
-
-            if (!string.IsNullOrWhiteSpace(req.FirstName))
-                patient.FirstName = req.FirstName.Trim();
-
-            if (req.Phone != null)
-                patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
-
-            await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Пациент {Id} обновил профиль", patient.Id);
-
-            return Ok(new
-            {
-                message = "✅ Профиль обновлён",
-                firstName = patient.FirstName,
-                phone = patient.Phone
-            });
+            return Ok(new { message = "✅ Регистрация успешна!", id = patient.Id, name = patient.FirstName, email = patient.Email, avatarUrl = patient.AvatarUrl, role = "patient", expiresAt = _tokens.GetExpiryUtc() });
         }
 
         [HttpPut("change-password")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> ChangePassword(
-            [FromBody] ChangePasswordRequest req,
-            CancellationToken cancellationToken)
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req, CancellationToken cancellationToken)
         {
             var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
             if (patient == null) return NotFound();
@@ -326,46 +72,20 @@ namespace DentalClinic.Controllers
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
                 return BadRequest(new { message = "❌ Текущий пароль указан неверно" });
 
-            if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
-                return BadRequest(new { message = "❌ Новый пароль должен быть не короче 6 символов" });
+            if (!PasswordPolicy.IsValid(req.NewPassword))
+                return BadRequest(new { message = PasswordPolicy.ErrorMessage() });
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             patient.TokenVersion = checked(patient.TokenVersion + 1);
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Пациент {Id} сменил пароль и отозвал прежние сессии", patient.Id);
-
             DeleteSessionCookie();
 
             return Ok(new { message = "✅ Пароль успешно изменён. Войдите снова." });
         }
 
         private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
-
-        private void IssueSessionCookie(string token)
-        {
-            Response.Cookies.Append(AuthCookieName, token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Strict,
-                Path = "/",
-                IsEssential = true,
-                Expires = new DateTimeOffset(_tokens.GetExpiryUtc())
-            });
-        }
-
-        private void DeleteSessionCookie()
-        {
-            Response.Cookies.Delete(AuthCookieName, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            });
-        }
-
-        private int GetCurrentUserId()
-            => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private void IssueSessionCookie(string token) => Response.Cookies.Append(AuthCookieName, token, new CookieOptions { HttpOnly = true, Secure = Request.IsHttps, SameSite = SameSiteMode.Strict, Path = "/", IsEssential = true, Expires = new DateTimeOffset(_tokens.GetExpiryUtc()) });
+        private void DeleteSessionCookie() => Response.Cookies.Delete(AuthCookieName, new CookieOptions { HttpOnly = true, Secure = Request.IsHttps, SameSite = SameSiteMode.Strict, Path = "/" });
+        private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 }
