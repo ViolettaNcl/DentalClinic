@@ -7,10 +7,13 @@ public class PaidApiRoutePolicyTests
 {
     [Theory]
     [InlineData("POST", "/api/chat")]
+    [InlineData("POST", "/api/chat/")]
     [InlineData("POST", "/api/chat/stream")]
+    [InlineData("POST", "/api/chat/stream/")]
     [InlineData("POST", "/api/chat/tts")]
     [InlineData("POST", "/api/translate")]
     [InlineData("POST", "/api/review/translate")]
+    [InlineData("POST", "/api/review/translate/")]
     [InlineData("post", "/API/CHAT")]
     [InlineData("post", "/API/REVIEW/TRANSLATE")]
     public void PaidProviderPosts_RequireSameOrigin(string method, string path)
