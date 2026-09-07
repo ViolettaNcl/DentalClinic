@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace DentalClinic.Models;
 
 /// <summary>
-/// One rolling fixed-window counter per paid API bucket and pseudonymous client.
-/// The row is reused every minute so the table stays bounded by active clients,
-/// rather than growing by one row per request/window.
+/// One fixed-window counter per quota bucket and pseudonymous client. The historical
+/// type/table name is retained to avoid a production schema rename; the same bounded
+/// rows now back both paid-provider and general distributed request quotas.
 /// </summary>
 public sealed class PaidApiUsageWindow
 {
