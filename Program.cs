@@ -31,7 +31,7 @@ builder.Services.AddSingleton<ClinicClock>();
 builder.Services.AddScoped<AppointmentSchedulingService>();
 builder.Services.AddScoped<AppointmentMaintenanceService>();
 builder.Services.AddScoped<AdminAnalyticsService>();
-builder.Services.AddScoped<DistributedPaidApiQuotaService>();
+builder.Services.AddScoped<DistributedRequestQuotaService>();
 var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
 
 if (!isVercel)
@@ -157,7 +157,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 3,
+                PermitLimit = GeneralRateLimitPolicy.AppointmentCreatePermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -168,7 +168,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 8,
+                PermitLimit = GeneralRateLimitPolicy.AuthPermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
@@ -311,8 +311,8 @@ app.Use(async (context, next) =>
             && !app.Environment.IsEnvironment("Testing")
             && PaidApiQuotaPolicy.TryResolve(context.Request.Path.Value, out var quotaProfile))
         {
-            var quota = context.RequestServices.GetRequiredService<DistributedPaidApiQuotaService>();
-            var clientKey = PaidApiQuotaPolicy.CreateClientKey(
+            var quota = context.RequestServices.GetRequiredService<DistributedRequestQuotaService>();
+            var clientKey = RateLimitClientKey.Create(
                 context.Connection.RemoteIpAddress?.ToString());
             var acquired = await quota.TryAcquireAsync(
                 quotaProfile.Bucket,
@@ -330,6 +330,37 @@ app.Use(async (context, next) =>
                     context.RequestAborted);
                 return;
             }
+        }
+    }
+
+    // Appointment creation and authentication are protected by endpoint-level
+    // ASP.NET Core policies as a fast local limiter. Reserve the same minute budget
+    // in SQL in production so horizontal scaling cannot multiply those limits.
+    if (!app.Environment.IsDevelopment()
+        && !app.Environment.IsEnvironment("Testing")
+        && GeneralRateLimitPolicy.TryResolve(
+            context.Request.Method,
+            context.Request.Path.Value,
+            out var generalQuotaProfile))
+    {
+        var quota = context.RequestServices.GetRequiredService<DistributedRequestQuotaService>();
+        var clientKey = RateLimitClientKey.Create(
+            context.Connection.RemoteIpAddress?.ToString());
+        var acquired = await quota.TryAcquireAsync(
+            generalQuotaProfile.Bucket,
+            clientKey,
+            generalQuotaProfile.PermitLimit,
+            context.RequestAborted);
+
+        if (!acquired)
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.Response.ContentType = "application/json";
+            context.Response.Headers["Retry-After"] = "60";
+            await context.Response.WriteAsync(
+                "{\"message\":\"Слишком много запросов с вашего IP. Попробуйте через минуту.\"}",
+                context.RequestAborted);
+            return;
         }
     }
 
