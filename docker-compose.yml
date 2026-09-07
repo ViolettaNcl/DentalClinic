@@ -44,6 +44,12 @@ services:
       Gemini__ApiKey: "${GEMINI_API_KEY}"
       ElevenLabs__ApiKey: "${ELEVENLABS_API_KEY:-}"
       AllowedOrigins__0: "${FRONTEND_ORIGIN:-http://localhost:8080}"
+      Clinic__Phone: "${CLINIC_PHONE:-}"
+      Clinic__Email: "${CLINIC_EMAIL:-}"
+      Clinic__Address: "${CLINIC_ADDRESS:-}"
+      Clinic__Hours: "${CLINIC_HOURS:-}"
+      Clinic__Latitude: "${CLINIC_LATITUDE:-}"
+      Clinic__Longitude: "${CLINIC_LONGITUDE:-}"
     volumes:
       # Аватары должны переживать пересоздание контейнера
       - dentalclinic-uploads:/app/wwwroot/uploads

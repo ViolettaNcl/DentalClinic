@@ -120,7 +120,7 @@ export function installChatBookingCookieTransport(ChatBotClass) {
             this._addBotMessage(
                 this._tr(
                     'chat_booking_success',
-                    '✅ Заявка успешно отправлена!\n\nАдминистратор перезвонит вам в ближайшее время для подтверждения записи. Обычно это занимает до 2 часов в рабочее время (Пн–Сб 9:00–20:00).'
+                    '✅ Заявка успешно отправлена!\n\nАдминистратор клиники свяжется с вами для подтверждения записи.'
                 ),
                 [
                     this._tr('chat_booking_ask_more', 'Задать ещё вопрос'),
@@ -138,7 +138,7 @@ export function installChatBookingCookieTransport(ChatBotClass) {
             this._addBotMessage(
                 this._tr(
                     'chat_booking_error',
-                    '⚠️ Не удалось отправить заявку. Пожалуйста, позвоните нам: **+7 (499) 999-99-99**'
+                    '⚠️ Не удалось отправить заявку. Попробуйте ещё раз позже или откройте страницу контактов клиники.'
                 ),
                 [],
                 [{
