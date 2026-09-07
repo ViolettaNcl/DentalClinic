@@ -14,6 +14,8 @@ namespace DentalClinic.Controllers
     public class AuthController : ControllerBase
     {
         private const string AuthCookieName = "dc_auth";
+        private const string PasswordRequirementsMessage =
+            "❌ Пароль должен содержать минимум 8 символов, включая заглавную и строчную буквы, цифру и специальный символ";
 
         private readonly ApplicationDbContext _db;
         private readonly JwtTokenService _tokens;
@@ -42,8 +44,8 @@ namespace DentalClinic.Controllers
             if (!System.Text.RegularExpressions.Regex.IsMatch(req.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 return BadRequest(new { message = "❌ Некорректный формат email" });
 
-            if (req.Password.Length < 6)
-                return BadRequest(new { message = "❌ Пароль должен быть не короче 6 символов" });
+            if (!PasswordPolicy.IsValid(req.Password))
+                return BadRequest(new { message = PasswordRequirementsMessage });
 
             var email = NormalizeEmail(req.Email);
 
@@ -326,8 +328,8 @@ namespace DentalClinic.Controllers
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
                 return BadRequest(new { message = "❌ Текущий пароль указан неверно" });
 
-            if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
-                return BadRequest(new { message = "❌ Новый пароль должен быть не короче 6 символов" });
+            if (!PasswordPolicy.IsValid(req.NewPassword))
+                return BadRequest(new { message = PasswordRequirementsMessage });
 
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             patient.TokenVersion = checked(patient.TokenVersion + 1);
