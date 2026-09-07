@@ -1,0 +1,66 @@
+name: Vercel VCR Retention
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Plan cleanup without deleting images'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: vercel-vcr-retention
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_gUA5YpeydRnA8gntOXnPQxE3dF1l' }}
+      VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID || 'team_K0Mu5UoOJSbhvcZa3HEk70Bm' }}
+      VERCEL_VCR_REPOSITORY: ${{ vars.VERCEL_VCR_REPOSITORY || 'web' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v6.0.0
+        with:
+          node-version: '24'
+
+      - name: Check Vercel API credential
+        id: auth
+        shell: bash
+        run: |
+          if [[ -n "$VERCEL_TOKEN" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Vercel registry maintenance credential is configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VCR retention skipped because production secret VERCEL_TOKEN is not configured."
+            echo "### Vercel VCR retention skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Add a scoped Vercel access token as the production/repository secret \`VERCEL_TOKEN\`." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain production and rollback images
+        if: steps.auth.outputs.configured == 'true'
+        shell: bash
+        run: |
+          args=(--keep-newest 4 --target-count 5)
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+
+          node scripts/vercel-vcr-retention.mjs "${args[@]}" | tee /tmp/vcr-retention.log
+          {
+            echo "### Vercel VCR retention"
+            echo '```text'
+            cat /tmp/vcr-retention.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
