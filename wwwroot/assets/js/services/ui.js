@@ -50,7 +50,18 @@ if (document.readyState === 'loading') {
 // а тост уже рисует свою иконку в кружке — без очистки получались две галочки/два смайла подряд.
 const LEADING_EMOJI_RE = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\u2600-\u27BF\uFE0F\s]+/u;
 function stripLeadingEmoji(text) {
-    return text.replace(LEADING_EMOJI_RE, '').trim();
+    return String(text ?? '').replace(LEADING_EMOJI_RE, '').trim();
+}
+
+const TOAST_TYPES = new Set(['success', 'error', 'info']);
+function normalizeToastType(type) {
+    return TOAST_TYPES.has(type) ? type : 'info';
+}
+
+function normalizeToastDuration(duration) {
+    const numeric = Number(duration);
+    if (!Number.isFinite(numeric)) return 5500;
+    return Math.min(30000, Math.max(1000, Math.round(numeric)));
 }
 
 /**
@@ -62,6 +73,8 @@ function stripLeadingEmoji(text) {
  */
 export function showToast(message, type = 'info', duration = 5500, options = {}) {
     const container = _getToastContainer();
+    const safeType = normalizeToastType(type);
+    duration = normalizeToastDuration(duration);
 
     const icons = { success: '✅', error: '⚠️', info: 'ℹ️' };
     const titles = {
@@ -80,26 +93,26 @@ export function showToast(message, type = 'info', duration = 5500, options = {})
     const phoneMatch = cleanMessage.match(/(\+?\d[\d\s()-]{7,}\d)/);
     const isCallHint = !!phoneMatch;
 
-    let icon = icons[type] || icons.info;
-    let title = titles[type] || titles.info;
+    let icon = icons[safeType];
+    let title = titles[safeType];
     let bodyHtml = escapeHtml(cleanMessage);
 
     // Более конкретные заголовки и увеличенное время показа для типовых сообщений.
     // Явный options.title (передаётся вызывающим кодом через t(...)) всегда в приоритете;
     // регэкспы ниже — лишь запасной вариант для старых мест, где title не передан явно.
     let isCelebrate = false;
-    if (type === 'success') {
-        if (options.celebrate) { isCelebrate = true; duration = 6000; }
+    if (safeType === 'success') {
+        if (options?.celebrate) { isCelebrate = true; duration = 6000; }
         else if (/профиль обновл/i.test(cleanMessage)) title = t('ui_profile_updated', 'Профиль обновлён');
         else if (/пароль.*измен/i.test(cleanMessage)) title = t('ui_password_changed', 'Пароль изменён');
     }
 
-    if (options.icon) icon = options.icon;
-    if (options.title) title = options.title;
+    if (options?.icon) icon = String(options.icon);
+    if (options?.title) title = String(options.title);
 
     if (isCallHint) {
         icon = '📞';
-        if (!options.title) title = t('ui_call_needed_title', 'Нужен звонок в клинику');
+        if (!options?.title) title = t('ui_call_needed_title', 'Нужен звонок в клинику');
         const phone = phoneMatch[1];
         const before = cleanMessage.slice(0, cleanMessage.indexOf(phone)).replace(/[—-]\s*$/, '').trim();
         bodyHtml = `${escapeHtml(before)}<br><span class="toast-phone">${escapeHtml(phone)}</span>`;
@@ -107,16 +120,26 @@ export function showToast(message, type = 'info', duration = 5500, options = {})
 
     const toast = document.createElement('div');
     const isWave = isCelebrate && icon === '👋';
-    toast.className = `toast toast-${type}${isCallHint ? ' toast-call' : ''}${isCelebrate ? ' toast-celebrate' : ''}${isWave ? ' toast-wave' : ''}`;
+    toast.className = `toast toast-${safeType}${isCallHint ? ' toast-call' : ''}${isCelebrate ? ' toast-celebrate' : ''}${isWave ? ' toast-wave' : ''}`;
+
+    // The queued toast payload lives in sessionStorage and is therefore client-controlled.
+    // Keep its title/icon/type/duration out of HTML-string interpolation. Only bodyHtml is
+    // assigned as markup, and every dynamic segment inside it has already been escaped.
     toast.innerHTML = `
-        <span class="toast-icon">${icon}</span>
+        <span class="toast-icon"></span>
         <div class="toast-body">
-            <div class="toast-title">${title}</div>
-            <div class="toast-message">${bodyHtml}</div>
+            <div class="toast-title"></div>
+            <div class="toast-message"></div>
         </div>
-        <button type="button" class="toast-close" aria-label="${escapeHtml(t('ui_close', 'Закрыть'))}">✕</button>
-        <div class="toast-progress" style="animation-duration:${duration}ms"></div>
+        <button type="button" class="toast-close">✕</button>
+        <div class="toast-progress"></div>
     `;
+
+    toast.querySelector('.toast-icon').textContent = icon;
+    toast.querySelector('.toast-title').textContent = title;
+    toast.querySelector('.toast-message').innerHTML = bodyHtml;
+    toast.querySelector('.toast-close').setAttribute('aria-label', t('ui_close', 'Закрыть'));
+    toast.querySelector('.toast-progress').style.animationDuration = `${duration}ms`;
 
     if (isCelebrate) {
         const bits = ['✨', '🎊', '⭐', '💫'];
@@ -176,7 +199,7 @@ export function showConfirm(message, options = {}) {
         wrap.innerHTML = `
             <div class="panel-modal-backdrop"></div>
             <div class="panel-modal-dialog panel-confirm-dialog${danger ? ' panel-confirm-danger' : ''}">
-                <div class="panel-confirm-icon">${icon}</div>
+                <div class="panel-confirm-icon">${escapeHtml(icon)}</div>
                 <h3 class="panel-confirm-title">${escapeHtml(title)}</h3>
                 <p class="panel-confirm-message">${escapeHtml(message)}</p>
                 <div class="panel-modal-footer panel-confirm-footer">
