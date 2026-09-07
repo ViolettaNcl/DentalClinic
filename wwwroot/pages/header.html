@@ -78,7 +78,7 @@
         <h2 data-i18n="modal_login_title">Вход</h2>
         <form id="loginForm">
             <input type="email" placeholder="Email" required data-i18n-placeholder="placeholder_email">
-            <input type="password" placeholder="Пароль" required data-i18n-placeholder="placeholder_password">
+            <input type="password" placeholder="Пароль" required data-i18n-placeholder="placeholder_password" autocomplete="current-password">
             <button type="submit" class="btn-primary btn-modal" data-i18n="btn_login">Войти</button>
         </form>
         <div class="modal-extra">
@@ -96,9 +96,9 @@
         <span class="close">&times;</span>
         <h2 data-i18n="modal_signup_title">Регистрация</h2>
         <form id="signupForm">
-            <input type="text" placeholder="Имя" required data-i18n-placeholder="placeholder_name">
-            <input type="email" placeholder="Email" required data-i18n-placeholder="placeholder_email">
-            <input type="password" placeholder="Пароль" required data-i18n-placeholder="placeholder_password">
+            <input type="text" placeholder="Имя" required data-i18n-placeholder="placeholder_name" autocomplete="name">
+            <input type="email" placeholder="Email" required data-i18n-placeholder="placeholder_email" autocomplete="email">
+            <input type="password" placeholder="Пароль" required minlength="8" autocomplete="new-password" data-i18n-placeholder="placeholder_password">
             <button type="submit" class="btn-primary btn-modal" data-i18n="btn_signup">Зарегистрироваться</button>
         </form>
         <div class="modal-extra">

@@ -1,6 +1,7 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, showConfirm, queueToast } from '../../services/ui.js';
-import { t, onLanguageChange } from '../../core/i18n.js';
+import { t, onLanguageChange, getLang } from '../../core/i18n.js';
+import { isStrongPassword, passwordRequirementsMessage, PASSWORD_MIN_LENGTH } from '../../core/passwordPolicy.js';
 import { terminateCookieSession } from '../../core/sessionTermination.js';
 import { getServerSession, clearSessionMetadata } from '../../core/sessionBootstrap.js';
 import { shouldTryAdminFallback } from './authLoginPolicy.js';
@@ -21,6 +22,7 @@ class AuthManager {
 
         sessionStorage.removeItem('authToken');
         this.setupEvents();
+        this._configureSignupPasswordInput();
 
         try {
             await getServerSession({ force: true });
@@ -30,7 +32,19 @@ class AuthManager {
         }
 
         this.updateHeader();
-        onLanguageChange(() => this.updateHeader());
+        onLanguageChange(() => {
+            this.updateHeader();
+            this._configureSignupPasswordInput();
+        });
+    }
+
+    _configureSignupPasswordInput() {
+        const password = this.modals.signup?.querySelector('input[type="password"]');
+        if (!password) return;
+
+        password.minLength = PASSWORD_MIN_LENGTH;
+        password.autocomplete = 'new-password';
+        password.title = passwordRequirementsMessage(getLang());
     }
 
     setupEvents() {
@@ -81,6 +95,14 @@ class AuthManager {
                 email: inputs[0].value.trim(),
                 password: inputs[1].value.trim()
             };
+
+        // Login remains intentionally backward-compatible with accounts created
+        // before the stronger policy. Only new credentials are held to the current
+        // server-side PasswordPolicy.
+        if (type === 'signup' && !isStrongPassword(data.password)) {
+            showError(passwordRequirementsMessage(getLang()));
+            return;
+        }
 
         try {
             let res;
