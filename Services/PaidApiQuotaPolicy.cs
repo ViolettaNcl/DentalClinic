@@ -8,21 +8,23 @@ public static class PaidApiQuotaPolicy
 
     public static bool TryResolve(string? path, out PaidApiQuotaProfile profile)
     {
-        if (string.Equals(path, "/api/chat/tts", StringComparison.OrdinalIgnoreCase))
+        var normalizedPath = ApiRoutePath.Normalize(path);
+
+        if (string.Equals(normalizedPath, "/api/chat/tts", StringComparison.OrdinalIgnoreCase))
         {
             profile = new PaidApiQuotaProfile("tts", ChatRateLimitPolicy.TtsPermitLimit);
             return true;
         }
 
-        if (string.Equals(path, "/api/chat", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/chat/stream", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedPath, "/api/chat", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/chat/stream", StringComparison.OrdinalIgnoreCase))
         {
             profile = new PaidApiQuotaProfile("chat", ChatRateLimitPolicy.ChatPermitLimit);
             return true;
         }
 
-        if (string.Equals(path, "/api/translate", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/review/translate", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedPath, "/api/translate", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/review/translate", StringComparison.OrdinalIgnoreCase))
         {
             profile = new PaidApiQuotaProfile("translate", TranslatePermitLimit);
             return true;
