@@ -4,9 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const managerUrl = new URL('../../wwwroot/assets/js/managers/admin/adminAccessManager.js', import.meta.url);
 const guardUrl = new URL('../../wwwroot/assets/js/managers/admin/adminLogoutGuard.js', import.meta.url);
+const migrationUrl = new URL('../../Migrations/20260907114000_AddSuperAdminAccess.cs', import.meta.url);
 
 const managerSource = await readFile(managerUrl, 'utf8');
 const guardSource = await readFile(guardUrl, 'utf8');
+const migrationSource = await readFile(migrationUrl, 'utf8');
 
 test('admin access dashboard keeps server-provided account values out of HTML injection sinks', () => {
     assert.match(managerSource, /cell\.textContent = text/);
@@ -30,4 +32,12 @@ test('DOM-only access manager is dynamically imported behind the browser guard',
     const browserGuard = /if \(typeof window !== 'undefined' && typeof document !== 'undefined'\) \{[\s\S]*await import\('\.\/adminAccessManager\.js'\)/;
     assert.match(guardSource, browserGuard);
     assert.doesNotMatch(guardSource, /^import ['"]\.\/adminAccessManager\.js['"];?$/m);
+});
+
+test('super-admin migration bootstraps only an existing account and never embeds credentials', () => {
+    assert.match(migrationSource, /SELECT TOP \(1\) @bootstrapAdminId = \[Id\]/);
+    assert.match(migrationSource, /ORDER BY \[CreatedAt\] ASC, \[Id\] ASC/);
+    assert.match(migrationSource, /UPDATE \[dbo\]\.\[Admins\][\s\S]*SET \[IsSuperAdmin\] = 1/);
+    assert.doesNotMatch(migrationSource, /INSERT\s+INTO\s+\[dbo\]\.\[Admins\]/i);
+    assert.doesNotMatch(migrationSource, /PasswordHash\s*=|BCrypt|AdminP@ss|Password123/i);
 });
