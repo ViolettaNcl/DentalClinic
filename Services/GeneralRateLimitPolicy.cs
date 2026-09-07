@@ -19,14 +19,16 @@ public static class GeneralRateLimitPolicy
             return false;
         }
 
-        if (string.Equals(path, "/api/appointmentrequest", StringComparison.OrdinalIgnoreCase))
+        var normalizedPath = ApiRoutePath.Normalize(path);
+
+        if (string.Equals(normalizedPath, "/api/appointmentrequest", StringComparison.OrdinalIgnoreCase))
         {
             profile = new GeneralRateLimitProfile("appointment-create", AppointmentCreatePermitLimit);
             return true;
         }
 
-        if (string.Equals(path, "/api/auth/register", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(path, "/api/auth/login", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedPath, "/api/auth/register", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedPath, "/api/auth/login", StringComparison.OrdinalIgnoreCase))
         {
             profile = new GeneralRateLimitProfile("auth", AuthPermitLimit);
             return true;
