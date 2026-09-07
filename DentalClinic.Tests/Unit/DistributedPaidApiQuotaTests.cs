@@ -54,8 +54,10 @@ public class DistributedRequestQuotaTests
 
     [Theory]
     [InlineData("/api/chat", "chat", ChatRateLimitPolicy.ChatPermitLimit)]
+    [InlineData("/api/chat/", "chat", ChatRateLimitPolicy.ChatPermitLimit)]
     [InlineData("/api/chat/stream", "chat", ChatRateLimitPolicy.ChatPermitLimit)]
     [InlineData("/api/chat/tts", "tts", ChatRateLimitPolicy.TtsPermitLimit)]
+    [InlineData("/api/chat/tts/", "tts", ChatRateLimitPolicy.TtsPermitLimit)]
     [InlineData("/api/translate", "translate", PaidApiQuotaPolicy.TranslatePermitLimit)]
     [InlineData("/api/review/translate", "translate", PaidApiQuotaPolicy.TranslatePermitLimit)]
     public void PaidPolicy_MapsEveryPaidRouteToSharedProductionBudget(string path, string bucket, int limit)
@@ -67,8 +69,10 @@ public class DistributedRequestQuotaTests
 
     [Theory]
     [InlineData("/api/appointmentrequest", "appointment-create", GeneralRateLimitPolicy.AppointmentCreatePermitLimit)]
+    [InlineData("/api/appointmentrequest/", "appointment-create", GeneralRateLimitPolicy.AppointmentCreatePermitLimit)]
     [InlineData("/api/auth/register", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     [InlineData("/api/auth/login", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
+    [InlineData("/api/auth/login/", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     [InlineData("/API/AUTH/LOGIN", "auth", GeneralRateLimitPolicy.AuthPermitLimit)]
     public void GeneralPolicy_MapsProtectedPostRoutesToSharedProductionBudget(string path, string bucket, int limit)
     {
