@@ -22,7 +22,7 @@ public class AuthRequestValidationTests
         {
             FirstName = name,
             Email = "violetta@example.com",
-            Password = "password123"
+            Password = "Password123!"
         };
 
         Assert.Empty(Validate(request));
@@ -32,6 +32,7 @@ public class AuthRequestValidationTests
     [InlineData(101, "user@example.com", 12)]
     [InlineData(8, "oversized", 12)]
     [InlineData(8, "user@example.com", 101)]
+    [InlineData(8, "user@example.com", 7)]
     public void RegisterRequest_RejectsInvalidOrOversizedInputs(int nameLength, string emailKind, int passwordLength)
     {
         var email = emailKind == "oversized"
@@ -54,7 +55,7 @@ public class AuthRequestValidationTests
         var malformedEmail = new LoginRequest
         {
             Email = "not-an-email",
-            Password = "password123"
+            Password = "Password123!"
         };
         var oversizedPassword = new LoginRequest
         {
@@ -72,7 +73,7 @@ public class AuthRequestValidationTests
         var request = new ChangePasswordRequest
         {
             CurrentPassword = new string('p', 513),
-            NewPassword = "new-password-123"
+            NewPassword = "NewPassword123!"
         };
 
         Assert.NotEmpty(Validate(request));
