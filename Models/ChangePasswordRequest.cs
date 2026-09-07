@@ -9,7 +9,7 @@ namespace DentalClinic.Models
         public required string CurrentPassword { get; set; }
 
         [Required]
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "Новый пароль должен содержать не менее 6 символов")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Новый пароль должен содержать не менее 8 символов")]
         public required string NewPassword { get; set; }
     }
 }
