@@ -9,7 +9,8 @@ public static class ChatRateLimitPolicy
 
     public static ChatRateLimitProfile Resolve(string? path)
     {
-        var isTts = string.Equals(path, "/api/chat/tts", StringComparison.OrdinalIgnoreCase);
+        var normalizedPath = ApiRoutePath.Normalize(path);
+        var isTts = string.Equals(normalizedPath, "/api/chat/tts", StringComparison.OrdinalIgnoreCase);
         return isTts
             ? new ChatRateLimitProfile("tts", TtsPermitLimit)
             : new ChatRateLimitProfile("chat", ChatPermitLimit);
