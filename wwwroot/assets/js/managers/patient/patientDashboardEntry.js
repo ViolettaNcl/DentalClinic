@@ -1,9 +1,15 @@
 import { requireServerSession } from '../../core/sessionBootstrap.js';
 import { escapeHtmlAttribute } from '../../services/htmlAttributeSafety.js';
+import { installPatientPasswordPolicyGuard } from './patientPasswordPolicyGuard.js';
 
 try {
     const session = await requireServerSession('patient');
     if (session) {
+        // Install the password-policy capture guard before the legacy dashboard
+        // module registers its submit listener. This keeps the browser aligned with
+        // the server's shared strong-password policy without changing login behavior.
+        installPatientPasswordPolicyGuard();
+
         // Import the dashboard modules only after the HttpOnly-cookie session has
         // restored non-secret display metadata into this tab's sessionStorage.
         await import('./patientDashboard.js');
