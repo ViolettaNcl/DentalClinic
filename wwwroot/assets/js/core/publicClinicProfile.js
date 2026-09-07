@@ -1,13 +1,21 @@
 let profilePromise;
 
+function parseCoordinate(value, min, max) {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'number' && typeof value !== 'string') return null;
+
+    const candidate = typeof value === 'string' ? value.trim() : value;
+    if (candidate === '') return null;
+
+    const parsed = Number(candidate);
+    return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
 function normalizeProfile(value) {
     const profile = value && typeof value === 'object' ? value : {};
-    const latitude = Number(profile.latitude);
-    const longitude = Number(profile.longitude);
-    const hasCoordinates = Number.isFinite(latitude)
-        && latitude >= -90 && latitude <= 90
-        && Number.isFinite(longitude)
-        && longitude >= -180 && longitude <= 180;
+    const latitude = parseCoordinate(profile.latitude, -90, 90);
+    const longitude = parseCoordinate(profile.longitude, -180, 180);
+    const hasCoordinates = latitude !== null && longitude !== null;
 
     return Object.freeze({
         phone: typeof profile.phone === 'string' && profile.phone.trim() ? profile.phone.trim() : null,
