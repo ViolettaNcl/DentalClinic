@@ -26,6 +26,7 @@ public class SecurityResponseHeadersTests : IClassFixture<CustomWebApplicationFa
         Assert.Equal("SAMEORIGIN", Header(response, "X-Frame-Options"));
         Assert.Equal("strict-origin-when-cross-origin", Header(response, "Referrer-Policy"));
         Assert.Equal("none", Header(response, "X-Permitted-Cross-Domain-Policies"));
+        Assert.Equal("camera=(), geolocation=(self), payment=(), usb=()", Header(response, "Permissions-Policy"));
     }
 
     [Fact]
