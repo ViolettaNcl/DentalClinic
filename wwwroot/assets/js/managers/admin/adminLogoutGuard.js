@@ -5,6 +5,7 @@ import { terminateAdminSession } from '../../core/adminSession.js';
 import { requireServerSession, clearSessionMetadata } from '../../core/sessionBootstrap.js';
 import { installAdminExportCookieGuard } from './adminExportGuard.js';
 import { installAdminAppointmentRenderGuard } from './adminAppointmentRenderGuard.js';
+import './adminAccessManager.js';
 
 let installed = false;
 let logoutInProgress = false;
