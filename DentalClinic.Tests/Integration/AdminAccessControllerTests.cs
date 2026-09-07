@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DentalClinic.Data;
 using DentalClinic.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -65,6 +66,7 @@ public class AdminAccessControllerTests : IClassFixture<CustomWebApplicationFact
     [Fact]
     public async Task SuperAdmin_CannotDemoteTheOnlySuperAdmin()
     {
+        await ClearSuperAdminFlagsAsync();
         var (email, password, adminId) = await SeedAdminAsync(isSuperAdmin: true);
         var client = _factory.CreateClient();
         await LoginAdminAsync(client, email, password);
@@ -109,6 +111,16 @@ public class AdminAccessControllerTests : IClassFixture<CustomWebApplicationFact
         db.Admins.Add(admin);
         await db.SaveChangesAsync();
         return (email, password, admin.Id);
+    }
+
+    private async Task ClearSuperAdminFlagsAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var superAdmins = await db.Admins.Where(admin => admin.IsSuperAdmin).ToListAsync();
+        foreach (var admin in superAdmins)
+            admin.IsSuperAdmin = false;
+        await db.SaveChangesAsync();
     }
 
     private static async Task LoginAdminAsync(HttpClient client, string email, string password)
