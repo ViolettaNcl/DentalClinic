@@ -4,11 +4,13 @@ import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.
 import { installAdminLogoutGuard } from './adminLogoutGuard.js';
 import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
 import { installServiceKnowledgeManager } from './serviceKnowledgeManager.js';
+import { installClinicKnowledgeManager } from './clinicKnowledgeManager.js';
 import { buildDoctorPayload, formatDoctorKnowledgeSummary } from './doctorKnowledgeUtils.js';
 
 installAdminLogoutGuard();
 installAdminAnalyticsSummary();
 installServiceKnowledgeManager();
+installClinicKnowledgeManager();
 
 class DoctorsManager {
     constructor() {
