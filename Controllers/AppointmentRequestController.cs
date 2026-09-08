@@ -19,17 +19,20 @@ public class AppointmentRequestController : ControllerBase
     private readonly ILogger<AppointmentRequestController> _logger;
     private readonly NotificationService _notifications;
     private readonly AppointmentSchedulingService _scheduling;
+    private readonly PublicClinicProfile _clinicProfile;
 
     public AppointmentRequestController(
         ApplicationDbContext context,
         ILogger<AppointmentRequestController> logger,
         NotificationService notifications,
-        AppointmentSchedulingService scheduling)
+        AppointmentSchedulingService scheduling,
+        IConfiguration configuration)
     {
         _context = context;
         _logger = logger;
         _notifications = notifications;
         _scheduling = scheduling;
+        _clinicProfile = PublicClinicProfile.FromConfiguration(configuration);
     }
 
     // Заявки конкретного пациента — только сам пациент (по токену) или админ.
@@ -382,7 +385,10 @@ public class AppointmentRequestController : ControllerBase
 
         var status = request.Status?.ToLowerInvariant();
         if (status == AppointmentStatuses.Confirmed)
-            return BadRequest(new { message = "Подтверждённую запись нельзя изменить самостоятельно — пожалуйста, позвоните администратору клиники: +7 (499) 999-99-99" });
+            return BadRequest(new
+            {
+                message = AppointmentPatientContactPolicy.ConfirmedCancellationBlocked(_clinicProfile.Phone)
+            });
         if (status != AppointmentStatuses.Pending)
             return BadRequest(new { message = "Эту запись уже нельзя отменить" });
 
@@ -413,7 +419,10 @@ public class AppointmentRequestController : ControllerBase
 
         var status = request.Status?.ToLowerInvariant();
         if (status == AppointmentStatuses.Confirmed)
-            return BadRequest(new { message = "Подтверждённую запись нельзя перенести самостоятельно — пожалуйста, позвоните администратору клиники: +7 (499) 999-99-99" });
+            return BadRequest(new
+            {
+                message = AppointmentPatientContactPolicy.ConfirmedRescheduleBlocked(_clinicProfile.Phone)
+            });
         if (status != AppointmentStatuses.Pending)
             return BadRequest(new { message = "Эту запись уже нельзя перенести" });
 
