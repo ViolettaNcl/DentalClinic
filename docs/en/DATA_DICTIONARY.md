@@ -109,8 +109,8 @@ attributes in the code.
 | `IsRead` | `bool` | defaults to `false` | Read status |
 | `CreatedAt` | `DateTime` | defaults to `UtcNow` | Creation date |
 
-**Allowed `Type` values:** `appointment_confirmed`, `appointment_cancelled`,
-`appointment_completed`, `appointment_reminder`, `review_approved`, `review_rejected`.
+**Allowed `Type` values:** `welcome`, `appointment_confirmed`, `appointment_cancelled`,
+`appointment_completed`, `appointment_reminder`, `appointment_followup`, `review_approved`, `review_rejected`.
 
 ## ChatMessageLogs
 

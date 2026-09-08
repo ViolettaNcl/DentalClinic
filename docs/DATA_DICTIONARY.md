@@ -108,8 +108,8 @@
 | `IsRead` | `bool` | по умолч. `false` | Прочитано ли |
 | `CreatedAt` | `DateTime` | по умолч. `UtcNow` | Дата создания |
 
-**Допустимые значения `Type`:** `appointment_confirmed`, `appointment_cancelled`,
-`appointment_completed`, `appointment_reminder`, `review_approved`, `review_rejected`.
+**Допустимые значения `Type`:** `welcome`, `appointment_confirmed`, `appointment_cancelled`,
+`appointment_completed`, `appointment_reminder`, `appointment_followup`, `review_approved`, `review_rejected`.
 
 ## ChatMessageLogs — история AI-чата
 
