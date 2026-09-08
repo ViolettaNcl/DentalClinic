@@ -48,26 +48,35 @@ namespace DentalClinic.Controllers
                 return BadRequest(new { message = PasswordRequirementsMessage });
 
             var email = NormalizeEmail(req.Email);
-
-            if (await _db.Patients.AnyAsync(p => p.Email == email, cancellationToken))
-                return BadRequest(new { message = "❌ Email уже зарегистрирован" });
-
-            var patient = new Patient
+            var patient = await IdentityEmailGuard.ExecuteSerializedAsync(_db, async () =>
             {
-                FirstName = req.FirstName.Trim(),
-                Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
-            };
+                if (await _db.Patients.AnyAsync(p => p.Email == email, cancellationToken)
+                    || await _db.Admins.AnyAsync(a => a.Email == email, cancellationToken))
+                    return null;
 
-            _db.Patients.Add(patient);
-            try
-            {
-                await _db.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException)
-            {
+                var candidate = new Patient
+                {
+                    FirstName = req.FirstName.Trim(),
+                    Email = email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
+                };
+
+                _db.Patients.Add(candidate);
+                try
+                {
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException)
+                {
+                    _db.Entry(candidate).State = EntityState.Detached;
+                    return null;
+                }
+
+                return candidate;
+            }, cancellationToken);
+
+            if (patient == null)
                 return Conflict(new { message = "❌ Email уже зарегистрирован" });
-            }
 
             _logger.LogInformation("Зарегистрирован новый пациент id={Id}", patient.Id);
 
