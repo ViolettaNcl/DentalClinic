@@ -12,6 +12,10 @@ public class ClinicKnowledgeItem
     [Required, StringLength(80)]
     public string Category { get; set; } = null!;
 
+    // Russian is the canonical/source text for this clinic knowledge row.
+    // Other supported languages live in ClinicKnowledgeLocalizations and must be
+    // explicitly supplied/verified by an administrator; Denta never stores an
+    // automatically generated translation as a clinic fact.
     [Required, StringLength(160)]
     public string Title { get; set; } = null!;
 
@@ -27,4 +31,7 @@ public class ClinicKnowledgeItem
     public bool IsActive { get; set; } = true;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<ClinicKnowledgeLocalization> Localizations { get; set; }
+        = new List<ClinicKnowledgeLocalization>();
 }
