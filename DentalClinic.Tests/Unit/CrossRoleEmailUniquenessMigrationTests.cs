@@ -5,7 +5,7 @@ namespace DentalClinic.Tests.Unit;
 public class CrossRoleEmailUniquenessMigrationTests
 {
     [Fact]
-    public void Migration_FailsClosedAndSerializesBothIdentityWritePaths()
+    public void Migration_FailsClosedWithoutInstallingWriteTriggers()
     {
         var path = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -13,35 +13,28 @@ public class CrossRoleEmailUniquenessMigrationTests
         var source = File.ReadAllText(path);
 
         Assert.Contains("THROW 51030", source);
-        Assert.Contains("TR_Patients_EnforceCrossRoleEmailUniqueness", source);
-        Assert.Contains("TR_Admins_EnforceCrossRoleEmailUniqueness", source);
-        Assert.Contains("INNER JOIN [dbo].[Admins] a ON a.[Email] = i.[Email]", source);
-        Assert.Contains("INNER JOIN [dbo].[Patients] p ON p.[Email] = i.[Email]", source);
-        Assert.Contains("@LockOwner = ''Transaction''", source);
-        Assert.Contains("@LockMode = ''Exclusive''", source);
-
-        Assert.Equal(
-            2,
-            CountOccurrences(source, "@Resource = N''DentalClinic.IdentityEmail''"));
-
-        // The migration must never silently decide whether a patient or admin row
-        // should win when legacy data is already inconsistent.
+        Assert.Contains("INNER JOIN [dbo].[Admins] a ON a.[Email] = p.[Email]", source);
+        Assert.DoesNotContain("CREATE OR ALTER TRIGGER", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("UPDATE [dbo].[Patients]", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("UPDATE [dbo].[Admins]", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DELETE FROM [dbo].[Patients]", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DELETE FROM [dbo].[Admins]", source, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static int CountOccurrences(string source, string value)
+    [Fact]
+    public void RuntimeGuard_AcquiresOneTransactionOwnedLockBeforeIdentityChecks()
     {
-        var count = 0;
-        var offset = 0;
-        while ((offset = source.IndexOf(value, offset, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            offset += value.Length;
-        }
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
+        var guard = File.ReadAllText(Path.Combine(root, "Services/IdentityEmailGuard.cs"));
+        var auth = File.ReadAllText(Path.Combine(root, "Controllers/AuthController.cs"));
+        var adminAccess = File.ReadAllText(Path.Combine(root, "Services/AdminAccessService.cs"));
 
-        return count;
+        Assert.Contains("@Resource = N'DentalClinic.IdentityEmail'", guard);
+        Assert.Contains("@LockMode = 'Exclusive'", guard);
+        Assert.Contains("@LockOwner = 'Transaction'", guard);
+        Assert.Contains("CurrentTransaction", guard);
+        Assert.Contains("IdentityEmailGuard.ExecuteSerializedAsync(_db", auth);
+        Assert.Contains("_db.Admins.AnyAsync(a => a.Email == email", auth);
+        Assert.Contains("IdentityEmailGuard.ExecuteSerializedAsync(_db", adminAccess);
     }
 }
