@@ -69,16 +69,31 @@ test('public clinic profile fetch is same-origin and returns normalized data', a
     assert.equal(profile.hasCoordinates, true);
 });
 
-test('public pages do not ship the retired placeholder clinic facts', async () => {
-    const [contactHtml, homeHtml] = await Promise.all([
+test('public runtime assets do not ship retired clinic facts', async () => {
+    const runtimeSources = await Promise.all([
         readFile(new URL('../../wwwroot/pages/contact.html', import.meta.url), 'utf8'),
-        readFile(new URL('../../wwwroot/index.html', import.meta.url), 'utf8')
+        readFile(new URL('../../wwwroot/index.html', import.meta.url), 'utf8'),
+        readFile(new URL('../../wwwroot/assets/js/core/chatBot.js', import.meta.url), 'utf8')
     ]);
 
-    for (const source of [contactHtml, homeHtml]) {
+    for (const source of runtimeSources) {
         assert.doesNotMatch(source, /support@dentalclinic\.ru/i);
         assert.doesNotMatch(source, /499[- )]999[- ]99[- ]99/i);
         assert.doesNotMatch(source, /ул\.\s*Мира\s*,?\s*25/i);
         assert.doesNotMatch(source, /48\.709737|44\.516499/);
+    }
+
+    for (const locale of ['ru', 'en', 'fr', 'el', 'ar']) {
+        const raw = await readFile(
+            new URL(`../../wwwroot/assets/i18n/${locale}.json`, import.meta.url),
+            'utf8');
+        const dictionary = JSON.parse(raw.replace(/^\uFEFF/, ''));
+
+        assert.doesNotMatch(raw, /499[- )]999[- ]99[- ]99/i);
+        assert.equal(Object.hasOwn(dictionary, 'contact_card_address_text'), false);
+        assert.equal(Object.hasOwn(dictionary, 'contact_hours_weekdays'), false);
+        assert.equal(Object.hasOwn(dictionary, 'contact_hours_sunday'), false);
+        assert.match(dictionary.patient_confirmed_call_required, /contact|контакт|επικοινων|اتصال/i);
+        assert.match(dictionary.chat_booking_error, /contact|контакт|επικοινων|اتصال/i);
     }
 });

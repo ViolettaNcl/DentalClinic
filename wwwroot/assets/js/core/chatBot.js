@@ -1066,7 +1066,7 @@ class ChatBot {
             }
         } catch {
             this.booking.step = 'idle';
-            this._addBotMessage(this._tr('chat_booking_error', '⚠️ Не удалось отправить заявку. Пожалуйста, позвоните нам: **+7 (499) 999-99-99**'), [], [{ text: this._tr('chat_booking_contact_link', 'Контакты клиники →'), url: '/pages/contact.html' }]);
+            this._addBotMessage(this._tr('chat_booking_error', '⚠️ Не удалось отправить заявку. Попробуйте ещё раз позже или откройте страницу контактов клиники.'), [], [{ text: this._tr('chat_booking_contact_link', 'Контакты клиники →'), url: '/pages/contact.html' }]);
         }
     }
 
