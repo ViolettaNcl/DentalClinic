@@ -10,8 +10,8 @@
 - [x] Connected active knowledge items to Denta's server-authoritative prompt block.
 - [x] Added prompt-size bounding through `ChatKnowledge:MaxItems` (default 12, hard maximum 30).
 - [x] Sanitized managed rows before prompt insertion and explicitly treated them as untrusted data subordinate to clinical-safety policy.
-- [x] Added regression coverage for active-only selection, configured limits, sanitization, EF metadata, migration shape, and Admin-only access.
-- [ ] Add administrator UI for knowledge-item management.
+- [x] Added an administrator UI in the existing dashboard for search, create, edit, activate, and deactivate knowledge items.
+- [x] Added .NET and JavaScript regression coverage for active-only selection, configured limits, sanitization, persistence metadata, migration shape, Admin-only access, and admin payload validation.
 - [ ] Add query-aware retrieval/ranking so Denta sends only the most relevant knowledge rows per user message.
 - [ ] Add multilingual knowledge authoring/translation strategy without inventing clinic facts.
 
