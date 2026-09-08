@@ -138,6 +138,9 @@ public class NotificationService
         int? relatedId,
         string? idempotencyKey)
     {
+        if (!NotificationTypes.IsSupported(type))
+            throw new ArgumentOutOfRangeException(nameof(type), type, "Unsupported durable notification type.");
+
         if (message.Length > 550)
             message = message[..547] + "...";
 
