@@ -38,6 +38,9 @@ public class ClinicKnowledgeController : ControllerBase
         [FromBody] ClinicKnowledgeWriteRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HasRequiredText(request))
+            return BadRequest(new { message = "Заполните категорию, заголовок и содержание." });
+
         var item = new ClinicKnowledgeItem
         {
             Category = request.Category.Trim(),
@@ -60,6 +63,9 @@ public class ClinicKnowledgeController : ControllerBase
         [FromBody] ClinicKnowledgeWriteRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HasRequiredText(request))
+            return BadRequest(new { message = "Заполните категорию, заголовок и содержание." });
+
         var item = await _db.ClinicKnowledgeItems.FindAsync([id], cancellationToken);
         if (item == null) return NotFound();
 
@@ -86,6 +92,11 @@ public class ClinicKnowledgeController : ControllerBase
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(item);
     }
+
+    private static bool HasRequiredText(ClinicKnowledgeWriteRequest request)
+        => !string.IsNullOrWhiteSpace(request.Category)
+           && !string.IsNullOrWhiteSpace(request.Title)
+           && !string.IsNullOrWhiteSpace(request.Content);
 
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
