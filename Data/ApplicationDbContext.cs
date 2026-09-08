@@ -106,6 +106,11 @@ namespace DentalClinic.Data
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
             modelBuilder.Entity<Service>()
+                .HasIndex(s => new { s.PageUrl, s.SortOrder })
+                .IsUnique()
+                .HasFilter("[IsActive] = 1 AND [PageUrl] IS NOT NULL AND [SortOrder] > 0")
+                .HasDatabaseName("UX_Services_ActivePageSlot");
+            modelBuilder.Entity<Service>()
                 .ToTable(table =>
                 {
                     table.HasCheckConstraint(
