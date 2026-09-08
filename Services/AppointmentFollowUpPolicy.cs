@@ -10,7 +10,7 @@ namespace DentalClinic.Services;
 /// </summary>
 public static class AppointmentFollowUpPolicy
 {
-    public const string NotificationType = "appointment_followup";
+    public const string NotificationType = NotificationTypes.AppointmentFollowUp;
 
     public static Expression<Func<AppointmentRequest, bool>> DueBetween(
         DateTime windowStart,
