@@ -20,6 +20,7 @@ namespace DentalClinic.Data
         public DbSet<ChatMessageLog> ChatMessageLogs { get; set; }
         public DbSet<PaidApiUsageWindow> PaidApiUsageWindows { get; set; }
         public DbSet<ClinicKnowledgeItem> ClinicKnowledgeItems { get; set; }
+        public DbSet<ClinicKnowledgeLocalization> ClinicKnowledgeLocalizations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +130,20 @@ namespace DentalClinic.Data
                 .ToTable(table => table.HasCheckConstraint(
                     "CK_ClinicKnowledgeItems_SortOrder",
                     "[SortOrder] >= 0"));
+
+            modelBuilder.Entity<ClinicKnowledgeLocalization>()
+                .HasIndex(l => new { l.ClinicKnowledgeItemId, l.Lang })
+                .IsUnique()
+                .HasDatabaseName("UX_ClinicKnowledgeLocalizations_ItemLang");
+            modelBuilder.Entity<ClinicKnowledgeLocalization>()
+                .HasOne<ClinicKnowledgeItem>()
+                .WithMany(k => k.Localizations)
+                .HasForeignKey(l => l.ClinicKnowledgeItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ClinicKnowledgeLocalization>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_ClinicKnowledgeLocalizations_Lang",
+                    "[Lang] IN ('en', 'fr', 'el', 'ar')"));
 
             modelBuilder.Entity<Doctor>()
                 .ToTable(table => table.HasCheckConstraint(
