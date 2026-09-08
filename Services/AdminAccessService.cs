@@ -86,31 +86,35 @@ IF @lockResult < 0
             if (!await ActorIsSuperAdminAsync(actorAdminId, cancellationToken))
                 return new AdminAccessOperation(AdminAccessError.Forbidden);
 
-            var normalizedEmail = NormalizeEmail(email);
-            if (await _db.Admins.AnyAsync(a => a.Email == normalizedEmail, cancellationToken))
-                return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
-
-            if (await _db.Patients.AnyAsync(p => p.Email == normalizedEmail, cancellationToken))
-                return new AdminAccessOperation(AdminAccessError.PatientEmailConflict);
-
-            var admin = new Admin
+            return await IdentityEmailGuard.ExecuteSerializedAsync(_db, async () =>
             {
-                Email = normalizedEmail,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                IsSuperAdmin = isSuperAdmin
-            };
+                var normalizedEmail = NormalizeEmail(email);
+                if (await _db.Admins.AnyAsync(a => a.Email == normalizedEmail, cancellationToken))
+                    return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
 
-            _db.Admins.Add(admin);
-            try
-            {
-                await _db.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException)
-            {
-                return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
-            }
+                if (await _db.Patients.AnyAsync(p => p.Email == normalizedEmail, cancellationToken))
+                    return new AdminAccessOperation(AdminAccessError.PatientEmailConflict);
 
-            return new AdminAccessOperation(AdminAccessError.None, ToSummary(admin));
+                var admin = new Admin
+                {
+                    Email = normalizedEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    IsSuperAdmin = isSuperAdmin
+                };
+
+                _db.Admins.Add(admin);
+                try
+                {
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException)
+                {
+                    _db.Entry(admin).State = EntityState.Detached;
+                    return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
+                }
+
+                return new AdminAccessOperation(AdminAccessError.None, ToSummary(admin));
+            }, cancellationToken);
         }, cancellationToken);
 
     public Task<AdminAccessOperation> SetSuperAdminAsync(
