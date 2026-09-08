@@ -74,6 +74,43 @@ public class AdminStatsExportControllerTests
         Assert.DoesNotContain("Outside", content.Content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ExportReport_MoreThanConfiguredRowLimit_ReturnsUnprocessableEntityInsteadOfTruncating()
+    {
+        await using var db = CreateDb();
+        db.AppointmentRequests.AddRange(
+            Enumerable.Range(1, 101)
+                .Select(i => Request(
+                    i,
+                    new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc),
+                    $"Patient {i}")));
+        await db.SaveChangesAsync();
+        var controller = CreateController(db, maxRows: 100);
+
+        var result = await controller.ExportReport("2026-09-01", "2026-09-01", CancellationToken.None);
+
+        Assert.IsType<UnprocessableEntityObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task ExportReport_ExactlyConfiguredRowLimit_RemainsExportable()
+    {
+        await using var db = CreateDb();
+        db.AppointmentRequests.AddRange(
+            Enumerable.Range(1, 100)
+                .Select(i => Request(
+                    i,
+                    new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc),
+                    $"Patient {i}")));
+        await db.SaveChangesAsync();
+        var controller = CreateController(db, maxRows: 100);
+
+        var result = await controller.ExportReport("2026-09-01", "2026-09-01", CancellationToken.None);
+
+        var content = Assert.IsType<ContentResult>(result);
+        Assert.Contains("Patient 100", content.Content, StringComparison.Ordinal);
+    }
+
     private static ApplicationDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -82,19 +119,20 @@ public class AdminStatsExportControllerTests
         return new ApplicationDbContext(options);
     }
 
-    private static AdminStatsController CreateController(ApplicationDbContext db)
+    private static AdminStatsController CreateController(ApplicationDbContext db, int maxRows = 25_000)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Scheduling:TimeZoneId"] = "UTC"
+                ["Scheduling:TimeZoneId"] = "UTC",
+                ["AdminExports:MaxRows"] = maxRows.ToString()
             })
             .Build();
         var clock = new ClinicClock(
             config,
             new FixedTimeProvider(new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero)));
         var analytics = new AdminAnalyticsService(db, clock);
-        return new AdminStatsController(db, clock, analytics);
+        return new AdminStatsController(db, clock, analytics, config);
     }
 
     private static AppointmentRequest Request(int id, DateTime createdAt, string name) => new()
