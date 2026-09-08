@@ -16,19 +16,28 @@ namespace DentalClinic.Controllers;
 public class AdminStatsController : ControllerBase
 {
     private const int MaxExportSpanDays = 366;
+    private const int DefaultMaxExportRows = 25_000;
+    private const int MinConfiguredExportRows = 100;
+    private const int MaxConfiguredExportRows = 100_000;
 
     private readonly ApplicationDbContext _db;
     private readonly ClinicClock _clock;
     private readonly AdminAnalyticsService _analytics;
+    private readonly int _maxExportRows;
 
     public AdminStatsController(
         ApplicationDbContext db,
         ClinicClock clock,
-        AdminAnalyticsService analytics)
+        AdminAnalyticsService analytics,
+        IConfiguration configuration)
     {
         _db = db;
         _clock = clock;
         _analytics = analytics;
+        _maxExportRows = Math.Clamp(
+            configuration.GetValue<int?>("AdminExports:MaxRows") ?? DefaultMaxExportRows,
+            MinConfiguredExportRows,
+            MaxConfiguredExportRows);
     }
 
     // GET api/adminstats/summary
@@ -49,8 +58,10 @@ public class AdminStatsController : ControllerBase
         if (!TryResolveExportRange(from, to, out var fromLocal, out var toLocal, out var error))
             return BadRequest(new { message = error });
 
-        var (headers, rows, _) = await BuildAppointmentsTable(fromLocal, toLocal, cancellationToken);
-        var bytes = SimpleXlsxWriter.Write("Заявки", headers, rows);
+        var table = await BuildAppointmentsTable(fromLocal, toLocal, cancellationToken);
+        if (table.LimitExceeded) return ExportRowLimitExceeded();
+
+        var bytes = SimpleXlsxWriter.Write("Заявки", table.Headers, table.Rows);
 
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -68,32 +79,41 @@ public class AdminStatsController : ControllerBase
         if (!TryResolveExportRange(from, to, out var fromLocal, out var toLocal, out var error))
             return BadRequest(new { message = error });
 
-        var (headers, rows, periodLabel) = await BuildAppointmentsTable(fromLocal, toLocal, cancellationToken);
+        var table = await BuildAppointmentsTable(fromLocal, toLocal, cancellationToken);
+        if (table.LimitExceeded) return ExportRowLimitExceeded();
+
         var html = PrintableReportService.BuildReportHtml(
-            $"Отчёт по заявкам — {periodLabel}",
-            headers,
-            rows,
+            $"Отчёт по заявкам — {table.PeriodLabel}",
+            table.Headers,
+            table.Rows,
             _clock.Now);
         return Content(html, "text/html");
     }
 
-    private async Task<(List<string> headers, List<IReadOnlyList<string>> rows, string periodLabel)> BuildAppointmentsTable(
+    private async Task<AppointmentExportTable> BuildAppointmentsTable(
         DateOnly fromLocal,
         DateOnly toLocal,
         CancellationToken cancellationToken)
     {
         // CreatedAt хранится в UTC, а фильтр отчёта задаётся календарными днями
-        // клиники. На Vercel локальный часовой пояс контейнера может быть UTC,
-        // поэтому DateTime.ToLocalTime() здесь использовать нельзя: границы и
-        // отображаемое время должны всегда считаться через ClinicClock.
+        // клиники. Границы и отображаемое время всегда считаются через ClinicClock.
         var fromUtc = _clock.ToUtc(fromLocal.ToDateTime(TimeOnly.MinValue));
         var toUtcExclusive = _clock.ToUtc(toLocal.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        var headers = new List<string> { "ID", "Создана", "Имя", "Телефон", "Статус", "Дата приёма", "Врач", "Комментарий" };
+        var periodLabel = $"{fromLocal:dd.MM.yyyy} – {toLocal:dd.MM.yyyy}";
 
+        // Read one sentinel row beyond the configured ceiling. This proves the
+        // export is too large without counting/scanning and materializing the full
+        // result set. Oversized exports are rejected rather than silently truncated.
         var data = await _db.AppointmentRequests
             .AsNoTracking()
             .Where(a => a.CreatedAt >= fromUtc && a.CreatedAt < toUtcExclusive)
             .OrderByDescending(a => a.CreatedAt)
+            .Take(_maxExportRows + 1)
             .ToListAsync(cancellationToken);
+
+        if (data.Count > _maxExportRows)
+            return new AppointmentExportTable(headers, [], periodLabel, LimitExceeded: true);
 
         var doctorIds = data
             .Where(a => a.DoctorId.HasValue)
@@ -106,7 +126,6 @@ public class AdminStatsController : ControllerBase
             .Where(d => doctorIds.Contains(d.Id))
             .ToDictionaryAsync(d => d.Id, d => d.FullName, cancellationToken);
 
-        var headers = new List<string> { "ID", "Создана", "Имя", "Телефон", "Статус", "Дата приёма", "Врач", "Комментарий" };
         var rows = data.Select(a => (IReadOnlyList<string>)new List<string>
         {
             a.Id.ToString(CultureInfo.InvariantCulture),
@@ -119,9 +138,14 @@ public class AdminStatsController : ControllerBase
             a.Comment ?? ""
         }).ToList();
 
-        var periodLabel = $"{fromLocal:dd.MM.yyyy} – {toLocal:dd.MM.yyyy}";
-        return (headers, rows, periodLabel);
+        return new AppointmentExportTable(headers, rows, periodLabel, LimitExceeded: false);
     }
+
+    private IActionResult ExportRowLimitExceeded()
+        => UnprocessableEntity(new
+        {
+            message = $"За выбранный период найдено больше {_maxExportRows:N0} записей. Уменьшите период экспорта."
+        });
 
     private bool TryResolveExportRange(
         string? from,
@@ -163,4 +187,10 @@ public class AdminStatsController : ControllerBase
         error = null;
         return true;
     }
+
+    private sealed record AppointmentExportTable(
+        List<string> Headers,
+        List<IReadOnlyList<string>> Rows,
+        string PeriodLabel,
+        bool LimitExceeded);
 }
