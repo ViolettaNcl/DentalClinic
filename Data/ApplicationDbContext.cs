@@ -88,6 +88,16 @@ namespace DentalClinic.Data
                 .WithMany()
                 .HasForeignKey(c => c.PatientId)
                 .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ChatMessageLog>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_ChatMessageLogs_Role",
+                        "[Role] IN ('user', 'bot')");
+                    table.HasCheckConstraint(
+                        "CK_ChatMessageLogs_Lang",
+                        "[Lang] IN ('ru', 'en', 'fr', 'el', 'ar')");
+                });
 
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
