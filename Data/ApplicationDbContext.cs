@@ -19,6 +19,7 @@ namespace DentalClinic.Data
         public DbSet<Service> Services { get; set; }
         public DbSet<ChatMessageLog> ChatMessageLogs { get; set; }
         public DbSet<PaidApiUsageWindow> PaidApiUsageWindows { get; set; }
+        public DbSet<ClinicKnowledgeItem> ClinicKnowledgeItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -120,6 +121,14 @@ namespace DentalClinic.Data
                         "CK_Services_SortOrder",
                         "[SortOrder] >= 0");
                 });
+
+            modelBuilder.Entity<ClinicKnowledgeItem>()
+                .HasIndex(k => new { k.IsActive, k.SortOrder })
+                .HasDatabaseName("IX_ClinicKnowledgeItems_ActiveSort");
+            modelBuilder.Entity<ClinicKnowledgeItem>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_ClinicKnowledgeItems_SortOrder",
+                    "[SortOrder] >= 0"));
 
             modelBuilder.Entity<Doctor>()
                 .ToTable(table => table.HasCheckConstraint(
