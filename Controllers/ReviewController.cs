@@ -493,18 +493,22 @@ public class ReviewController : ControllerBase
                 ? "Ваш отзыв одобрен и опубликован на сайте 🎉"
                 : $"Ваш отзыв отклонён. Причина: {review.RejectionReason}";
 
-            // NotificationService uses the same scoped DbContext, so on relational
-            // providers both the moderation state and durable patient notification
-            // participate in this transaction. Realtime delivery remains best-effort.
-            await _notifications.NotifyAsync(
+            // Persist the patient notification in the same database transaction as
+            // the moderation decision, but do not emit realtime before commit. A
+            // failed commit must never leave the patient with a transient false event.
+            var notification = await _notifications.PersistPatientNotificationAsync(
                 review.PatientId,
-                status == "approved" ? "review_approved" : "review_rejected",
+                status == "approved" ? NotificationTypes.ReviewApproved : NotificationTypes.ReviewRejected,
                 message,
                 review.Id,
                 cancellationToken);
 
             if (transaction != null)
                 await transaction.CommitAsync(cancellationToken);
+
+            await _notifications.DeliverPersistedPatientRealtimeBestEffortAsync(
+                notification,
+                cancellationToken);
 
             return Ok(new
             {
