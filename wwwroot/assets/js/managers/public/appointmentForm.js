@@ -1,40 +1,16 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError } from '../../services/ui.js';
 import { getLang } from '../../core/i18n.js';
+import { localizedFeedback } from '../../core/localizedFeedback.js';
 
-const PUBLIC_APPOINTMENT_MESSAGES = Object.freeze({
-    ru: Object.freeze({
-        phoneRequired: 'Введите номер телефона!',
-        success: 'Заявка отправлена! Скоро мы вам перезвоним.',
-        submitError: 'Не удалось отправить заявку. Попробуйте ещё раз.'
-    }),
-    en: Object.freeze({
-        phoneRequired: 'Enter your phone number.',
-        success: "Request sent! We'll call you back soon.",
-        submitError: 'Could not send the appointment request. Please try again.'
-    }),
-    fr: Object.freeze({
-        phoneRequired: 'Veuillez saisir votre numéro de téléphone.',
-        success: 'Demande envoyée ! Nous vous rappellerons bientôt.',
-        submitError: "Impossible d’envoyer la demande de rendez-vous. Veuillez réessayer."
-    }),
-    el: Object.freeze({
-        phoneRequired: 'Παρακαλώ εισαγάγετε τον αριθμό τηλεφώνου σας.',
-        success: 'Το αίτημα στάλθηκε! Θα σας καλέσουμε σύντομα.',
-        submitError: 'Δεν ήταν δυνατή η αποστολή του αιτήματος ραντεβού. Δοκιμάστε ξανά.'
-    }),
-    ar: Object.freeze({
-        phoneRequired: 'يرجى إدخال رقم هاتفك.',
-        success: 'تم إرسال الطلب! سنتصل بك قريبًا.',
-        submitError: 'تعذر إرسال طلب الموعد. يرجى المحاولة مرة أخرى.'
-    })
+const APPOINTMENT_MESSAGE_KEYS = Object.freeze({
+    phoneRequired: 'appointmentPhoneRequired',
+    success: 'appointmentSuccess',
+    submitError: 'appointmentSubmitError'
 });
 
 function appointmentMessage(key) {
-    const lang = getLang();
-    return PUBLIC_APPOINTMENT_MESSAGES[lang]?.[key]
-        ?? PUBLIC_APPOINTMENT_MESSAGES.ru[key]
-        ?? key;
+    return localizedFeedback(APPOINTMENT_MESSAGE_KEYS[key] ?? key, getLang());
 }
 
 class AppointmentForm {

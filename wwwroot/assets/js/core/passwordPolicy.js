@@ -1,3 +1,5 @@
+import { localizedFeedback } from './localizedFeedback.js';
+
 export const PASSWORD_MIN_LENGTH = 8;
 
 export function isStrongPassword(value) {
@@ -12,15 +14,6 @@ export function isStrongPassword(value) {
         && /[^\p{L}\p{N}]/u.test(password);
 }
 
-const REQUIREMENTS = Object.freeze({
-    ru: 'Пароль должен содержать минимум 8 символов, включая заглавную и строчную буквы, цифру и специальный символ.',
-    en: 'Password must contain at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special character.',
-    fr: 'Le mot de passe doit contenir au moins 8 caractères, avec une majuscule, une minuscule, un chiffre et un caractère spécial.',
-    el: 'Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες, με κεφαλαίο και πεζό γράμμα, αριθμό και ειδικό χαρακτήρα.',
-    ar: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وأن تتضمن حرفًا كبيرًا وحرفًا صغيرًا ورقمًا ورمزًا خاصًا.'
-});
-
 export function passwordRequirementsMessage(lang = 'ru') {
-    const normalized = String(lang || 'ru').trim().toLowerCase().split('-')[0];
-    return REQUIREMENTS[normalized] || REQUIREMENTS.ru;
+    return localizedFeedback('passwordRequirements', lang);
 }

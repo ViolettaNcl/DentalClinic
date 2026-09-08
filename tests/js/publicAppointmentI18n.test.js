@@ -8,15 +8,16 @@ async function source(path) {
     return readFile(new URL(path, root), 'utf8');
 }
 
-test('public appointment form localizes feedback for all supported languages', async () => {
+test('public appointment form uses centralized localized feedback', async () => {
     const text = await source('wwwroot/assets/js/managers/public/appointmentForm.js');
 
     assert.match(text, /import\s+\{\s*getLang\s*\}\s+from\s+'\.\.\/\.\.\/core\/i18n\.js'/);
-    assert.match(text, /const\s+PUBLIC_APPOINTMENT_MESSAGES\s*=\s*Object\.freeze/);
-
-    for (const lang of ['ru', 'en', 'fr', 'el', 'ar']) {
-        assert.match(text, new RegExp(`\\b${lang}:\\s*Object\\.freeze\\(\\{`));
-    }
+    assert.match(text, /import\s+\{\s*localizedFeedback\s*\}\s+from\s+'\.\.\/\.\.\/core\/localizedFeedback\.js'/);
+    assert.doesNotMatch(text, /PUBLIC_APPOINTMENT_MESSAGES/);
+    assert.match(text, /phoneRequired:\s*'appointmentPhoneRequired'/);
+    assert.match(text, /success:\s*'appointmentSuccess'/);
+    assert.match(text, /submitError:\s*'appointmentSubmitError'/);
+    assert.match(text, /localizedFeedback\(APPOINTMENT_MESSAGE_KEYS\[key\]\s*\?\?\s*key,\s*getLang\(\)\)/);
 
     assert.match(text, /showError\(appointmentMessage\('phoneRequired'\)\)/);
     assert.match(text, /showSuccess\(appointmentMessage\('success'\)\)/);
