@@ -46,10 +46,35 @@ const legacyChatFallback = '⚠️ Не удалось отправить зая
 const safeChatFallback = '⚠️ Не удалось отправить заявку. Попробуйте ещё раз позже или откройте страницу контактов клиники.';
 let chatBot = await readFile(chatBotPath, 'utf8');
 const occurrences = chatBot.split(legacyChatFallback).length - 1;
-if (occurrences !== 1) {
-  throw new Error(`Expected exactly one retired chat booking fallback, found ${occurrences}.`);
+if (occurrences > 1) {
+  throw new Error(`Expected at most one retired chat booking fallback, found ${occurrences}.`);
 }
-chatBot = chatBot.replace(legacyChatFallback, safeChatFallback);
-await writeFile(chatBotPath, chatBot, 'utf8');
+if (occurrences === 1) {
+  chatBot = chatBot.replace(legacyChatFallback, safeChatFallback);
+  await writeFile(chatBotPath, chatBot, 'utf8');
+}
 
-console.log('Retired clinic phone/address/hour fallbacks removed from runtime assets.');
+const documentationUpdates = [
+  {
+    path: 'docs/DATA_DICTIONARY.md',
+    before: '**Допустимые значения `Type`:** `appointment_confirmed`, `appointment_cancelled`,\n`appointment_completed`, `appointment_reminder`, `review_approved`, `review_rejected`.',
+    after: '**Допустимые значения `Type`:** `welcome`, `appointment_confirmed`, `appointment_cancelled`,\n`appointment_completed`, `appointment_reminder`, `appointment_followup`, `review_approved`, `review_rejected`.'
+  },
+  {
+    path: 'docs/en/DATA_DICTIONARY.md',
+    before: '**Allowed `Type` values:** `appointment_confirmed`, `appointment_cancelled`,\n`appointment_completed`, `appointment_reminder`, `review_approved`, `review_rejected`.',
+    after: '**Allowed `Type` values:** `welcome`, `appointment_confirmed`, `appointment_cancelled`,\n`appointment_completed`, `appointment_reminder`, `appointment_followup`, `review_approved`, `review_rejected`.'
+  }
+];
+
+for (const update of documentationUpdates) {
+  let source = await readFile(update.path, 'utf8');
+  if (source.includes(update.before)) {
+    source = source.replace(update.before, update.after);
+    await writeFile(update.path, source, 'utf8');
+  } else if (!source.includes(update.after)) {
+    throw new Error(`Notification type documentation drifted in ${update.path}.`);
+  }
+}
+
+console.log('Retired clinic facts removed and notification type documentation synchronized.');
