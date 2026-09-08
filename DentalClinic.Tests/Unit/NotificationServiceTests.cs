@@ -31,15 +31,31 @@ public class NotificationServiceTests
             NullLogger<NotificationService>.Instance);
 
         var exception = await Record.ExceptionAsync(() =>
-            service.NotifyAsync(42, "appointment_confirmed", "Confirmed", 123));
+            service.NotifyAsync(42, NotificationTypes.AppointmentConfirmed, "Confirmed", 123));
 
         Assert.Null(exception);
         var notification = Assert.Single(db.Notifications);
         Assert.Equal(42, notification.PatientId);
-        Assert.Equal("appointment_confirmed", notification.Type);
+        Assert.Equal(NotificationTypes.AppointmentConfirmed, notification.Type);
         Assert.Equal("Confirmed", notification.Message);
         Assert.Equal(123, notification.RelatedId);
         Assert.Null(notification.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task NotifyAsync_UnsupportedDurableType_FailsBeforePersistence()
+    {
+        await using var db = CreateDb();
+        var service = new NotificationService(
+            db,
+            CreateThrowingHubContext(),
+            NullLogger<NotificationService>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.NotifyAsync(42, "new_review", "Must stay realtime-only", 77));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Empty(db.Notifications);
     }
 
     [Fact]
@@ -62,13 +78,13 @@ public class NotificationServiceTests
 
         var first = await service.NotifyOnceAsync(
             44,
-            "appointment_reminder",
+            NotificationTypes.AppointmentReminder,
             "Reminder",
             321,
             "appointment-reminder:321");
         var second = await service.NotifyOnceAsync(
             44,
-            "appointment_reminder",
+            NotificationTypes.AppointmentReminder,
             "Reminder",
             321,
             "appointment-reminder:321");
@@ -112,7 +128,7 @@ public class NotificationServiceTests
 
         Assert.True(await service.NotifyOnceAsync(
             45,
-            "appointment_reminder",
+            NotificationTypes.AppointmentReminder,
             "Reminder",
             500,
             "appointment-reminder:500"));
@@ -120,7 +136,7 @@ public class NotificationServiceTests
         appointment.ReminderSent = true;
         Assert.False(await service.NotifyOnceAsync(
             45,
-            "appointment_reminder",
+            NotificationTypes.AppointmentReminder,
             "Reminder",
             500,
             "appointment-reminder:500"));
@@ -179,7 +195,7 @@ public class NotificationServiceTests
             CreateThrowingHubContext(),
             NullLogger<NotificationService>.Instance);
 
-        await service.NotifyAsync(43, "review_rejected", new string('x', 700), 9);
+        await service.NotifyAsync(43, NotificationTypes.ReviewRejected, new string('x', 700), 9);
 
         var notification = Assert.Single(db.Notifications);
         Assert.Equal(550, notification.Message.Length);
