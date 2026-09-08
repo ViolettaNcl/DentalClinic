@@ -256,7 +256,7 @@ namespace DentalClinic.Controllers
                 });
             }
 
-            var systemPrompt = await BuildSystemPromptAsync(lang);
+            var systemPrompt = await BuildSystemPromptAsync(lang, req.Message);
             var contents = BuildContents(req);
             var body = BuildRequestBody(systemPrompt, contents);
 
@@ -356,7 +356,7 @@ namespace DentalClinic.Controllers
                 return;
             }
 
-            var systemPrompt = await BuildSystemPromptAsync(lang);
+            var systemPrompt = await BuildSystemPromptAsync(lang, req.Message);
             var contents = BuildContents(req);
             var body = BuildRequestBody(systemPrompt, contents);
 
@@ -709,10 +709,10 @@ namespace DentalClinic.Controllers
             }
         }
 
-        private async Task<string> BuildSystemPromptAsync(string lang)
+        private async Task<string> BuildSystemPromptAsync(string lang, string userQuery)
         {
             var langName = LangNames.TryGetValue(lang, out var ln) ? ln : LangNames["ru"];
-            var knowledgeBlock = await _knowledge.GetKnowledgeBlockAsync();
+            var knowledgeBlock = await _knowledge.GetKnowledgeBlockAsync(userQuery, HttpContext.RequestAborted);
             var contactsBlock = _knowledge.GetContactsBlock();
 
             return

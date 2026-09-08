@@ -48,13 +48,7 @@ public class ClinicKnowledgeBaseTests
             });
         await db.SaveChangesAsync();
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ChatKnowledge:MaxItems"] = "1"
-            })
-            .Build();
-
+        var config = BuildConfiguration(maxItems: 1);
         var service = new ChatKnowledgeService(db, config);
         var block = await service.GetKnowledgeBlockAsync();
 
@@ -63,6 +57,105 @@ public class ClinicKnowledgeBaseTests
         Assert.Contains("content=Line one Line two", block, StringComparison.Ordinal);
         Assert.DoesNotContain("Second item", block, StringComparison.Ordinal);
         Assert.DoesNotContain("Inactive item", block, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DentaKnowledge_QueryRelevanceOverridesAdminSortOrder()
+    {
+        await using var db = CreateContext();
+        db.ClinicKnowledgeItems.AddRange(
+            new ClinicKnowledgeItem
+            {
+                Category = "payment",
+                Title = "Способы оплаты",
+                Content = "Оплата производится после визита.",
+                Keywords = "оплата карта наличные",
+                SortOrder = 1,
+                IsActive = true
+            },
+            new ClinicKnowledgeItem
+            {
+                Category = "preparation",
+                Title = "Подготовка к имплантации",
+                Content = "Подтверждённые правила подготовки к визиту.",
+                Keywords = "имплантация подготовка имплант",
+                SortOrder = 100,
+                IsActive = true
+            });
+        await db.SaveChangesAsync();
+
+        var service = new ChatKnowledgeService(db, BuildConfiguration(maxItems: 1));
+        var block = await service.GetKnowledgeBlockAsync("Как подготовиться к имплантации?");
+
+        Assert.Contains("title=Подготовка к имплантации", block, StringComparison.Ordinal);
+        Assert.DoesNotContain("title=Способы оплаты", block, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DentaKnowledge_KeywordsOutrankIncidentalContentMention()
+    {
+        await using var db = CreateContext();
+        db.ClinicKnowledgeItems.AddRange(
+            new ClinicKnowledgeItem
+            {
+                Category = "general",
+                Title = "Общая информация",
+                Content = "В конце текста случайно упоминается оплата.",
+                SortOrder = 1,
+                IsActive = true
+            },
+            new ClinicKnowledgeItem
+            {
+                Category = "payment",
+                Title = "Расчёт в клинике",
+                Content = "Подтверждённая информация о расчёте.",
+                Keywords = "оплата payment карта наличные",
+                SortOrder = 50,
+                IsActive = true
+            });
+        await db.SaveChangesAsync();
+
+        var service = new ChatKnowledgeService(db, BuildConfiguration(maxItems: 1));
+        var block = await service.GetKnowledgeBlockAsync("оплата");
+
+        Assert.Contains("title=Расчёт в клинике", block, StringComparison.Ordinal);
+        Assert.DoesNotContain("title=Общая информация", block, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DentaKnowledge_NoRelevantMatchDoesNotInjectArbitraryRows()
+    {
+        await using var db = CreateContext();
+        db.ClinicKnowledgeItems.Add(new ClinicKnowledgeItem
+        {
+            Category = "payment",
+            Title = "Способы оплаты",
+            Content = "Оплата картой или наличными.",
+            Keywords = "оплата карта наличные",
+            SortOrder = 1,
+            IsActive = true
+        });
+        await db.SaveChangesAsync();
+
+        var service = new ChatKnowledgeService(db, BuildConfiguration(maxItems: 12));
+        var block = await service.GetKnowledgeBlockAsync("Есть ли парковка рядом?");
+
+        Assert.Contains("managed_knowledge_status=no_relevant_match", block, StringComparison.Ordinal);
+        Assert.DoesNotContain("title=Способы оплаты", block, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChatController_WiresCurrentMessageIntoBothKnowledgePaths()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
+        var source = File.ReadAllText(Path.Combine(root, "Controllers/ChatController.cs"));
+
+        Assert.Equal(2, CountOccurrences(source, "BuildSystemPromptAsync(lang, req.Message)"));
+        Assert.Contains("BuildSystemPromptAsync(string lang, string userQuery)", source, StringComparison.Ordinal);
+        Assert.Contains(
+            "_knowledge.GetKnowledgeBlockAsync(userQuery, HttpContext.RequestAborted)",
+            source,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -103,6 +196,26 @@ public class ClinicKnowledgeBaseTests
             .Single();
 
         Assert.Equal("Admin", authorize.Roles);
+    }
+
+    private static IConfiguration BuildConfiguration(int maxItems)
+        => new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ChatKnowledge:MaxItems"] = maxItems.ToString()
+            })
+            .Build();
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+        return count;
     }
 
     private static ApplicationDbContext CreateContext()
