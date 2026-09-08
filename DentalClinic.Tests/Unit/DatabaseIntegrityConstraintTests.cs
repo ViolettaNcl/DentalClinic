@@ -2,6 +2,7 @@ using DentalClinic.Data;
 using DentalClinic.Migrations;
 using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Xunit;
 
@@ -44,8 +45,10 @@ public class DatabaseIntegrityConstraintTests
     [Fact]
     public void Migration_RejectsInvalidLegacyRowsBeforeAddingConstraints()
     {
-        var migration = new AddDomainIntegrityConstraints();
-        var sql = string.Join("\n", migration.UpOperations.OfType<SqlOperation>().Select(op => op.Sql));
+        var migration = new TestableDomainIntegrityMigration();
+        var sql = string.Join(
+            "\n",
+            migration.BuildUpOperations().OfType<SqlOperation>().Select(op => op.Sql));
 
         Assert.Contains("THROW 51020", sql, StringComparison.Ordinal);
         Assert.Contains("THROW 51021", sql, StringComparison.Ordinal);
@@ -65,5 +68,15 @@ public class DatabaseIntegrityConstraintTests
             .UseInMemoryDatabase($"domain-integrity-{Guid.NewGuid():N}")
             .Options;
         return new ApplicationDbContext(options);
+    }
+
+    private sealed class TestableDomainIntegrityMigration : AddDomainIntegrityConstraints
+    {
+        public IReadOnlyList<MigrationOperation> BuildUpOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            base.Up(builder);
+            return builder.Operations;
+        }
     }
 }
