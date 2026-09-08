@@ -12,7 +12,7 @@
 - [x] Sanitized managed rows before prompt insertion and explicitly treated them as untrusted data subordinate to clinical-safety policy.
 - [x] Added an administrator UI in the existing dashboard for search, create, edit, activate, and deactivate knowledge items.
 - [x] Added .NET and JavaScript regression coverage for active-only selection, configured limits, sanitization, persistence metadata, migration shape, Admin-only access, and admin payload validation.
-- [ ] Add query-aware retrieval/ranking so Denta sends only the most relevant knowledge rows per user message.
+- [x] Added query-aware retrieval/ranking so Denta sends only relevant managed knowledge rows for the current user message, with a hard 200-row candidate ceiling and no arbitrary fallback rows on a miss.
 - [ ] Add multilingual knowledge authoring/translation strategy without inventing clinic facts.
 
 ### Remaining Phase 2 areas
