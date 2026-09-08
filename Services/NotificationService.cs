@@ -29,14 +29,41 @@ public class NotificationService
         int? relatedId = null,
         CancellationToken cancellationToken = default)
     {
-        var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey: null);
+        var notification = await PersistPatientNotificationAsync(
+            patientId,
+            type,
+            message,
+            relatedId,
+            cancellationToken);
+        await DeliverPersistedPatientRealtimeBestEffortAsync(notification, cancellationToken);
+    }
 
-        // Persistence is the durable source of truth for patient notifications.
-        // Realtime delivery is only an optimization for an already-open browser tab.
+    /// <summary>
+    /// Persists a durable patient notification without emitting realtime delivery.
+    /// Transactional callers can save this inside their database transaction, commit
+    /// the primary state, and only then publish the already-persisted notification.
+    /// </summary>
+    public async Task<Notification> PersistPatientNotificationAsync(
+        int patientId,
+        string type,
+        string message,
+        int? relatedId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey: null);
         _db.Notifications.Add(notification);
         await _db.SaveChangesAsync(cancellationToken);
-        await DeliverPatientRealtimeBestEffortAsync(notification, cancellationToken);
+        return notification;
     }
+
+    /// <summary>
+    /// Best-effort realtime delivery for a notification whose durable database state
+    /// has already been persisted (and, for transactional callers, committed).
+    /// </summary>
+    public Task DeliverPersistedPatientRealtimeBestEffortAsync(
+        Notification notification,
+        CancellationToken cancellationToken = default)
+        => DeliverPatientRealtimeBestEffortAsync(notification, cancellationToken);
 
     /// <summary>
     /// Attempts to persist a non-critical durable notification without converting an
