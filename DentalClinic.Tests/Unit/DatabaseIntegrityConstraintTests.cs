@@ -47,6 +47,20 @@ public class DatabaseIntegrityConstraintTests
     }
 
     [Fact]
+    public void EfModel_DeclaresChatLogDomainConstraints()
+    {
+        using var db = CreateContext();
+        var model = db.GetService<IDesignTimeModel>().Model;
+        var constraints = model.FindEntityType(typeof(ChatMessageLog))!
+            .GetCheckConstraints()
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("CK_ChatMessageLogs_Role", constraints);
+        Assert.Contains("CK_ChatMessageLogs_Lang", constraints);
+    }
+
+    [Fact]
     public void Migration_RejectsInvalidLegacyRowsBeforeAddingConstraints()
     {
         var migration = new TestableDomainIntegrityMigration();
@@ -66,6 +80,20 @@ public class DatabaseIntegrityConstraintTests
         Assert.Contains("WITH CHECK ADD CONSTRAINT [CK_Services_SortOrder]", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ChatLogMigration_RejectsUnknownRoleOrLanguageBeforeAddingConstraints()
+    {
+        var migration = new TestableChatLogDomainMigration();
+        var sql = string.Join(
+            "\n",
+            migration.BuildUpOperations().OfType<SqlOperation>().Select(op => op.Sql));
+
+        Assert.Contains("THROW 51030", sql, StringComparison.Ordinal);
+        Assert.Contains("THROW 51031", sql, StringComparison.Ordinal);
+        Assert.Contains("WITH CHECK ADD CONSTRAINT [CK_ChatMessageLogs_Role]", sql, StringComparison.Ordinal);
+        Assert.Contains("WITH CHECK ADD CONSTRAINT [CK_ChatMessageLogs_Lang]", sql, StringComparison.Ordinal);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -75,6 +103,16 @@ public class DatabaseIntegrityConstraintTests
     }
 
     private sealed class TestableDomainIntegrityMigration : AddDomainIntegrityConstraints
+    {
+        public IReadOnlyList<MigrationOperation> BuildUpOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            base.Up(builder);
+            return builder.Operations;
+        }
+    }
+
+    private sealed class TestableChatLogDomainMigration : ConstrainChatLogDomains
     {
         public IReadOnlyList<MigrationOperation> BuildUpOperations()
         {
