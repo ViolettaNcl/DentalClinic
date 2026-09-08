@@ -11,7 +11,8 @@
 - Reviewed the paid AI boundary end-to-end: same-origin checks, payload caps, local/distributed quotas, Gemini key handling, model routing, and request-abort propagation.
 - Added a shared pre-write cross-role identity guard so the same normalized email cannot be persisted as both a Patient and an Admin, including concurrent writes across instances.
 - Removed the legacy fake clinic phone from confirmed-appointment patient flows: server responses now use the configured public clinic phone when present and otherwise direct patients to published Contacts details; the dashboard fallback no longer invents a number.
-- Continuing security, reliability, and consistency checks across controllers and persistence while Vercel recovery remains intentionally paused.
+- Added a configurable server-side row ceiling for admin XLSX/print exports so large date ranges cannot materialize an unbounded result set in memory; oversized exports are rejected explicitly instead of being silently truncated.
+- Continuing security, reliability, and consistency checks across controllers and persistence while deployment work remains intentionally paused.
 
 ## Completed checks
 
@@ -27,10 +28,11 @@
 - Cross-role identity integrity reviewed: Patient/Admin creation paths acquire the same transaction-owned SQL application lock before cross-table uniqueness checks and writes. Admin creation joins its existing AdminAccess transaction instead of nesting one; non-relational tests share an in-process gate. Legacy duplicates abort migration for operator review, and no write triggers are installed.
 - Confirmed-appointment contact guidance reviewed: API restrictions consume `Clinic:Phone` through the validated public clinic profile and fall back to the Contacts page rather than exposing placeholder clinic data.
 - Durable notification persistence reviewed: eight supported patient-notification types are centralized, unsupported types fail before persistence, and `CK_Notifications_Type` enforces the same closed domain in SQL. The migration fails closed if unknown legacy rows exist and never rewrites them.
+- Admin export resource usage reviewed: date ranges remain capped at 366 days and row materialization now reads only one sentinel row beyond `AdminExports:MaxRows` (default 25,000, clamped to 100–100,000) before returning HTTP 422 with instructions to narrow the period.
 
 ## Next checks
 
 - Continue controller/service audit for remaining file-upload and public response surfaces.
 - Continue database constraint/index review for remaining auth/persistence race conditions.
 - Expand regression coverage for remaining edge cases.
-- Keep Vercel/deployment recovery paused until the operator explicitly resumes it.
+- Keep deployment recovery paused until the operator explicitly resumes it.
