@@ -15,6 +15,9 @@ namespace DentalClinic.Controllers;
 [Route("api/[controller]")]
 public class ServiceController : ControllerBase
 {
+    private const string ActivePageSlotConflictMessage =
+        "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0.";
+
     private readonly ApplicationDbContext _db;
     private readonly ILogger<ServiceController> _logger;
 
@@ -80,9 +83,9 @@ public class ServiceController : ControllerBase
         if (!ServiceCatalogPolicy.IsValidSortOrder(req.SortOrder))
             return BadRequest(new { message = "Порядок отображения не может быть отрицательным" });
 
-        var pageUrl = req.PageUrl?.Trim();
+        var pageUrl = NormalizePageUrl(req.PageUrl);
         if (await HasActivePageSlotConflictAsync(pageUrl, req.SortOrder, cancellationToken: cancellationToken))
-            return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
+            return ActivePageSlotConflict();
 
         var service = new Service
         {
@@ -99,7 +102,23 @@ public class ServiceController : ControllerBase
         };
 
         _db.Services.Add(service);
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // The database unique filtered index is the cross-instance race guard.
+            // Re-check the exact business invariant so unrelated database failures
+            // are never mislabeled as a harmless catalogue conflict.
+            if (await HasActivePageSlotConflictAsync(pageUrl, req.SortOrder, cancellationToken: cancellationToken))
+            {
+                _db.Entry(service).State = EntityState.Detached;
+                return ActivePageSlotConflict();
+            }
+
+            throw;
+        }
 
         _logger.LogInformation("Добавлена услуга: {Category}/{Name} (id={Id})", service.Category, service.Name, service.Id);
 
@@ -122,7 +141,7 @@ public class ServiceController : ControllerBase
         var nextPriceTo = req.ClearPriceTo == true
             ? null
             : req.PriceTo ?? service.PriceTo;
-        var nextPageUrl = req.PageUrl != null ? req.PageUrl.Trim() : service.PageUrl;
+        var nextPageUrl = req.PageUrl != null ? NormalizePageUrl(req.PageUrl) : service.PageUrl;
         var nextSortOrder = req.SortOrder ?? service.SortOrder;
         var nextIsActive = req.IsActive ?? service.IsActive;
 
@@ -140,7 +159,7 @@ public class ServiceController : ControllerBase
                 nextSortOrder,
                 id,
                 cancellationToken))
-            return Conflict(new { message = "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0." });
+            return ActivePageSlotConflict();
 
         if (!string.IsNullOrWhiteSpace(req.Category)) service.Category = req.Category.Trim();
         if (!string.IsNullOrWhiteSpace(req.Name)) service.Name = req.Name.Trim();
@@ -150,11 +169,25 @@ public class ServiceController : ControllerBase
         else if (req.PriceTo.HasValue) service.PriceTo = req.PriceTo.Value;
         if (req.Unit != null) service.Unit = req.Unit.Trim();
         if (req.Keywords != null) service.Keywords = req.Keywords.Trim();
-        if (req.PageUrl != null) service.PageUrl = req.PageUrl.Trim();
+        if (req.PageUrl != null) service.PageUrl = nextPageUrl;
         if (req.SortOrder.HasValue) service.SortOrder = req.SortOrder.Value;
         if (req.IsActive.HasValue) service.IsActive = req.IsActive.Value;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            if (nextIsActive && await HasActivePageSlotConflictAsync(
+                    nextPageUrl,
+                    nextSortOrder,
+                    id,
+                    cancellationToken))
+                return ActivePageSlotConflict();
+
+            throw;
+        }
 
         _logger.LogInformation("Обновлена услуга id={Id}: {Category}/{Name}", service.Id, service.Category, service.Name);
 
@@ -174,6 +207,12 @@ public class ServiceController : ControllerBase
 
         return Ok(service);
     }
+
+    private ConflictObjectResult ActivePageSlotConflict()
+        => Conflict(new { message = ActivePageSlotConflictMessage });
+
+    private static string? NormalizePageUrl(string? pageUrl)
+        => string.IsNullOrWhiteSpace(pageUrl) ? null : pageUrl.Trim();
 
     private async Task<bool> HasActivePageSlotConflictAsync(
         string? pageUrl,
