@@ -310,24 +310,32 @@ public class AppointmentRequestController : ControllerBase
         await _context.SaveChangesAsync(cancellationToken);
         if (transaction != null) await transaction.CommitAsync(cancellationToken);
 
-        // Уведомляем пациента о смене статуса (только если это зарегистрированный
-        // пациент, а не гостевая запись, и статус реально изменился)
+        // The appointment mutation is already committed at this point. Persisting a
+        // patient-facing notification is useful but must not turn that successful
+        // primary operation into an HTTP failure that encourages a conflicting retry.
         if (request.PatientId.HasValue && request.Status != previousStatus)
         {
             var dateText = request.AppointmentDate.HasValue
                 ? request.AppointmentDate.Value.ToString("dd.MM.yyyy HH:mm")
                 : "уточняется";
 
-            var (type, message) = request.Status switch
+            (string? type, string? message) = request.Status switch
             {
-                AppointmentStatuses.Confirmed => ("appointment_confirmed", $"Ваша запись на {dateText} подтверждена ✅"),
-                AppointmentStatuses.Cancelled => ("appointment_cancelled", $"Ваша запись на {dateText} отклонена администратором"),
-                AppointmentStatuses.Completed => ("appointment_completed", $"Приём {dateText} отмечен как завершённый. Будем рады видеть вас снова!"),
+                AppointmentStatuses.Confirmed => (NotificationTypes.AppointmentConfirmed, $"Ваша запись на {dateText} подтверждена ✅"),
+                AppointmentStatuses.Cancelled => (NotificationTypes.AppointmentCancelled, $"Ваша запись на {dateText} отклонена администратором"),
+                AppointmentStatuses.Completed => (NotificationTypes.AppointmentCompleted, $"Приём {dateText} отмечен как завершённый. Будем рады видеть вас снова!"),
                 _ => (null, null)
             };
 
-            if (type != null)
-                await _notifications.NotifyAsync(request.PatientId.Value, type, message!, request.Id);
+            if (type != null && message != null)
+            {
+                await _notifications.TryNotifyOptionalAsync(
+                    request.PatientId.Value,
+                    type,
+                    message,
+                    request.Id,
+                    cancellationToken);
+            }
         }
 
         return Ok(new { request.Id, request.Status, request.AppointmentDate, request.Comment, request.DoctorId });
