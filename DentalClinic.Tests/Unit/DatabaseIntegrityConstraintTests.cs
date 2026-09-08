@@ -2,6 +2,8 @@ using DentalClinic.Data;
 using DentalClinic.Migrations;
 using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Xunit;
@@ -14,7 +16,8 @@ public class DatabaseIntegrityConstraintTests
     public void EfModel_DeclaresReviewDomainConstraints()
     {
         using var db = CreateContext();
-        var constraints = db.Model.FindEntityType(typeof(Review))!
+        var model = db.GetService<IDesignTimeModel>().Model;
+        var constraints = model.FindEntityType(typeof(Review))!
             .GetCheckConstraints()
             .Select(c => c.Name)
             .ToHashSet(StringComparer.Ordinal);
@@ -27,14 +30,15 @@ public class DatabaseIntegrityConstraintTests
     public void EfModel_DeclaresDoctorAndServiceDomainConstraints()
     {
         using var db = CreateContext();
+        var model = db.GetService<IDesignTimeModel>().Model;
 
-        var doctorConstraints = db.Model.FindEntityType(typeof(Doctor))!
+        var doctorConstraints = model.FindEntityType(typeof(Doctor))!
             .GetCheckConstraints()
             .Select(c => c.Name)
             .ToHashSet(StringComparer.Ordinal);
         Assert.Contains("CK_Doctors_ExperienceYears", doctorConstraints);
 
-        var serviceConstraints = db.Model.FindEntityType(typeof(Service))!
+        var serviceConstraints = model.FindEntityType(typeof(Service))!
             .GetCheckConstraints()
             .Select(c => c.Name)
             .ToHashSet(StringComparer.Ordinal);
