@@ -224,16 +224,36 @@ namespace DentalClinic.Controllers
 
             if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
             {
-                var patient = await _db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
+                var patient = await _db.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
                 if (patient == null) return Unauthorized();
-                return Ok(new { id = patient.Id, name = patient.FirstName, email = patient.Email, avatarUrl = patient.AvatarUrl, role = "patient" });
+
+                return Ok(new
+                {
+                    id = patient.Id,
+                    name = patient.FirstName,
+                    email = patient.Email,
+                    avatarUrl = patient.AvatarUrl,
+                    role = "patient"
+                });
             }
 
             if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
-                var admin = await _db.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == userId, cancellationToken);
+                var admin = await _db.Admins
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Id == userId, cancellationToken);
                 if (admin == null) return Unauthorized();
-                return Ok(new { id = admin.Id, name = "Администратор", email = admin.Email, avatarUrl = admin.AvatarUrl, role = "admin" });
+
+                return Ok(new
+                {
+                    id = admin.Id,
+                    name = "Администратор",
+                    email = admin.Email,
+                    avatarUrl = admin.AvatarUrl,
+                    role = "admin"
+                });
             }
 
             return Forbid();
@@ -244,9 +264,20 @@ namespace DentalClinic.Controllers
         public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
         {
             var patientId = GetCurrentUserId();
-            var patient = await _db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+            var patient = await _db.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
             if (patient == null) return NotFound();
-            return Ok(new { id = patient.Id, firstName = patient.FirstName, email = patient.Email, phone = patient.Phone, avatarUrl = patient.AvatarUrl, createdAt = patient.CreatedAt });
+
+            return Ok(new
+            {
+                id = patient.Id,
+                firstName = patient.FirstName,
+                email = patient.Email,
+                phone = patient.Phone,
+                avatarUrl = patient.AvatarUrl,
+                createdAt = patient.CreatedAt
+            });
         }
 
         [HttpGet("admin/profile")]
@@ -254,39 +285,68 @@ namespace DentalClinic.Controllers
         public async Task<IActionResult> GetAdminProfile(CancellationToken cancellationToken)
         {
             var adminId = GetCurrentUserId();
-            var admin = await _db.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId, cancellationToken);
+            var admin = await _db.Admins
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == adminId, cancellationToken);
             if (admin == null) return NotFound();
-            return Ok(new { id = admin.Id, email = admin.Email, avatarUrl = admin.AvatarUrl, createdAt = admin.CreatedAt });
+
+            return Ok(new
+            {
+                id = admin.Id,
+                email = admin.Email,
+                avatarUrl = admin.AvatarUrl,
+                createdAt = admin.CreatedAt
+            });
         }
 
         [HttpPut("profile")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdateProfile(
+            [FromBody] UpdateProfileRequest req,
+            CancellationToken cancellationToken)
         {
             var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
             if (patient == null) return NotFound();
-            if (!string.IsNullOrWhiteSpace(req.FirstName)) patient.FirstName = req.FirstName.Trim();
-            if (req.Phone != null) patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
+
+            if (!string.IsNullOrWhiteSpace(req.FirstName))
+                patient.FirstName = req.FirstName.Trim();
+
+            if (req.Phone != null)
+                patient.Phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
+
             await _db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Пациент {Id} обновил профиль", patient.Id);
-            return Ok(new { message = "✅ Профиль обновлён", firstName = patient.FirstName, phone = patient.Phone });
+
+            return Ok(new
+            {
+                message = "✅ Профиль обновлён",
+                firstName = patient.FirstName,
+                phone = patient.Phone
+            });
         }
 
         [HttpPut("change-password")]
         [Authorize(Roles = "Patient")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req, CancellationToken cancellationToken)
+        public async Task<IActionResult> ChangePassword(
+            [FromBody] ChangePasswordRequest req,
+            CancellationToken cancellationToken)
         {
             var patient = await _db.Patients.FindAsync([GetCurrentUserId()], cancellationToken);
             if (patient == null) return NotFound();
+
             if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, patient.PasswordHash))
                 return BadRequest(new { message = "❌ Текущий пароль указан неверно" });
+
             if (!PasswordPolicy.IsValid(req.NewPassword))
                 return BadRequest(new { message = PasswordRequirementsMessage });
+
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             patient.TokenVersion = checked(patient.TokenVersion + 1);
             await _db.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Пациент {Id} сменил пароль и отозвал прежние сессии", patient.Id);
+
             DeleteSessionCookie();
+
             return Ok(new { message = "✅ Пароль успешно изменён. Войдите снова." });
         }
 
@@ -316,6 +376,7 @@ namespace DentalClinic.Controllers
             });
         }
 
-        private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private int GetCurrentUserId()
+            => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 }
