@@ -82,6 +82,10 @@ namespace DentalClinic.Data
                 .WithMany()
                 .HasForeignKey(n => n.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Notification>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_Notifications_Type",
+                    "[Type] IN ('welcome', 'appointment_confirmed', 'appointment_cancelled', 'appointment_completed', 'appointment_reminder', 'appointment_followup', 'review_approved', 'review_rejected')"));
 
             modelBuilder.Entity<ChatMessageLog>()
                 .HasOne<Patient>()
