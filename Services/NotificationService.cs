@@ -39,6 +39,49 @@ public class NotificationService
     }
 
     /// <summary>
+    /// Attempts to persist a non-critical durable notification without converting an
+    /// already-committed primary operation into an HTTP failure. Domain/programming
+    /// errors still throw; only persistence failure is downgraded to a logged false.
+    /// Use this only after the primary transaction has already committed.
+    /// </summary>
+    public async Task<bool> TryNotifyOptionalAsync(
+        int patientId,
+        string type,
+        string message,
+        int? relatedId = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Keep domain validation outside the persistence try/catch so unknown types
+        // remain programming errors and are never silently swallowed.
+        var notification = CreateNotification(patientId, type, message, relatedId, idempotencyKey: null);
+        _db.Notifications.Add(notification);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _db.Entry(notification).State = EntityState.Detached;
+            throw;
+        }
+        catch (DbUpdateException ex)
+        {
+            _db.Entry(notification).State = EntityState.Detached;
+            _logger.LogWarning(
+                ex,
+                "Optional durable notification persistence failed for patient {PatientId}, type {Type}, related id {RelatedId}",
+                patientId,
+                type,
+                relatedId);
+            return false;
+        }
+
+        await DeliverPatientRealtimeBestEffortAsync(notification, cancellationToken);
+        return true;
+    }
+
+    /// <summary>
     /// Persist an identified notification at most once across multiple app instances.
     /// The preliminary lookup keeps routine repeated maintenance runs cheap; the
     /// database unique filtered index is the actual cross-instance race guarantee.
