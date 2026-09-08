@@ -53,8 +53,8 @@ test('retention never automatically deletes operator-named tags or preparing ima
 
     const plan = planRetention(images, [], { keepNewest: 1, targetCount: 2 });
 
-    assert.equal(plan.toDelete.length, 1);
-    assert.equal(plan.toDelete[0].id, 'old-commit');
+    assert.deepEqual(plan.toDelete.map(item => item.id), ['old-commit', 'new-1']);
+    assert.equal(plan.projectedCount, 3);
     assert.equal(plan.blocked, true);
     assert.equal(plan.protectedIds.includes('manual'), true);
     assert.equal(plan.protectedIds.includes('preparing'), true);
