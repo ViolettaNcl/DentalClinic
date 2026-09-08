@@ -80,9 +80,12 @@ namespace DentalClinic.Controllers
 
             _logger.LogInformation("Зарегистрирован новый пациент id={Id}", patient.Id);
 
-            await _notifications.NotifyAsync(
+            // The patient row is already committed. A non-critical welcome
+            // notification must not turn a successful registration into a 500 that
+            // makes the client retry an account which now already exists.
+            await _notifications.TryNotifyOptionalAsync(
                 patient.Id,
-                "welcome",
+                NotificationTypes.Welcome,
                 $"Добро пожаловать, {patient.FirstName}! Спасибо за регистрацию 🦷",
                 null,
                 cancellationToken);

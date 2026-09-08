@@ -59,6 +59,75 @@ public class NotificationServiceTests
     }
 
     [Fact]
+    public async Task TryNotifyOptionalAsync_WhenPersistenceFails_ReturnsFalseAndDetachesAttempt()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"optional-notification-failure-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new ControlledSaveApplicationDbContext(options)
+        {
+            SaveBehavior = ControlledSaveBehavior.Fail
+        };
+        var service = new NotificationService(
+            db,
+            CreateThrowingHubContext(),
+            NullLogger<NotificationService>.Instance);
+
+        var created = await service.TryNotifyOptionalAsync(
+            42,
+            NotificationTypes.Welcome,
+            "Welcome");
+
+        Assert.False(created);
+        Assert.Empty(db.ChangeTracker.Entries<Notification>());
+        Assert.Empty(db.Notifications.Local);
+    }
+
+    [Fact]
+    public async Task TryNotifyOptionalAsync_UnsupportedType_RemainsProgrammingError()
+    {
+        await using var db = CreateDb();
+        var service = new NotificationService(
+            db,
+            CreateThrowingHubContext(),
+            NullLogger<NotificationService>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.TryNotifyOptionalAsync(42, "new_review", "Must stay realtime-only", 77));
+
+        Assert.Equal("type", exception.ParamName);
+        Assert.Empty(db.Notifications);
+    }
+
+    [Fact]
+    public async Task TryNotifyOptionalAsync_RequestCancellation_PropagatesAndDetachesAttempt()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"optional-notification-cancel-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new ControlledSaveApplicationDbContext(options)
+        {
+            SaveBehavior = ControlledSaveBehavior.Cancel
+        };
+        var service = new NotificationService(
+            db,
+            CreateThrowingHubContext(),
+            NullLogger<NotificationService>.Instance);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.TryNotifyOptionalAsync(
+                42,
+                NotificationTypes.Welcome,
+                "Welcome",
+                cancellationToken: cts.Token));
+
+        Assert.Empty(db.ChangeTracker.Entries<Notification>());
+        Assert.Empty(db.Notifications.Local);
+    }
+
+    [Fact]
     public async Task NotifyOnceAsync_ReplayedKey_CreatesOnlyOneDurableNotification()
     {
         await using var db = CreateDb();
@@ -212,6 +281,37 @@ public class NotificationServiceTests
 
     private static IHubContext<NotificationHub> CreateThrowingHubContext()
         => DispatchProxy.Create<IHubContext<NotificationHub>, ThrowingHubContextProxy>();
+
+    private enum ControlledSaveBehavior
+    {
+        Normal,
+        Fail,
+        Cancel
+    }
+
+    private sealed class ControlledSaveApplicationDbContext : ApplicationDbContext
+    {
+        public ControlledSaveBehavior SaveBehavior { get; set; }
+
+        public ControlledSaveApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return SaveBehavior switch
+            {
+                ControlledSaveBehavior.Fail => Task.FromException<int>(
+                    new DbUpdateException("Simulated notification persistence failure.")),
+                ControlledSaveBehavior.Cancel => Task.FromCanceled<int>(
+                    cancellationToken.IsCancellationRequested
+                        ? cancellationToken
+                        : new CancellationToken(canceled: true)),
+                _ => base.SaveChangesAsync(cancellationToken)
+            };
+        }
+    }
 
     private class ThrowingHubContextProxy : DispatchProxy
     {

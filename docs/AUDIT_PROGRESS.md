@@ -12,6 +12,7 @@
 - Added a shared pre-write cross-role identity guard so the same normalized email cannot be persisted as both a Patient and an Admin, including concurrent writes across instances.
 - Removed the legacy fake clinic phone from confirmed-appointment patient flows: server responses now use the configured public clinic phone when present and otherwise direct patients to published Contacts details; the dashboard fallback no longer invents a number.
 - Added a configurable server-side row ceiling for admin XLSX/print exports so large date ranges cannot materialize an unbounded result set in memory; oversized exports are rejected explicitly instead of being silently truncated.
+- Separated committed patient registration from the non-critical welcome notification: a notification storage failure is logged and detached instead of converting an already-created account into an HTTP failure, while cancellation and invalid notification types still propagate.
 - Continuing security, reliability, and consistency checks across controllers and persistence while deployment work remains intentionally paused.
 
 ## Completed checks
@@ -29,6 +30,7 @@
 - Confirmed-appointment contact guidance reviewed: API restrictions consume `Clinic:Phone` through the validated public clinic profile and fall back to the Contacts page rather than exposing placeholder clinic data.
 - Durable notification persistence reviewed: eight supported patient-notification types are centralized, unsupported types fail before persistence, and `CK_Notifications_Type` enforces the same closed domain in SQL. The migration fails closed if unknown legacy rows exist and never rewrites them.
 - Admin export resource usage reviewed: date ranges remain capped at 366 days and row materialization now reads only one sentinel row beyond `AdminExports:MaxRows` (default 25,000, clamped to 100–100,000) before returning HTTP 422 with instructions to narrow the period.
+- Registration commit boundary reviewed: the patient row is committed first; only the post-commit welcome write uses the optional durable-notification path. Persistence failure cannot make the client retry an account that already exists, while request cancellation and notification-domain errors remain strict failures.
 
 ## Next checks
 

@@ -17,7 +17,7 @@ test('auth database operations propagate request cancellation', async () => {
 
     assert.doesNotMatch(controller, /SaveChangesAsync\(\)/);
     assert.doesNotMatch(controller, /FirstOrDefaultAsync\(\)/);
-    assert.match(controller, /NotifyAsync\([\s\S]*cancellationToken\);/);
+    assert.match(controller, /TryNotifyOptionalAsync\([\s\S]*cancellationToken\);/);
 });
 
 test('read-only login and profile lookups use no-tracking queries', async () => {
