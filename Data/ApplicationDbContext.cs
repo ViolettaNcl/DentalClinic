@@ -60,6 +60,16 @@ namespace DentalClinic.Data
                 .WithMany()
                 .HasForeignKey(r => r.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Review>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_Reviews_Rating",
+                        "[Rating] BETWEEN 1 AND 5");
+                    table.HasCheckConstraint(
+                        "CK_Reviews_Status",
+                        "[Status] IN ('pending', 'approved', 'rejected')");
+                });
 
             modelBuilder.Entity<Notification>()
                 .HasIndex(n => new { n.PatientId, n.IsRead });
@@ -79,8 +89,23 @@ namespace DentalClinic.Data
                 .HasForeignKey(c => c.PatientId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Doctor>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_Doctors_ExperienceYears",
+                    "[ExperienceYears] IS NULL OR [ExperienceYears] BETWEEN 0 AND 80"));
+
             modelBuilder.Entity<Service>()
                 .HasIndex(s => new { s.Category, s.IsActive });
+            modelBuilder.Entity<Service>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_Services_PriceRange",
+                        "[PriceFrom] >= 0 AND [PriceFrom] <= 99999999.99 AND ([PriceTo] IS NULL OR ([PriceTo] >= [PriceFrom] AND [PriceTo] <= 99999999.99))");
+                    table.HasCheckConstraint(
+                        "CK_Services_SortOrder",
+                        "[SortOrder] >= 0");
+                });
 
             modelBuilder.Entity<AppointmentRequest>()
                 .HasIndex(a => new { a.DoctorId, a.AppointmentDate, a.Status });
