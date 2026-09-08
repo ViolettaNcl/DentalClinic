@@ -1,0 +1,35 @@
+name: One-time sanitize retired clinic facts
+
+on:
+  push:
+    branches:
+      - fix/remove-retired-clinic-facts
+
+permissions:
+  contents: write
+
+jobs:
+  sanitize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sanitize retired clinic facts
+        run: node scripts/sanitize-retired-clinic-facts.mjs
+
+      - name: Commit sanitized runtime assets
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No retired clinic facts required sanitization."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add wwwroot/assets/i18n/*.json wwwroot/assets/js/core/chatBot.js
+          git commit -m "Remove retired clinic facts from runtime assets"
+          git push origin HEAD:fix/remove-retired-clinic-facts
