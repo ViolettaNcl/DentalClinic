@@ -23,5 +23,7 @@ public class ClinicKnowledgeLocalization
     [StringLength(300)]
     public string? Keywords { get; set; }
 
+    public bool IsVerified { get; set; } = true;
+
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
