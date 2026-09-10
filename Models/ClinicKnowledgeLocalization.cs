@@ -24,8 +24,11 @@ public class ClinicKnowledgeLocalization
     public string? Keywords { get; set; }
 
     // New translations are drafts until explicitly verified by an administrator.
-    // Only verified localizations are eligible for Denta AI context.
+    // Only verified active localizations are eligible for Denta AI context.
     public bool IsVerified { get; set; } = false;
+
+    // Allows administrators to disable a translation without deleting history.
+    public bool IsActive { get; set; } = true;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
