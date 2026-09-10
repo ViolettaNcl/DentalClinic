@@ -23,7 +23,9 @@ public class ClinicKnowledgeLocalization
     [StringLength(300)]
     public string? Keywords { get; set; }
 
-    public bool IsVerified { get; set; } = true;
+    // New translations are drafts until explicitly verified by an administrator.
+    // Only verified localizations are eligible for Denta AI context.
+    public bool IsVerified { get; set; } = false;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
