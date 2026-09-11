@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../', import.meta.url);
 
-test('automatic Vercel container deployments are limited to main', async () => {
+test('production container uses the app registry after the legacy web registry reached quota', async () => {
     const raw = await readFile(new URL('vercel.json', root), 'utf8');
     const config = JSON.parse(raw);
 
@@ -13,5 +13,7 @@ test('automatic Vercel container deployments are limited to main', async () => {
         main: true
     });
 
-    assert.equal(config.services?.web?.entrypoint, 'Dockerfile.vercel');
+    assert.equal(config.services?.app?.entrypoint, 'Dockerfile.vercel');
+    assert.equal(config.services?.web, undefined);
+    assert.equal(config.rewrites?.[0]?.destination?.service, 'app');
 });
