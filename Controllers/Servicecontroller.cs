@@ -15,6 +15,7 @@ namespace DentalClinic.Controllers;
 [Route("api/[controller]")]
 public class ServiceController : ControllerBase
 {
+    private const int PublicServiceLimit = 500;
     private const string ActivePageSlotConflictMessage =
         "Этот порядок уже занят другой активной услугой на той же странице. Выберите другой номер или 0.";
 
@@ -47,7 +48,14 @@ public class ServiceController : ControllerBase
                 s.Unit,
                 s.PageUrl,
                 s.SortOrder))
+            .Take(PublicServiceLimit + 1)
             .ToListAsync(cancellationToken);
+
+        if (services.Count > PublicServiceLimit)
+        {
+            services.RemoveAt(services.Count - 1);
+            Response.Headers["X-Result-Truncated"] = "true";
+        }
 
         return Ok(services);
     }

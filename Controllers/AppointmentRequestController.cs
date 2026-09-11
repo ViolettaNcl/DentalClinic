@@ -217,6 +217,10 @@ public class AppointmentRequestController : ControllerBase
             await _context.SaveChangesAsync(cancellationToken);
             if (transaction != null) await transaction.CommitAsync(cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при создании заявки на приём");

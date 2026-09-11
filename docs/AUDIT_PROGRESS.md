@@ -11,9 +11,12 @@ The completed pass covers authentication/session safety, authorization boundarie
 - JWT/session invalidation and token-version enforcement reviewed.
 - Authentication rate limiting and request-abort propagation reviewed.
 - Patient/Admin normalized-email integrity is serialized across instances with the shared identity guard; legacy cross-role duplicates fail migration for operator review rather than being silently changed.
+- Registration and administrator creation now classify a `DbUpdateException` as an email conflict only after re-reading and confirming that exact invariant; unrelated storage failures propagate instead of returning a misleading HTTP 409.
 - Public doctor/service/review/clinic responses expose bounded or explicit public projections; admin mutation routes remain role-protected.
+- Public doctor and service catalogues use sentinel reads capped at 200 and 500 rows respectively and advertise truncation through `X-Result-Truncated`.
 - The clinic public profile is configuration-backed. Retired fake clinic phone/address/hours were removed from shipped runtime fallbacks and locale dictionaries; missing contact facts direct users to current Contacts information instead of inventing data.
 - Appointment ownership, allowed status transitions, schedule validation, doctor/time requirements, and serializable scheduling transaction protections were reviewed and regression-tested.
+- Appointment creation propagates request cancellation instead of translating a cancelled database operation into HTTP 500.
 - Confirmed-appointment patient contact guidance uses the configured public clinic phone when present and otherwise falls back to the Contacts page.
 - Admin appointment status changes remain successful once their database transaction commits even if a non-critical patient notification later fails to persist; cancellation remains strict.
 - Registration no longer returns a false failure after the Patient row has committed if the optional welcome notification cannot be persisted; cancellation and invalid notification types remain strict.
@@ -25,9 +28,18 @@ The completed pass covers authentication/session safety, authorization boundarie
 - Maintenance endpoints fail closed when the cron secret is missing/invalid and use fixed-time comparison.
 - Admin XLSX/print exports cap date span and row materialization; oversized exports return HTTP 422 instead of silently truncating or loading an unbounded year into memory.
 - Chat/translation paid-API boundaries were reviewed for same-origin enforcement, payload limits, distributed/local quotas, provider key handling, model fallback, cancellation, and bounded analytics/history reads.
+- Non-streaming Gemini, Gemini SSE, and ElevenLabs I/O now consistently observes request cancellation; upstream responses and content are deterministically disposed across success, fallback, and failure paths.
 - Chat role/language, review rating/status, doctor experience, service price/order, appointment status, paid-API usage, notification type, and related persistence invariants have database-level checks where appropriate.
 - Client-side dynamic rendering and translation/validation flows were reviewed across Russian, English, French, Greek, and Arabic, with regression coverage for the hardened paths.
 - No remaining Phase 0/1 TODO/FIXME marker was found in the targeted repository scan.
+
+## Final cleanup classification
+
+- `localhost` occurrences are limited to development launch profiles, Docker/Postman examples, documentation, and test fixtures.
+- `placeholder` occurrences are form input hints, translated UI strings, test assertions, safe example configuration, and intentionally unfinished documentation screenshots; none is a runtime clinic address, telephone number, credential, or secret.
+- Example configuration remains restricted to ignored/local development values and safe placeholders. No tracked production credential was found.
+- Migration `Up` paths were reviewed for fail-closed integrity checks. Existing unknown or conflicting production rows are not silently deleted or rewritten; destructive operations are limited to rollback-only `Down` paths.
+- Screenshot placeholders and product improvements listed under the next phase are documentation/Phase 2 work, not Phase 0/1 production-readiness defects.
 
 ## Final verification gates
 

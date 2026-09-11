@@ -110,7 +110,25 @@ IF @lockResult < 0
                 catch (DbUpdateException)
                 {
                     _db.Entry(admin).State = EntityState.Detached;
-                    return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
+
+                    // Confirm the exact invariant which lost a race. Do not turn
+                    // an unrelated storage outage or constraint failure into a
+                    // misleading duplicate-email response.
+                    if (await _db.Admins
+                        .AsNoTracking()
+                        .AnyAsync(a => a.Email == normalizedEmail, cancellationToken))
+                    {
+                        return new AdminAccessOperation(AdminAccessError.DuplicateEmail);
+                    }
+
+                    if (await _db.Patients
+                        .AsNoTracking()
+                        .AnyAsync(p => p.Email == normalizedEmail, cancellationToken))
+                    {
+                        return new AdminAccessOperation(AdminAccessError.PatientEmailConflict);
+                    }
+
+                    throw;
                 }
 
                 return new AdminAccessOperation(AdminAccessError.None, ToSummary(admin));

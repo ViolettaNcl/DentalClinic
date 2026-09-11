@@ -266,8 +266,12 @@ namespace DentalClinic.Controllers
                 // GeminiApiKeyHandler removes this compatibility marker and sends
                 // the configured key only in the x-goog-api-key header.
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
-                var response = await _http.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"));
-                var raw = await response.Content.ReadAsStringAsync();
+                using var requestContent = new StringContent(body, Encoding.UTF8, "application/json");
+                using var response = await _http.PostAsync(
+                    url,
+                    requestContent,
+                    HttpContext.RequestAborted);
+                var raw = await response.Content.ReadAsStringAsync(HttpContext.RequestAborted);
 
                 if ((int)response.StatusCode == 429 || (int)response.StatusCode == 404)
                 {
@@ -323,8 +327,8 @@ namespace DentalClinic.Controllers
             async Task SendAsync(object payload)
             {
                 var json = JsonSerializer.Serialize(payload);
-                await Response.WriteAsync($"data: {json}\n\n");
-                await Response.Body.FlushAsync();
+                await Response.WriteAsync($"data: {json}\n\n", HttpContext.RequestAborted);
+                await Response.Body.FlushAsync(HttpContext.RequestAborted);
             }
 
             if (string.IsNullOrWhiteSpace(req.Message))
@@ -376,23 +380,27 @@ namespace DentalClinic.Controllers
                 {
                     upstreamResp = await _http.SendAsync(upstreamReq, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
                 }
+                catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Не удалось подключиться к Gemini stream API (модель {Model})", model);
                     continue;
                 }
 
+                using var upstreamResponseLease = upstreamResp;
+
                 if ((int)upstreamResp.StatusCode == 429 || (int)upstreamResp.StatusCode == 404)
                 {
                     _logger.LogWarning("Gemini модель {Model} недоступна ({Status}) в стриме, пробуем следующую", model, (int)upstreamResp.StatusCode);
-                    upstreamResp.Dispose();
                     continue;
                 }
                 if (!upstreamResp.IsSuccessStatusCode)
                 {
-                    var errBody = await upstreamResp.Content.ReadAsStringAsync();
+                    var errBody = await upstreamResp.Content.ReadAsStringAsync(HttpContext.RequestAborted);
                     _logger.LogError("Ошибка Gemini stream API ({Status}) для модели {Model}: {Body}", (int)upstreamResp.StatusCode, model, errBody);
-                    upstreamResp.Dispose();
                     await SendAsync(new { error = L(ErrAi, lang), done = true });
                     return;
                 }
@@ -401,10 +409,10 @@ namespace DentalClinic.Controllers
                 var sentLength = 0;
                 var markerFound = false;
 
-                await using var stream = await upstreamResp.Content.ReadAsStreamAsync();
+                await using var stream = await upstreamResp.Content.ReadAsStreamAsync(HttpContext.RequestAborted);
                 using var reader = new StreamReader(stream);
                 string? line;
-                while ((line = await reader.ReadLineAsync()) != null)
+                while ((line = await reader.ReadLineAsync(HttpContext.RequestAborted)) != null)
                 {
                     if (!line.StartsWith("data:")) continue;
                     var payload = line[5..].Trim();
@@ -523,6 +531,10 @@ namespace DentalClinic.Controllers
             {
                 upstreamResp = await _http.SendAsync(upstreamReq, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
             }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Не удалось подключиться к ElevenLabs TTS");
@@ -530,17 +542,18 @@ namespace DentalClinic.Controllers
                 return;
             }
 
+            using var upstreamResponseLease = upstreamResp;
+
             if (!upstreamResp.IsSuccessStatusCode)
             {
-                var errBody = await upstreamResp.Content.ReadAsStringAsync();
+                var errBody = await upstreamResp.Content.ReadAsStringAsync(HttpContext.RequestAborted);
                 _logger.LogWarning("Ошибка ElevenLabs TTS ({Status}): {Body}", (int)upstreamResp.StatusCode, errBody);
-                upstreamResp.Dispose();
                 Response.StatusCode = 502;
                 return;
             }
 
             Response.ContentType = "audio/mpeg";
-            await using var audioStream = await upstreamResp.Content.ReadAsStreamAsync();
+            await using var audioStream = await upstreamResp.Content.ReadAsStreamAsync(HttpContext.RequestAborted);
             await audioStream.CopyToAsync(Response.Body, HttpContext.RequestAborted);
         }
 
