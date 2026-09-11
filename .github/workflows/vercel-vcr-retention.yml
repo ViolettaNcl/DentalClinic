@@ -31,7 +31,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_gUA5YpeydRnA8gntOXnPQxE3dF1l' }}
       VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID || 'team_K0Mu5UoOJSbhvcZa3HEk70Bm' }}
-      VERCEL_VCR_REPOSITORY: ${{ vars.VERCEL_VCR_REPOSITORY || 'web' }}
+      VERCEL_VCR_REPOSITORY: ${{ vars.VERCEL_VCR_REPOSITORY || 'app' }}
     steps:
       - uses: actions/checkout@v7.0.1
 

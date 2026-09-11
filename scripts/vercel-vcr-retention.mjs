@@ -107,7 +107,7 @@ export function planRetention(
 
 function parseArgs(argv) {
     const args = {
-        repository: process.env.VERCEL_VCR_REPOSITORY || 'web',
+        repository: process.env.VERCEL_VCR_REPOSITORY || 'app',
         projectId: process.env.VERCEL_PROJECT_ID || '',
         teamId: process.env.VERCEL_TEAM_ID || '',
         keepNewest: 4,
@@ -137,7 +137,7 @@ function helpText() {
     return `Usage: node scripts/vercel-vcr-retention.mjs [options]\n\n` +
         `Required environment: VERCEL_TOKEN\n` +
         `Options:\n` +
-        `  --repository <name>     VCR repository (default: web)\n` +
+        `  --repository <name>     VCR repository (default: app)\n` +
         `  --project-id <id>       Vercel project ID\n` +
         `  --team-id <id>          Vercel team ID\n` +
         `  --keep-newest <n>       Always preserve newest N images (default: 4)\n` +
@@ -216,7 +216,7 @@ export async function runRetention({
     token,
     projectId,
     teamId,
-    repository = 'web',
+    repository = 'app',
     keepNewest = 4,
     targetCount = 5,
     dryRun = false

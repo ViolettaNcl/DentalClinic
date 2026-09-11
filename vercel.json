@@ -7,7 +7,7 @@
     }
   },
   "services": {
-    "web": {
+    "app": {
       "root": ".",
       "entrypoint": "Dockerfile.vercel"
     }
@@ -16,7 +16,7 @@
     {
       "source": "/(.*)",
       "destination": {
-        "service": "web"
+        "service": "app"
       }
     }
   ],
