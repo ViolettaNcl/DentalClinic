@@ -11,6 +11,8 @@ namespace DentalClinic.Controllers;
 [Route("api/[controller]")]
 public class DoctorController : ControllerBase
 {
+    private const int PublicDoctorLimit = 200;
+
     private readonly ApplicationDbContext _db;
     private readonly ClinicClock _clock;
     private readonly ILogger<DoctorController> _logger;
@@ -44,7 +46,14 @@ public class DoctorController : ControllerBase
                 d.Specialization,
                 d.ExperienceYears,
                 d.Bio))
+            .Take(PublicDoctorLimit + 1)
             .ToListAsync(cancellationToken);
+
+        if (doctors.Count > PublicDoctorLimit)
+        {
+            doctors.RemoveAt(doctors.Count - 1);
+            Response.Headers["X-Result-Truncated"] = "true";
+        }
 
         return Ok(doctors);
     }

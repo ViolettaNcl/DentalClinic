@@ -69,7 +69,14 @@ namespace DentalClinic.Controllers
                 catch (DbUpdateException)
                 {
                     _db.Entry(candidate).State = EntityState.Detached;
-                    return null;
+
+                    // A uniqueness race is a controlled 409. Any other database
+                    // failure must remain a real server error instead of being
+                    // mislabeled as an account which already exists.
+                    if (await EmailIsClaimedAsync(email, cancellationToken))
+                        return null;
+
+                    throw;
                 }
 
                 return candidate;
@@ -354,6 +361,16 @@ namespace DentalClinic.Controllers
         }
 
         private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+        private async Task<bool> EmailIsClaimedAsync(
+            string email,
+            CancellationToken cancellationToken)
+            => await _db.Patients
+                    .AsNoTracking()
+                    .AnyAsync(p => p.Email == email, cancellationToken)
+                || await _db.Admins
+                    .AsNoTracking()
+                    .AnyAsync(a => a.Email == email, cancellationToken);
 
         private void IssueSessionCookie(string token)
         {
