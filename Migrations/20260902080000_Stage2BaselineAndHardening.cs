@@ -184,10 +184,15 @@ IF EXISTS (SELECT 1 FROM [dbo].[Notifications] n LEFT JOIN [dbo].[Patients] p ON
     THROW 51004, 'Stage2 migration stopped: orphaned notification exists.', 1;
 
 DECLARE @fk sysname;
+DECLARE @sql nvarchar(max);
 SELECT TOP(1) @fk = fk.name FROM sys.foreign_keys fk
 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
 WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[AppointmentRequests]') AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = 'PatientId';
-IF @fk IS NOT NULL EXEC(N'ALTER TABLE [dbo].[AppointmentRequests] DROP CONSTRAINT ' + QUOTENAME(@fk));
+IF @fk IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE [dbo].[AppointmentRequests] DROP CONSTRAINT ' + QUOTENAME(@fk);
+    EXEC sp_executesql @sql;
+END;
 ALTER TABLE [dbo].[AppointmentRequests] ADD CONSTRAINT [FK_AppointmentRequests_Patients_PatientId]
     FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE SET NULL;
 
@@ -195,7 +200,11 @@ SET @fk = NULL;
 SELECT TOP(1) @fk = fk.name FROM sys.foreign_keys fk
 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
 WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[AppointmentRequests]') AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = 'DoctorId';
-IF @fk IS NOT NULL EXEC(N'ALTER TABLE [dbo].[AppointmentRequests] DROP CONSTRAINT ' + QUOTENAME(@fk));
+IF @fk IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE [dbo].[AppointmentRequests] DROP CONSTRAINT ' + QUOTENAME(@fk);
+    EXEC sp_executesql @sql;
+END;
 ALTER TABLE [dbo].[AppointmentRequests] ADD CONSTRAINT [FK_AppointmentRequests_Doctors_DoctorId]
     FOREIGN KEY ([DoctorId]) REFERENCES [dbo].[Doctors]([Id]) ON DELETE SET NULL;
 
@@ -203,7 +212,11 @@ SET @fk = NULL;
 SELECT TOP(1) @fk = fk.name FROM sys.foreign_keys fk
 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
 WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[Reviews]') AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = 'PatientId';
-IF @fk IS NOT NULL EXEC(N'ALTER TABLE [dbo].[Reviews] DROP CONSTRAINT ' + QUOTENAME(@fk));
+IF @fk IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE [dbo].[Reviews] DROP CONSTRAINT ' + QUOTENAME(@fk);
+    EXEC sp_executesql @sql;
+END;
 ALTER TABLE [dbo].[Reviews] ADD CONSTRAINT [FK_Reviews_Patients_PatientId]
     FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE CASCADE;
 
@@ -211,7 +224,11 @@ SET @fk = NULL;
 SELECT TOP(1) @fk = fk.name FROM sys.foreign_keys fk
 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
 WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[Notifications]') AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = 'PatientId';
-IF @fk IS NOT NULL EXEC(N'ALTER TABLE [dbo].[Notifications] DROP CONSTRAINT ' + QUOTENAME(@fk));
+IF @fk IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE [dbo].[Notifications] DROP CONSTRAINT ' + QUOTENAME(@fk);
+    EXEC sp_executesql @sql;
+END;
 ALTER TABLE [dbo].[Notifications] ADD CONSTRAINT [FK_Notifications_Patients_PatientId]
     FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE CASCADE;
 
@@ -219,7 +236,11 @@ SET @fk = NULL;
 SELECT TOP(1) @fk = fk.name FROM sys.foreign_keys fk
 JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
 WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[ChatMessageLogs]') AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = 'PatientId';
-IF @fk IS NOT NULL EXEC(N'ALTER TABLE [dbo].[ChatMessageLogs] DROP CONSTRAINT ' + QUOTENAME(@fk));
+IF @fk IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE [dbo].[ChatMessageLogs] DROP CONSTRAINT ' + QUOTENAME(@fk);
+    EXEC sp_executesql @sql;
+END;
 ALTER TABLE [dbo].[ChatMessageLogs] ADD CONSTRAINT [FK_ChatMessageLogs_Patients_PatientId]
     FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients]([Id]) ON DELETE SET NULL;
 
