@@ -12,6 +12,9 @@ public partial class AddAppointmentFollowUpSent : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // Keep the schema change and the data backfill in separate SQL batches.
+        // SQL Server compiles a whole batch before execution, so the backfill cannot
+        // safely reference FollowUpSent in the same batch that adds the column.
         migrationBuilder.Sql("""
 IF COL_LENGTH('dbo.AppointmentRequests', 'FollowUpSent') IS NULL
 BEGIN
@@ -19,7 +22,9 @@ BEGIN
         ADD [FollowUpSent] bit NOT NULL
             CONSTRAINT [DF_AppointmentRequests_FollowUpSent] DEFAULT CAST(0 AS bit);
 END;
+""");
 
+        migrationBuilder.Sql("""
 -- Preserve delivery history that predates the appointment-level marker. Once a
 -- patient has already received a follow-up, deleting the Notification row later
 -- must not make that appointment eligible again.
