@@ -45,6 +45,19 @@ test('admin doctor calendar uses authoritative availability instead of fixed bus
     assert.match(availability, /blockedReason/);
 });
 
+test('admin analytics canvases survive empty-state rendering and can recover later', async () => {
+    const doctors = await source('wwwroot/assets/js/managers/admin/doctorsManager.js');
+    const guard = await source('wwwroot/assets/js/managers/admin/adminAnalyticsCanvasGuard.js');
+
+    assert.match(doctors, /installAdminAnalyticsCanvasGuard/);
+    assert.match(guard, /chart-doctors/);
+    assert.match(guard, /chart-reviews-rating/);
+    assert.match(guard, /chart-chat-topics/);
+    assert.match(guard, /target\.appendChild\(canvas\)/);
+    assert.match(guard, /new Proxy\(NativeChart/);
+    assert.match(guard, /analytics-chart-empty/);
+});
+
 test('example clinic hours stay aligned with scheduling', async () => {
     const settings = JSON.parse(await source('appsettings.Example.json'));
     const hours = settings.Scheduling.WorkingHours;
