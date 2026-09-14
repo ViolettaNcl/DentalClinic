@@ -26,16 +26,28 @@ test('Denta launcher and header use the dedicated logo asset', async () => {
     assert.match(logo, /Denta AI assistant logo/);
 });
 
-test('bot replies use the tooth-only Denta mascot asset', async () => {
+test('bot replies use the generated Denta operator portrait in both render paths', async () => {
     const chatBot = await source('wwwroot/assets/js/core/chatBot.js');
     const brandCss = await source('wwwroot/assets/css/components/denta-brand.css');
-    const mascot = await stat(new URL('wwwroot/assets/images/denta-reply-avatar.png', root));
+    const avatarModule = await source('wwwroot/assets/js/core/dentaReplyAvatar.js');
+    const main = await source('wwwroot/assets/js/main.js');
+    const portrait = await stat(new URL('wwwroot/assets/images/denta-reply-avatar.png', root));
 
-    // Keep the text fallback in both streaming and non-streaming paths, while the
-    // branding stylesheet visually replaces it with the new tooth-only mascot.
+    // ChatBot still carries the lightweight emoji fallback in both streaming and
+    // non-streaming replies. Branding upgrades those exact slots to a real image.
     const fallbackAvatars = chatBot.match(/class="chat-bubble-avatar">🦷<\/span>/g) || [];
-    assert.ok(fallbackAvatars.length >= 2);
-    assert.match(brandCss, /\.chat-bubble-avatar[\s\S]*denta-reply-avatar\.png/);
-    assert.match(brandCss, /\.chat-bubble-avatar[\s\S]*font-size:\s*0/);
-    assert.ok(mascot.size > 1000, 'reply mascot asset should be a real image, not an empty placeholder');
+    assert.ok(fallbackAvatars.length >= 2, 'streaming and fallback replies must both expose an avatar slot');
+
+    assert.match(brandCss, /\.chat-bubble--bot\s+\.chat-bubble-avatar[\s\S]*denta-reply-avatar\.png/);
+    assert.match(brandCss, /min-width:\s*38px/);
+    assert.match(brandCss, /\.denta-reply-avatar-image[\s\S]*object-fit:\s*contain/);
+
+    assert.match(avatarModule, /DENTA_REPLY_AVATAR_URL\s*=\s*['"]\/assets\/images\/denta-reply-avatar\.png['"]/);
+    assert.match(avatarModule, /replaceChildren\(buildAvatarImage\(documentRef\)\)/);
+    assert.match(avatarModule, /new Observer\(/);
+
+    assert.match(main, /import \{ installDentaReplyAvatar \} from ['"]\/assets\/js\/core\/dentaReplyAvatar\.js['"]/);
+    assert.match(main, /installDentaReplyAvatar\(\);[\s\S]*new ChatBot\(\)/);
+
+    assert.ok(portrait.size > 10000, 'generated reply portrait should be a real non-empty image asset');
 });
