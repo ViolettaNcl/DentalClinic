@@ -57,3 +57,23 @@ test('example clinic hours stay aligned with scheduling', async () => {
     assert.equal(settings.Clinic.Hours, 'Пн-Сб 09:00-20:00; Вс — выходной');
     assert.match(settings.Clinic.Address, /Волгоград/);
 });
+
+test('above-the-fold content is stable on hard refresh', async () => {
+    const globalCss = await source('wwwroot/assets/css/global.css');
+    const homeCss = await source('wwwroot/assets/css/pages/home.css');
+    const wowCss = await source('wwwroot/assets/css/services/wow-effects.css');
+
+    assert.match(globalCss, /FIRST-PAINT STABILITY/);
+    assert.match(globalCss, /\.hero-content,[\s\S]*\.contact-hero-inner,[\s\S]*animation:\s*none\s*!important/);
+    assert.match(globalCss, /\.service-detail-page \.hero-title[\s\S]*opacity:\s*1/);
+
+    assert.doesNotMatch(homeCss, /animation:\s*heroIn\b/);
+    assert.doesNotMatch(homeCss, /animation:\s*statIn\b/);
+    assert.doesNotMatch(wowCss, /animation:\s*heroTitlePop\b/);
+    assert.doesNotMatch(wowCss, /animation:\s*heroFadeUp\b/);
+});
+
+test('automatic Vercel Git deployments stay frozen during final QA', async () => {
+    const vercel = JSON.parse(await source('vercel.json'));
+    assert.equal(vercel.git?.deploymentEnabled, false);
+});
