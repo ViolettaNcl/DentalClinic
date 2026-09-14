@@ -34,10 +34,10 @@ test('DOM-only access manager is dynamically imported behind the browser guard',
     assert.doesNotMatch(guardSource, /^import ['"]\.\/adminAccessManager\.js['"];?$/m);
 });
 
-test('super-admin migration bootstraps only an existing account and never embeds credentials', () => {
-    assert.match(migrationSource, /SELECT TOP \(1\) @bootstrapAdminId = \[Id\]/);
-    assert.match(migrationSource, /ORDER BY \[CreatedAt\] ASC, \[Id\] ASC/);
-    assert.match(migrationSource, /UPDATE \[dbo\]\.\[Admins\][\s\S]*SET \[IsSuperAdmin\] = 1/);
+test('super-admin migration is schema-only and never grants access implicitly', () => {
+    assert.match(migrationSource, /ADD \[IsSuperAdmin\] bit NOT NULL/);
+    assert.match(migrationSource, /DEFAULT\(0\)/);
+    assert.doesNotMatch(migrationSource, /UPDATE \[dbo\]\.\[Admins\][\s\S]*SET \[IsSuperAdmin\] = 1/);
     assert.doesNotMatch(migrationSource, /INSERT\s+INTO\s+\[dbo\]\.\[Admins\]/i);
     assert.doesNotMatch(migrationSource, /PasswordHash\s*=|BCrypt|AdminP@ss|Password123/i);
 });

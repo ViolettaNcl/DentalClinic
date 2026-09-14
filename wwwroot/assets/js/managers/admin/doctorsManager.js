@@ -6,6 +6,7 @@ import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
 import { installServiceKnowledgeManager } from './serviceKnowledgeManager.js';
 import { installClinicKnowledgeManager } from './clinicKnowledgeManager.js';
 import { buildDoctorPayload, formatDoctorKnowledgeSummary } from './doctorKnowledgeUtils.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 installAdminLogoutGuard();
 installAdminAnalyticsSummary();
@@ -258,7 +259,7 @@ class DoctorsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+runWhenDomReady(() => {
     const manager = new DoctorsManager();
     manager.init();
     window.DoctorsManagerInstance = manager;

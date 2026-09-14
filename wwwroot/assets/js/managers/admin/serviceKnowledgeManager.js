@@ -5,6 +5,7 @@ import {
     formatServicePrice,
     SERVICE_FIELD_LIMITS,
 } from './serviceKnowledgeUtils.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class ServiceKnowledgeManager {
     constructor() {
@@ -301,7 +302,7 @@ class ServiceKnowledgeManager {
 
 export function installServiceKnowledgeManager() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const manager = new ServiceKnowledgeManager();
         manager.init();
         window.ServiceKnowledgeManagerInstance = manager;

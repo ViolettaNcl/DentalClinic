@@ -1,4 +1,5 @@
 import { apiFetch } from '../../services/apiClient.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 export function buildAdminAnalyticsViewModel(summary = {}) {
     const statuses = summary.statuses || {};
@@ -175,7 +176,7 @@ function renderCharts(viewModel, analytics) {
 export function installAdminAnalyticsSummary() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const analytics = window.AnalyticsManagerInstance;
         if (!analytics) return;
 
