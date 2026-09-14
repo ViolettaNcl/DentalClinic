@@ -3,6 +3,7 @@ import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
 import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
 import { installAdminLogoutGuard } from './adminLogoutGuard.js';
 import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
+import { installAdminAnalyticsCanvasGuard } from './adminAnalyticsCanvasGuard.js';
 import { installServiceKnowledgeManager } from './serviceKnowledgeManager.js';
 import { installClinicKnowledgeManager } from './clinicKnowledgeManager.js';
 import { buildDoctorPayload, formatDoctorKnowledgeSummary } from './doctorKnowledgeUtils.js';
@@ -10,6 +11,7 @@ import { runWhenDomReady } from '../../core/domReady.js';
 
 installAdminLogoutGuard();
 installAdminAnalyticsSummary();
+installAdminAnalyticsCanvasGuard();
 installServiceKnowledgeManager();
 installClinicKnowledgeManager();
 
