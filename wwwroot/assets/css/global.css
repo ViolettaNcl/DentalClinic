@@ -33,3 +33,27 @@
 /* УСЛУГИ */
 @import url('services/services-all.css');
 @import url('services/extractions.css');
+
+/* FIRST-PAINT STABILITY ----------------------------------------------------
+   Critical above-the-fold text must be fully readable on the very first frame.
+   Several older page-specific entrance animations started at opacity:0 and a
+   translated/scaled transform; during a hard refresh this looked like broken,
+   grey/outlined or doubled text before settling. Decorative/background motion
+   remains enabled, but primary hero copy and KPI cards no longer fade in. */
+.hero-content,
+.stat,
+.contact-hero-inner,
+.service-detail-page .hero-title,
+.service-detail-page .hero-subtitle,
+.service-detail-page .hero-content > .btn-cta-white {
+    animation: none !important;
+    opacity: 1;
+}
+
+.hero-content,
+.contact-hero-inner,
+.service-detail-page .hero-title,
+.service-detail-page .hero-subtitle,
+.service-detail-page .hero-content > .btn-cta-white {
+    transform: none;
+}
