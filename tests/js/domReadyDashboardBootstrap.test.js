@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runWhenDomReady } from '../../wwwroot/assets/js/core/domReady.js';
 
-test('runs an initializer immediately when an async module loads after DOMContentLoaded', () => {
+test('runs an initializer on the next microtask when a module loads after DOMContentLoaded', async () => {
     let calls = 0;
     const documentRef = {
         readyState: 'complete',
@@ -14,6 +14,8 @@ test('runs an initializer immediately when an async module loads after DOMConten
 
     runWhenDomReady(() => { calls += 1; }, documentRef);
 
+    assert.equal(calls, 0);
+    await Promise.resolve();
     assert.equal(calls, 1);
 });
 

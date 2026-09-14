@@ -31,7 +31,10 @@ export function buildClinicDirectionsUrl(target, origin = null) {
         api: '1',
         destination: target.value
     });
-    if (origin) params.set('origin', origin);
+    if (origin) {
+        params.set('origin', origin);
+        params.set('travelmode', 'driving');
+    }
 
     return `https://www.google.com/maps/dir/?${params.toString()}`;
 }

@@ -37,6 +37,19 @@ test('renders a clinic map from its configured address when coordinates are abse
     );
 });
 
+test('keeps the driving-mode route when the browser provides an origin', () => {
+    const target = resolveClinicMapTarget({
+        hasCoordinates: true,
+        latitude: 48.7,
+        longitude: 44.5
+    });
+
+    assert.equal(
+        buildClinicDirectionsUrl(target, '48.71,44.51'),
+        'https://www.google.com/maps/dir/?api=1&destination=48.7%2C44.5&origin=48.71%2C44.51&travelmode=driving'
+    );
+});
+
 test('does not invent a map destination without a configured address or coordinates', () => {
     assert.equal(resolveClinicMapTarget({ hasCoordinates: false, address: '  ' }), null);
     assert.equal(buildClinicMapEmbedUrl(null), null);

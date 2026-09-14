@@ -11,5 +11,9 @@ export function runWhenDomReady(callback, documentRef = globalThis.document) {
         return;
     }
 
-    callback();
+    // Defer one microtask so a dynamically imported module can finish exporting
+    // and its caller can apply any required guards before initialization begins.
+    const schedule = globalThis.queueMicrotask
+        || (task => Promise.resolve().then(task));
+    schedule(callback);
 }
