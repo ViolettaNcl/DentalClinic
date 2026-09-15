@@ -64,28 +64,20 @@
     }
 }
 
+/* Above-the-fold copy must be fully painted on the first frame. The old
+   opacity/scale entrance animations made headings and CTA text briefly look
+   grey, doubled or outlined immediately after a hard refresh. Keep the
+   decorative effects below, but never animate the primary information in. */
+.service-detail-page .hero-title,
+.service-detail-page .hero-subtitle,
+.service-detail-page .hero-content > .btn-cta-white {
+    opacity: 1;
+    transform: none;
+}
+
 .service-detail-page .hero-title {
     position: relative;
     display: inline-block;
-    animation: heroTitlePop .8s var(--ease-bounce) both;
-}
-
-.service-detail-page .hero-subtitle {
-    animation: heroFadeUp .9s var(--ease-smooth) .15s both;
-}
-
-.service-detail-page .hero-content > .btn-cta-white {
-    animation: heroFadeUp .9s var(--ease-smooth) .3s both;
-}
-
-@keyframes heroTitlePop {
-    0% { opacity: 0; transform: translateY(26px) scale(.92); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes heroFadeUp {
-    0% { opacity: 0; transform: translateY(18px); }
-    100% { opacity: 1; transform: translateY(0); }
 }
 
 /* лёгкое "дыхание" кнопки в hero, чтобы взгляд цеплялся за призыв к действию */
@@ -261,9 +253,6 @@
 
 @media (prefers-reduced-motion: reduce) {
     .wow-particle,
-    .service-detail-page .hero-title,
-    .service-detail-page .hero-subtitle,
-    .service-detail-page .hero-content > .btn-cta-white,
     .service-detail-page .btn-cta-white::after,
     .service-detail-page .card--pricing.featured,
     .service-detail-page .card--pricing.wow-counted .card__price .amount {

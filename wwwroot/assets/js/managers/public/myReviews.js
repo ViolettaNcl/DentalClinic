@@ -3,6 +3,7 @@ import { showSuccess, showError } from '../../services/ui.js';
 import { formatDate } from '../../services/dateUtils.js';
 import { t, onLanguageChange, getLang } from '../../core/i18n.js';
 import { translateReviewText } from '../../services/reviewTranslate.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 /**
  * Управляет разделом "Мои отзывы" в личном кабинете пациента:
@@ -264,6 +265,6 @@ class MyReviewsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new MyReviewsManager().init());
+runWhenDomReady(() => new MyReviewsManager().init());
 
 export { MyReviewsManager };

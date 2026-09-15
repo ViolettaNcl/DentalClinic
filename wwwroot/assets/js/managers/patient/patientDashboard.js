@@ -5,6 +5,7 @@ import { formatDate, formatTime, toInputDateTime } from '../../services/dateUtil
 import { TabManager } from '../../core/tabManager.js';
 import { t, onLanguageChange, getLang } from '../../core/i18n.js';
 import { translateText } from '../../services/textTranslate.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class CabinetManager {
     constructor() {
@@ -479,4 +480,4 @@ class CabinetManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new CabinetManager().init());
+runWhenDomReady(() => new CabinetManager().init());

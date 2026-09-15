@@ -4,6 +4,12 @@
  */
 import { t, onLanguageChange } from '../../core/i18n.js';
 import { getPublicClinicProfile } from '../../core/publicClinicProfile.js';
+import {
+    buildClinicDirectionsUrl,
+    buildClinicMapEmbedUrl,
+    resolveClinicMapTarget
+} from '../../core/clinicMap.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 function distanceKm(lat1, lng1, lat2, lng2) {
     const R = 6371;
@@ -43,28 +49,28 @@ function configureMap(profile) {
     const location = document.querySelector('.location-section');
     const iframe = location?.querySelector('iframe');
     const btn = document.getElementById('route-fab');
+    const target = resolveClinicMapTarget(profile);
 
-    if (!profile.hasCoordinates) {
+    if (!target) {
         if (location) location.hidden = true;
         if (iframe) {
             iframe.removeAttribute('src');
             iframe.hidden = true;
         }
         if (btn) btn.hidden = true;
-        return false;
+        return null;
     }
 
     if (location) location.hidden = false;
     if (iframe) {
-        const coordinates = encodeURIComponent(`${profile.latitude},${profile.longitude}`);
-        iframe.src = `https://www.google.com/maps?q=${coordinates}&output=embed`;
+        iframe.src = buildClinicMapEmbedUrl(target);
         iframe.hidden = false;
         iframe.title = profile.address
             ? `Dental Clinic — ${profile.address}`
             : 'Dental Clinic location';
     }
     if (btn) btn.hidden = false;
-    return true;
+    return target;
 }
 
 function renderRouteResult(resultEl, message, linkUrl = null, linkText = null) {
@@ -83,12 +89,14 @@ function renderRouteResult(resultEl, message, linkUrl = null, linkText = null) {
     resultEl.classList.add('is-visible');
 }
 
-function initRouteBuilder(profile) {
+function initRouteBuilder(profile, target) {
     const btn = document.getElementById('route-fab');
     const resultEl = document.getElementById('route-result');
-    if (!btn || !resultEl || !profile.hasCoordinates) return;
+    if (!btn || !resultEl || !target) return;
 
-    const clinic = { lat: profile.latitude, lng: profile.longitude };
+    const clinic = profile.hasCoordinates
+        ? { lat: profile.latitude, lng: profile.longitude }
+        : null;
     const label = btn.querySelector('.route-fab-label');
     if (label) {
         const refreshLabel = () => {
@@ -99,14 +107,15 @@ function initRouteBuilder(profile) {
     }
 
     const manualLinkText = () => t('route_open_manual', 'Открыть маршрут вручную →');
-    const clinicOnlyRoute = () =>
-        `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${clinic.lat},${clinic.lng}`)}`;
+    const clinicOnlyRoute = () => buildClinicDirectionsUrl(target);
 
     btn.addEventListener('click', () => {
-        if (!navigator.geolocation) {
+        if (!clinic || !navigator.geolocation) {
             renderRouteResult(
                 resultEl,
-                t('route_no_geolocation', 'Геолокация не поддерживается вашим браузером.'),
+                clinic
+                    ? t('route_no_geolocation', 'Геолокация не поддерживается вашим браузером.')
+                    : t('route_open_manual', 'Открыть маршрут вручную →'),
                 clinicOnlyRoute(),
                 manualLinkText());
             return;
@@ -120,9 +129,8 @@ function initRouteBuilder(profile) {
                 const { latitude, longitude } = pos.coords;
                 const km = distanceKm(latitude, longitude, clinic.lat, clinic.lng);
                 const minutes = Math.max(3, Math.round((km / 32) * 60));
-                const origin = encodeURIComponent(`${latitude},${longitude}`);
-                const destination = encodeURIComponent(`${clinic.lat},${clinic.lng}`);
-                const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+                const origin = `${latitude},${longitude}`;
+                const mapsUrl = buildClinicDirectionsUrl(target, origin);
                 const distanceText = t(
                     'route_distance_text',
                     'Вы примерно в {km} км от клиники — около {min} мин на машине.')
@@ -154,7 +162,7 @@ function initRouteBuilder(profile) {
     });
 
     document.addEventListener('click', event => {
-        if (!resultEl.contains(event.target) && event.target !== btn) {
+        if (!resultEl.contains(event.target) && !btn.contains(event.target)) {
             resultEl.classList.remove('is-visible');
         }
     });
@@ -166,11 +174,12 @@ async function initContactPage() {
     try {
         const profile = await getPublicClinicProfile();
         hydrateContactCards(profile);
-        if (configureMap(profile)) initRouteBuilder(profile);
+        const target = configureMap(profile);
+        if (target) initRouteBuilder(profile, target);
     } catch (err) {
         console.warn('Не удалось загрузить публичные данные клиники:', err?.message || err);
         configureMap({ hasCoordinates: false });
     }
 }
 
-document.addEventListener('DOMContentLoaded', initContactPage);
+runWhenDomReady(initContactPage);

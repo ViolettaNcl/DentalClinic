@@ -1,3 +1,4 @@
+import { runWhenDomReady } from '../../core/domReady.js';
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, renderPagination } from '../../services/ui.js';
 import { formatDate } from '../../services/dateUtils.js';
@@ -200,7 +201,7 @@ class ReviewModerationManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+runWhenDomReady(() => {
     const manager = new ReviewModerationManager();
     manager.init();
     window.ReviewModerationManagerInstance = manager;

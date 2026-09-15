@@ -1,7 +1,8 @@
 /* Denta bot branding -------------------------------------------------------
    The floating launcher and chat header use the dedicated Denta logo.
-   Bot replies use the compact tooth-only Denta mascot, so the conversation keeps
-   the same character without repeating the full wordmark on every message. */
+   Individual bot replies use the generated Denta AI operator portrait. The
+   CSS background is an immediate fallback; a tiny DOM upgrader also inserts a
+   real <img> so the avatar stays visible across streaming and fallback replies. */
 
 .chat-toggle > svg {
     display: none;
@@ -44,21 +45,54 @@
     box-shadow: 0 6px 18px rgba(3, 64, 117, .24), 0 0 0 4px rgba(255,255,255,.1);
 }
 
-/* Tooth-only Denta mascot for every bot reply. The legacy 🦷 text remains in the
-   DOM as a harmless fallback, but is visually replaced by the branded asset. */
-.chat-bubble-avatar {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
+/* Keep Denta's portrait physically inside the reply row instead of relying on
+   an inline emoji/background-only span. Explicit sizing/min-width prevents the
+   avatar slot from collapsing when a long streamed reply is rendered. */
+.chat-bubble--bot .chat-bubble-inner {
+    align-items: flex-start;
+}
+
+.chat-bubble--bot .chat-bubble-avatar {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 2px;
+    overflow: hidden;
     font-size: 0;
-    background-color: transparent;
+    line-height: 0;
+    color: transparent;
+    background-color: rgba(247, 253, 255, .98);
     background-image: url('/assets/images/denta-reply-avatar.png');
     background-repeat: no-repeat;
     background-position: center;
-    background-size: contain;
-    border: 0;
-    border-radius: 0;
-    filter: drop-shadow(0 2px 5px rgba(3, 64, 117, .18));
+    background-size: calc(100% - 4px);
+    border: 1.5px solid rgba(0, 164, 232, .22);
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(4, 73, 126, .18);
+}
+
+.chat-bubble--bot .chat-bubble-avatar--ready {
+    background-image: none;
+}
+
+.chat-bubble--bot .denta-reply-avatar-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 9px;
+    pointer-events: none;
+    user-select: none;
+}
+
+[data-theme="dark"] .chat-bubble--bot .chat-bubble-avatar {
+    background-color: rgba(236, 250, 255, .96);
+    border-color: rgba(40, 228, 255, .28);
 }
 
 @media (max-width: 480px) {
@@ -73,9 +107,15 @@
         flex-basis: 48px;
     }
 
-    .chat-bubble-avatar {
+    .chat-bubble--bot .chat-bubble-avatar {
         width: 34px;
+        min-width: 34px;
         height: 34px;
         flex-basis: 34px;
+        border-radius: 11px;
+    }
+
+    .chat-bubble--bot .denta-reply-avatar-image {
+        border-radius: 8px;
     }
 }

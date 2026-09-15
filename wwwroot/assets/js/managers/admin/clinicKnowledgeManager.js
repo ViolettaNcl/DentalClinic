@@ -1,6 +1,7 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
 import { buildClinicKnowledgePayload, CLINIC_KNOWLEDGE_LIMITS } from './clinicKnowledgeUtils.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class ClinicKnowledgeManager {
     constructor() {
@@ -320,7 +321,7 @@ class ClinicKnowledgeManager {
 
 export function installClinicKnowledgeManager() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const manager = new ClinicKnowledgeManager();
         manager.init();
         window.ClinicKnowledgeManagerInstance = manager;
