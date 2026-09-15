@@ -4,6 +4,10 @@
 import { showSuccess, showError, showConfirm, escapeHtml, renderPagination } from '../../services/ui.js';
 import { initAvatarUploader, paintAvatarEverywhere } from '../../services/avatarService.js';
 import { t } from '../../core/i18n.js';
+import { runWhenDomReady } from '../../core/domReady.js';
+import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
+import { installAdminLogoutGuard } from './adminLogoutGuard.js';
+import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
 
 function checkAdminAccess() {
     const role = sessionStorage.getItem('userRole');
@@ -912,7 +916,10 @@ class AnalyticsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Await the shared session module and install guards before publishing managers.
+installAdminLogoutGuard();
+
+runWhenDomReady(async () => {
     if (!checkAdminAccess()) return;
     initNav();
     const logoutBtn = document.getElementById('btn-logout');
@@ -928,10 +935,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (ok) logout();
     });
     window.reloadDoctorSelects = loadDoctors;
-    await loadDoctors();
-    const calendar = new DoctorCalendarManager(); calendar.init(); window.DoctorCalendarManagerInstance = calendar;
+    const calendar = new DoctorCalendarManager();
+    window.DoctorCalendarManagerInstance = calendar;
+    installDoctorCalendarAvailability();
+    calendar.init();
     const analytics = new AnalyticsManager(); analytics.init(); window.AnalyticsManagerInstance = analytics;
-    const requests = new AdminRequestsManager(); requests.init(); window.AdminRequestsManagerInstance = requests;
+    const requests = new AdminRequestsManager(); window.AdminRequestsManagerInstance = requests;
+    installAdminAnalyticsSummary();
+    // Publish managers before awaiting the network so DOM-ready enhancements can
+    // attach even when the doctor catalog is slow. Rows still wait for doctor names.
+    await loadDoctors();
+    requests.init();
     initPhoneForm();
     initAdminProfile();
     initExportButtons();

@@ -162,7 +162,7 @@ function initRouteBuilder(profile, target) {
     });
 
     document.addEventListener('click', event => {
-        if (!resultEl.contains(event.target) && event.target !== btn) {
+        if (!resultEl.contains(event.target) && !btn.contains(event.target)) {
             resultEl.classList.remove('is-visible');
         }
     });

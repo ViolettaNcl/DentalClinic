@@ -178,7 +178,8 @@ export function installAdminAnalyticsSummary() {
 
     runWhenDomReady(() => {
         const analytics = window.AnalyticsManagerInstance;
-        if (!analytics) return;
+        if (!analytics || analytics.__serverSummaryInstalled) return;
+        analytics.__serverSummaryInstalled = true;
 
         // Appointment tables still load their full rows for CRM operations, but the
         // analytics cards/charts now use the tested server-side aggregate endpoint.

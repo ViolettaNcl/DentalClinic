@@ -33,8 +33,9 @@ export function buildClinicDirectionsUrl(target, origin = null) {
     });
     if (origin) {
         params.set('origin', origin);
-        params.set('travelmode', 'driving');
     }
+
+    params.set('travelmode', 'driving');
 
     return `https://www.google.com/maps/dir/?${params.toString()}`;
 }

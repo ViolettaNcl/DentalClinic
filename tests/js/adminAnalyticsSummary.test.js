@@ -98,3 +98,29 @@ test('keeps chart arrays numeric when API values are serialized as strings', () 
     assert.deepEqual(view.doctorChart.data, [2]);
     assert.deepEqual(view.doctorChart.labels, ['Врач #9']);
 });
+
+test('summary installation retries after manager creation and remains idempotent', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { runInNewContext } = await import('node:vm');
+    const source = await readFile(new URL('../../wwwroot/assets/js/managers/admin/adminAnalyticsSummary.js', import.meta.url), 'utf8');
+    const installer = source.slice(source.indexOf('export function installAdminAnalyticsSummary')).replace('export function', 'function');
+    const window = {};
+    let loads = 0;
+    let listeners = 0;
+    const context = {
+        window,
+        document: { querySelector: () => ({ addEventListener: () => { listeners += 1; } }) },
+        runWhenDomReady: callback => callback(),
+        apiFetch: () => { loads += 1; return new Promise(() => {}); }
+    };
+    runInNewContext(installer + '\ninstallAdminAnalyticsSummary();', context);
+    assert.equal(loads, 0);
+    window.AnalyticsManagerInstance = {};
+    window.AdminRequestsManagerInstance = { loadAll() {} };
+    runInNewContext('installAdminAnalyticsSummary();', context);
+    const wrappedLoadAll = window.AdminRequestsManagerInstance.loadAll;
+    runInNewContext('installAdminAnalyticsSummary();', context);
+    assert.equal(loads, 1);
+    assert.equal(listeners, 1);
+    assert.equal(window.AdminRequestsManagerInstance.loadAll, wrappedLoadAll);
+});

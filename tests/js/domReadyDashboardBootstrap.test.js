@@ -40,8 +40,10 @@ test('waits exactly once while the document is still loading', () => {
     assert.equal(calls, 1);
 });
 
-test('patient and doctor dashboards use the late-import-safe initializer', async () => {
+test('admin, patient and doctor dashboards use the late-import-safe initializer', async () => {
     const files = [
+        '../../wwwroot/assets/js/managers/admin/adminDashboard.js',
+        '../../wwwroot/assets/js/managers/admin/reviewModeration.js',
         '../../wwwroot/assets/js/managers/patient/patientDashboard.js',
         '../../wwwroot/assets/js/managers/public/myReviews.js',
         '../../wwwroot/assets/js/managers/admin/doctorsManager.js'
@@ -50,5 +52,51 @@ test('patient and doctor dashboards use the late-import-safe initializer', async
     for (const file of files) {
         const source = await readFile(new URL(file, import.meta.url), 'utf8');
         assert.match(source, /runWhenDomReady\s*\(/, file);
+    }
+});
+
+test('admin publishes enhanced managers before a slow doctor request in early and late loading', async () => {
+    const { runInNewContext } = await import('node:vm');
+    const source = await readFile(new URL('../../wwwroot/assets/js/managers/admin/adminDashboard.js', import.meta.url), 'utf8');
+    const bootstrap = source.slice(source.indexOf('runWhenDomReady(async () => {'), source.indexOf('/* =====================================================\n   ЭКСПОРТ:'));
+
+    for (const readyState of ['loading', 'complete']) {
+        let releaseDoctors;
+        const doctors = new Promise(resolve => { releaseDoctors = resolve; });
+        let listener;
+        let initialized;
+        const calls = [];
+        const window = {};
+        const document = {
+            readyState,
+            getElementById: () => null,
+            addEventListener: (_, callback) => { listener = callback; }
+        };
+        runInNewContext(bootstrap, {
+            window, document,
+            runWhenDomReady: callback => runWhenDomReady(() => { initialized = callback(); }, document),
+            checkAdminAccess: () => true,
+            initNav() {},
+            loadDoctors: () => doctors,
+            DoctorCalendarManager: class { init() { calls.push('calendar-init'); assert.equal(this.enhanced, true); } },
+            installDoctorCalendarAvailability() { window.DoctorCalendarManagerInstance.enhanced = true; },
+            installAdminAnalyticsSummary() {
+                assert.ok(window.AnalyticsManagerInstance);
+                assert.ok(window.AdminRequestsManagerInstance);
+            },
+            AnalyticsManager: class { init() { calls.push('analytics-init'); } },
+            AdminRequestsManager: class { init() { calls.push('requests-init'); } },
+            initPhoneForm() {}, initAdminProfile() {}, initExportButtons() {}
+        });
+        if (readyState === 'loading') listener();
+        else await Promise.resolve();
+
+        assert.ok(window.DoctorCalendarManagerInstance);
+        assert.ok(window.AnalyticsManagerInstance);
+        assert.ok(window.AdminRequestsManagerInstance);
+        assert.deepEqual(calls, ['calendar-init', 'analytics-init']);
+        releaseDoctors();
+        await initialized;
+        assert.deepEqual(calls, ['calendar-init', 'analytics-init', 'requests-init']);
     }
 });
