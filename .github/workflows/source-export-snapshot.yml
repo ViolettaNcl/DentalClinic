@@ -1,0 +1,37 @@
+name: Source Export Snapshot
+
+on:
+  push:
+    branches:
+      - fix/dashboard-data-doctors-map
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact source snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: e0f8ac3d9d8a60e3ae6946c19d1d636c63e55d41
+          fetch-depth: 1
+
+      - name: Prepare source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .git
+          mkdir -p "$RUNNER_TEMP/dentalclinic-source"
+          rsync -a --exclude='.git' ./ "$RUNNER_TEMP/dentalclinic-source/"
+
+      - name: Upload exact source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: dentalclinic-source-e0f8ac3d
+          path: ${{ runner.temp }}/dentalclinic-source
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
