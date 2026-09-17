@@ -93,9 +93,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         {
             request.Headers.Remove("x-goog-api-key");
 
-            request.Headers.TryAddWithoutValidation(
-                "x-goog-api-key",
-                apiKey);
+            request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
         }
 
         var builder = new UriBuilder(request.RequestUri!);
