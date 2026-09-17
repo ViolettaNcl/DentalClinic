@@ -174,7 +174,8 @@ public class DentaClinicRouterTests
 
         var answer = await router.TryAnswerAsync("Что происходит на обычном приёме у стоматолога?", Array.Empty<DentaTurn>(), "ru", CancellationToken.None);
 
-        Assert.Null(answer);
+       Assert.NotNull(answer);
+       Assert.False(answer!.StartBooking);
     }
 
     [Fact]

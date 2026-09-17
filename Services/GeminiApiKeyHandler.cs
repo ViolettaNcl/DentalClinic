@@ -7,12 +7,8 @@ namespace DentalClinic.Services;
 /// Security/transport boundary shared by Gemini callers.
 /// - injects Gemini:ApiKey through x-goog-api-key;
 /// - strips any legacy key= query parameter so secrets never enter URLs/logs;
-/// - removes an accidental duplicated trailing user turn;
-/// - links provider work to the current ASP.NET request lifetime.
-///
-/// Denta response shaping intentionally does NOT happen here. DentaAiService owns
-/// the typed response schema and parsing so provider JSON is deserialized exactly
-/// once and can never leak into the patient UI through a legacy text conversion.
+/// - removes accidental duplicated trailing user turns;
+/// - safely replaces and disposes HttpContent.
 /// </summary>
 public sealed class GeminiApiKeyHandler : DelegatingHandler
 {
@@ -32,37 +28,91 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         CancellationToken cancellationToken)
     {
         var uri = request.RequestUri;
-        if (uri == null || !uri.Host.Equals("generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase))
-            return await base.SendAsync(request, cancellationToken);
 
-        var requestAborted = _httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
-        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken,
-            requestAborted);
+        if (uri == null ||
+            !uri.Host.Equals(
+                "generativelanguage.googleapis.com",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return await base.SendAsync(request, cancellationToken);
+        }
+
+        var requestAborted =
+            _httpContextAccessor.HttpContext?.RequestAborted
+            ?? CancellationToken.None;
+
+        using var linkedCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                requestAborted);
+
         var effectiveCancellation = linkedCancellation.Token;
 
         ApplyApiKey(request);
-        await RemoveDuplicateTrailingUserMessageAsync(request, effectiveCancellation);
 
-        return await base.SendAsync(request, effectiveCancellation);
+        await RemoveDuplicateTrailingUserMessageAsync(
+            request,
+            effectiveCancellation);
+
+        var response = await base.SendAsync(
+            request,
+            effectiveCancellation);
+
+        if (response.Content != null)
+        {
+            var originalContent = response.Content;
+
+            try
+            {
+                var body = await originalContent.ReadAsStringAsync(
+                    effectiveCancellation);
+
+                var mediaType =
+                    originalContent.Headers.ContentType?.MediaType
+                    ?? "application/json";
+
+                response.Content = new StringContent(
+                    body,
+                    Encoding.UTF8,
+                    mediaType);
+            }
+            finally
+            {
+                originalContent.Dispose();
+            }
+        }
+
+        return response;
     }
 
     private void ApplyApiKey(HttpRequestMessage request)
     {
         var apiKey = _configuration["Gemini:ApiKey"];
+
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             request.Headers.Remove("x-goog-api-key");
-            request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
+
+            request.Headers.TryAddWithoutValidation(
+                "x-goog-api-key",
+                apiKey);
         }
 
         var builder = new UriBuilder(request.RequestUri!);
+
         if (!string.IsNullOrEmpty(builder.Query))
         {
-            var filtered = builder.Query.TrimStart('?')
-                .Split('&', StringSplitOptions.RemoveEmptyEntries)
-                .Where(pair => !pair.StartsWith("key=", StringComparison.OrdinalIgnoreCase));
+            var filtered =
+                builder.Query
+                    .TrimStart('?')
+                    .Split('&', StringSplitOptions.RemoveEmptyEntries)
+                    .Where(pair =>
+                        !pair.StartsWith(
+                            "key=",
+                            StringComparison.OrdinalIgnoreCase));
+
             builder.Query = string.Join("&", filtered);
+
             request.RequestUri = builder.Uri;
         }
     }
@@ -71,8 +121,8 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        if (request.Content == null
-            || !string.Equals(
+        if (request.Content == null ||
+            !string.Equals(
                 request.Content.Headers.ContentType?.MediaType,
                 "application/json",
                 StringComparison.OrdinalIgnoreCase))
@@ -80,8 +130,11 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return;
         }
 
-        var raw = await request.Content.ReadAsStringAsync(cancellationToken);
+        var raw = await request.Content.ReadAsStringAsync(
+            cancellationToken);
+
         JsonNode? root;
+
         try
         {
             root = JsonNode.Parse(raw);
@@ -91,30 +144,58 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return;
         }
 
-        if (root?["contents"] is not JsonArray contents || contents.Count < 2)
+        if (root?["contents"] is not JsonArray contents ||
+            contents.Count < 2)
+        {
             return;
+        }
 
-        if (!IsSameUserMessage(contents[^2], contents[^1]))
+        if (!IsSameUserMessage(
+                contents[^2],
+                contents[^1]))
+        {
             return;
+        }
 
         contents.RemoveAt(contents.Count - 1);
 
-        var originalContent = request.Content;
-        request.Content = new StringContent(root.ToJsonString(), Encoding.UTF8, "application/json");
-        originalContent.Dispose();
+        var oldContent = request.Content;
+
+        request.Content = new StringContent(
+            root.ToJsonString(),
+            Encoding.UTF8,
+            "application/json");
+
+        oldContent.Dispose();
     }
 
-    private static bool IsSameUserMessage(JsonNode? left, JsonNode? right)
+    private static bool IsSameUserMessage(
+        JsonNode? left,
+        JsonNode? right)
     {
-        if (!string.Equals(left?["role"]?.GetValue<string>(), "user", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(right?["role"]?.GetValue<string>(), "user", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(
+                left?["role"]?.GetValue<string>(),
+                "user",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            !string.Equals(
+                right?["role"]?.GetValue<string>(),
+                "user",
+                StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        var leftText = left?["parts"]?[0]?["text"]?.GetValue<string>();
-        var rightText = right?["parts"]?[0]?["text"]?.GetValue<string>();
+        var leftText =
+            left?["parts"]?[0]?["text"]?.GetValue<string>();
+
+        var rightText =
+            right?["parts"]?[0]?["text"]?.GetValue<string>();
+
         return !string.IsNullOrWhiteSpace(leftText)
-               && string.Equals(leftText, rightText, StringComparison.Ordinal);
+            && string.Equals(
+                leftText,
+                rightText,
+                StringComparison.Ordinal);
     }
 }

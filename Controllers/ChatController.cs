@@ -27,6 +27,13 @@ namespace DentalClinic.Controllers
         private const int MaxStatsTopicMessages = 5000;
         private const int MaxRecentSessionMessages = 10000;
 
+        // Denta symptom safety rules.
+        // Prevents AI from mapping symptoms directly to diagnoses/procedures.
+        private const string SymptomSafetyPrompt =
+            "Не связывай симптом с конкретным диагнозом или процедурой. " +
+            "Не назначай лекарства и дозировки. " +
+            "При затруднённом дыхании или глотании рекомендуй обратиться за срочной медицинской помощью.";
+
         // Fallback links are intentionally multilingual. Structured Gemini links are
         // preferred, but when the provider returns none this table must work for all
         // five supported UI languages rather than silently becoming Russian-only.
