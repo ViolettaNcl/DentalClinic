@@ -49,6 +49,16 @@ use publicly known test credentials in production.
 🇬🇷 Greek, 🇸🇦 Arabic, 🇫🇷 French — switching is instant, with no page reload, via the
 language button in the header.
 
+
+## ✅ Current UI state
+
+- Responsive public pages for desktop, tablet and mobile.
+- Mobile header: menu button at the right edge with the language switch immediately to its left.
+- Consistent price, description and CTA alignment across all service pricing cards.
+- Responsive Admin and Patient dashboards with mobile navigation.
+- Smile Meter uses one active dental render, optimized WebP frames and strict Front / Upper / Lower / Side asset families.
+- RU / EN / FR / EL / AR are supported, including Arabic RTL.
+
 ## 📑 Table of Contents
 
 - [Live Demo](#-live-demo)
@@ -182,6 +192,8 @@ Full template — in [`appsettings.Example.json`](appsettings.Example.json). Key
 | [`docs/en/DEVELOPER_GUIDE.md`](docs/en/DEVELOPER_GUIDE.md) | developers | Setup, configuration, code structure |
 | [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md) | developers / DevOps | Publishing to a server/hosting |
 | [`docs/en/SECURITY.md`](docs/en/SECURITY.md) | everyone | Implemented security measures, secrets management |
+| [`docs/SMILE_METER.md`](docs/SMILE_METER.md) | developers / QA | Current Smile Meter architecture and rules |
+| [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) | QA / developers | Final desktop / tablet / mobile verification |
 | [`docs/DentalClinic.postman_collection.json`](docs/DentalClinic.postman_collection.json) | developers | A ready-made Postman collection for all endpoints |
 
 🇷🇺 Русская версия всех документов — в корне репозитория и в [`docs/`](docs/).

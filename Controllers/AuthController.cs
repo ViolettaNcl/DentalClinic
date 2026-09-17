@@ -21,13 +21,20 @@ namespace DentalClinic.Controllers
         private readonly JwtTokenService _tokens;
         private readonly ILogger<AuthController> _logger;
         private readonly NotificationService _notifications;
+        private readonly TokenVersionCache? _tokenVersionCache;
 
-        public AuthController(ApplicationDbContext db, JwtTokenService tokens, ILogger<AuthController> logger, NotificationService notifications)
+        public AuthController(
+            ApplicationDbContext db,
+            JwtTokenService tokens,
+            ILogger<AuthController> logger,
+            NotificationService notifications,
+            TokenVersionCache? tokenVersionCache = null)
         {
             _db = db;
             _tokens = tokens;
             _logger = logger;
             _notifications = notifications;
+            _tokenVersionCache = tokenVersionCache;
         }
 
         [HttpPost("register")]
@@ -97,12 +104,14 @@ namespace DentalClinic.Controllers
                 null,
                 cancellationToken);
 
+            _tokenVersionCache?.Set("Patient", patient.Id, patient.TokenVersion);
             IssueSessionCookie(_tokens.GenerateToken(
                 patient.Id,
                 patient.Email,
                 patient.FirstName,
                 "Patient",
-                patient.TokenVersion));
+                patient.TokenVersion,
+                patient.AvatarUrl));
 
             return Ok(new
             {
@@ -137,12 +146,14 @@ namespace DentalClinic.Controllers
             }
 
             _logger.LogInformation("Вход пациента id={Id}", patient.Id);
+            _tokenVersionCache?.Set("Patient", patient.Id, patient.TokenVersion);
             IssueSessionCookie(_tokens.GenerateToken(
                 patient.Id,
                 patient.Email,
                 patient.FirstName,
                 "Patient",
-                patient.TokenVersion));
+                patient.TokenVersion,
+                patient.AvatarUrl));
 
             return Ok(new
             {
@@ -177,12 +188,14 @@ namespace DentalClinic.Controllers
             }
 
             _logger.LogInformation("Вход администратора id={Id}", admin.Id);
+            _tokenVersionCache?.Set("Admin", admin.Id, admin.TokenVersion);
             IssueSessionCookie(_tokens.GenerateToken(
                 admin.Id,
                 admin.Email,
                 "Администратор",
                 "Admin",
-                admin.TokenVersion));
+                admin.TokenVersion,
+                admin.AvatarUrl));
 
             return Ok(new
             {
@@ -197,76 +210,74 @@ namespace DentalClinic.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+        public IActionResult Logout()
         {
+            // Logout must never depend on a live round-trip to the remote Somee DB.
+            // Expire the HttpOnly browser cookie immediately, then invalidate the
+            // current token version in the in-process cache when its claims are present.
+            DeleteSessionCookie();
+
             if (User.Identity?.IsAuthenticated == true)
             {
                 var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var role = User.FindFirstValue(ClaimTypes.Role);
-                if (int.TryParse(userIdText, out var userId))
-                {
-                    if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var patient = await _db.Patients.FindAsync([userId], cancellationToken);
-                        if (patient != null) patient.TokenVersion = checked(patient.TokenVersion + 1);
-                    }
-                    else if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var admin = await _db.Admins.FindAsync([userId], cancellationToken);
-                        if (admin != null) admin.TokenVersion = checked(admin.TokenVersion + 1);
-                    }
+                var versionText = User.FindFirstValue(JwtTokenService.TokenVersionClaim);
 
-                    if (_db.ChangeTracker.HasChanges())
-                        await _db.SaveChangesAsync(cancellationToken);
+                if (int.TryParse(userIdText, out var userId)
+                    && int.TryParse(versionText, out var tokenVersion)
+                    && !string.IsNullOrWhiteSpace(role))
+                {
+                    _tokenVersionCache?.Set(role, userId, checked(tokenVersion + 1));
                 }
             }
 
-            DeleteSessionCookie();
             return Ok(new { message = "Выход выполнен" });
         }
 
         [HttpGet("session")]
         [Authorize]
-        public async Task<IActionResult> GetSession(CancellationToken cancellationToken)
+        public Task<IActionResult> GetSession(CancellationToken cancellationToken)
         {
+            // Session bootstrap must stay independent of a second database round-trip.
+            // The JWT has already been signature/lifetime/role validated by the auth
+            // middleware (including TokenVersion when the database is reachable), so
+            // the dashboard can become interactive even if the remote development SQL
+            // server is temporarily slow during a pre-login handshake.
+            _ = cancellationToken; // kept for endpoint cancellation contract; no database work is performed here.
+
             var userId = GetCurrentUserId();
             var role = User.FindFirstValue(ClaimTypes.Role);
+            var email = User.FindFirstValue(ClaimTypes.Email) ?? string.Empty;
+            var name = User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
+            var avatarUrl = User.FindFirstValue(JwtTokenService.AvatarUrlClaim);
 
             if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
             {
-                var patient = await _db.Patients
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == userId, cancellationToken);
-                if (patient == null) return Unauthorized();
-
-                return Ok(new
+                IActionResult result = Ok(new
                 {
-                    id = patient.Id,
-                    name = patient.FirstName,
-                    email = patient.Email,
-                    avatarUrl = patient.AvatarUrl,
+                    id = userId,
+                    name,
+                    email,
+                    avatarUrl,
                     role = "patient"
                 });
+                return Task.FromResult(result);
             }
 
             if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
-                var admin = await _db.Admins
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(a => a.Id == userId, cancellationToken);
-                if (admin == null) return Unauthorized();
-
-                return Ok(new
+                IActionResult result = Ok(new
                 {
-                    id = admin.Id,
-                    name = "Администратор",
-                    email = admin.Email,
-                    avatarUrl = admin.AvatarUrl,
+                    id = userId,
+                    name = string.IsNullOrWhiteSpace(name) ? "Администратор" : name,
+                    email,
+                    avatarUrl,
                     role = "admin"
                 });
+                return Task.FromResult(result);
             }
 
-            return Forbid();
+            return Task.FromResult<IActionResult>(Forbid());
         }
 
         [HttpGet("profile")]
@@ -353,6 +364,7 @@ namespace DentalClinic.Controllers
             patient.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             patient.TokenVersion = checked(patient.TokenVersion + 1);
             await _db.SaveChangesAsync(cancellationToken);
+            _tokenVersionCache?.Set("Patient", patient.Id, patient.TokenVersion);
             _logger.LogInformation("Пациент {Id} сменил пароль и отозвал прежние сессии", patient.Id);
 
             DeleteSessionCookie();

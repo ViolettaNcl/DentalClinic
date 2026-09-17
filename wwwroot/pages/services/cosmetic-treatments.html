@@ -19,7 +19,7 @@
     <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <link rel="stylesheet" href="/assets/css/services/services-all.css">
     <link rel="stylesheet" href="/assets/css/components/smile-meter.css">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -133,89 +133,172 @@
             </div>
         </section>
 
-        <!-- Улыбкометр -->
-        <section class="smile-meter-section">
-            <div class="container">
-                <h2 class="section-title" data-i18n="smile_meter_title">Улыбкометр</h2>
-                <p class="smile-meter-subtitle" data-i18n="smile_meter_subtitle">Подвиньте ползунки и посмотрите, насколько ваша улыбка близка к голливудской</p>
+        <!-- Premium AI Smile Meter -->
+        <section class="smile-meter-section" aria-labelledby="smile-meter-heading">
+            <div class="container smile-meter-container">
+                <div class="smile-section-heading">
+                    <h2 class="section-title" id="smile-meter-heading" data-i18n="smile_meter_title">Улыбкометр</h2>
+                    <p class="smile-meter-subtitle" data-i18n="smile_meter_subtitle">Живой 3D-анализ улыбки с AI-подсказками и персональными эстетическими рекомендациями.</p>
+                </div>
 
-                <div class="smile-meter" id="smile-meter">
-                    <div class="smile-meter-visual">
-                        <div class="smile-ring-wrap">
-                            <svg class="smile-ring-svg" viewBox="0 0 260 260" aria-hidden="true">
-                                <defs>
-                                    <linearGradient id="smileRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stop-color="#13B39B"></stop>
-                                        <stop offset="100%" stop-color="#FF9843"></stop>
-                                    </linearGradient>
-                                </defs>
-                                <circle class="smile-ring-track" cx="130" cy="130" r="122"></circle>
-                                <circle class="smile-ring-progress" id="smile-ring-progress" cx="130" cy="130" r="122"></circle>
-                            </svg>
-
-                            <div class="smile-photo-stack" id="smile-photo-stack" aria-hidden="true">
-                                <img data-corner="000" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_000.jpg" alt="">
-                                <img data-corner="001" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_001.jpg" alt="">
-                                <img data-corner="010" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_010.jpg" alt="">
-                                <img data-corner="011" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_011.jpg" alt="">
-                                <img data-corner="100" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_100.jpg" alt="">
-                                <img data-corner="101" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_101.jpg" alt="">
-                                <img data-corner="110" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_110.jpg" alt="">
-                                <img data-corner="111" src="/assets/images/Page_cosmetic-treatments/smile-meter/smile_111.jpg" alt="">
-                            </div>
-
-                            <div class="smile-score-badge">
-                                <span id="smile-score-value">0</span><span>%</span>
-                            </div>
-
-                            <div class="smile-confetti-host" id="smile-confetti-host"></div>
+                <div class="smile-meter smile-glass-lab" id="smile-meter">
+                    <div class="smile-visual-column">
+                        <div class="smile-visual-topline" aria-hidden="true">
+                            <span class="smile-tech-label"><span class="smile-tech-dot"></span><span data-i18n="smile_ai_badge">3D AI SCAN</span></span>
+                            <span class="smile-tech-copy" data-i18n="smile_visual_mode">ЭСТЕТИЧЕСКАЯ ВИЗУАЛИЗАЦИЯ</span>
                         </div>
-                        <div class="smile-hero-label" id="smile-hero-label"></div>
-                    </div>
 
-                    <div class="smile-meter-controls">
-                        <label class="smile-slider">
-                            <div class="smile-slider-head">
-                                <span data-i18n="smile_slider_white">Белизна зубов</span>
-                                <span class="smile-slider-value">40%</span>
-                            </div>
-                            <div class="smile-slider-track">
-                                <input type="range" min="0" max="100" value="40" id="slider-white">
-                            </div>
-                        </label>
-                        <label class="smile-slider">
-                            <div class="smile-slider-head">
-                                <span data-i18n="smile_slider_align">Ровность зубов</span>
-                                <span class="smile-slider-value">40%</span>
-                            </div>
-                            <div class="smile-slider-track">
-                                <input type="range" min="0" max="100" value="40" id="slider-align">
-                            </div>
-                        </label>
-                        <label class="smile-slider">
-                            <div class="smile-slider-head">
-                                <span data-i18n="smile_slider_shape">Форма улыбки</span>
-                                <span class="smile-slider-value">40%</span>
-                            </div>
-                            <div class="smile-slider-track">
-                                <input type="range" min="0" max="100" value="40" id="slider-shape">
-                            </div>
-                        </label>
+                        <div class="smile-3d-stage" id="smile-3d-stage" data-view="front">
+                            <div class="smile-scan-orbit smile-scan-orbit--outer" aria-hidden="true"></div>
+                            <div class="smile-scan-orbit smile-scan-orbit--inner" aria-hidden="true"></div>
+                            <div class="smile-scan-dots" aria-hidden="true"></div>
+                            <div class="smile-scan-grid" aria-hidden="true"></div>
+                            <div class="smile-scan-sweep" aria-hidden="true"></div>
+                            <span class="smile-node smile-node--one" aria-hidden="true"></span>
+                            <span class="smile-node smile-node--two" aria-hidden="true"></span>
+                            <span class="smile-node smile-node--three" aria-hidden="true"></span>
 
-                        <div class="smile-result">
-                            <span class="smile-result-icon" id="smile-result-icon">✨</span>
-                            <div class="smile-result-body">
-                                <p id="smile-result-text"></p>
-                                <a href="/pages/services/cosmetic-treatments.html" id="smile-result-link" class="btn-primary" data-i18n="smile_link_more">Узнать больше →</a>
+                            <figure class="smile-model-shell" id="smile-3d-model">
+                                <img
+                                    id="smile-model-image"
+                                    class="smile-model-image"
+                                    src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-front-balanced.webp"
+                                    alt="Реалистичная 3D-модель зубов и дёсен для эстетической симуляции улыбки"
+                                    data-i18n-alt="smile_model_alt"
+                                    decoding="async"
+                                    draggable="false">
+                            </figure>
+
+                            <div class="smile-callout smile-callout--white" id="smile-callout-white">
+                                <img src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-front-yellow-medium.webp" alt="" aria-hidden="true" loading="lazy">
+                                <span><strong data-i18n="smile_slider_white">Белизна зубов</strong><small id="smile-callout-white-text">Естественный оттенок эмали</small></span>
+                            </div>
+                            <div class="smile-callout smile-callout--align" id="smile-callout-align">
+                                <img src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-front-crowded-medium.webp" alt="" aria-hidden="true" loading="lazy">
+                                <span><strong data-i18n="smile_slider_align">Ровность зубов</strong><small id="smile-callout-align-text">Баланс положения зубов</small></span>
+                            </div>
+                            <div class="smile-callout smile-callout--shape" id="smile-callout-shape">
+                                <span class="smile-callout-icon" aria-hidden="true">⌣</span>
+                                <span><strong data-i18n="smile_slider_shape">Форма улыбки</strong><small id="smile-callout-shape-text">Гармония пропорций</small></span>
+                            </div>
+
+                            <div class="smile-score" aria-label="Общий эстетический результат">
+                                <div class="smile-score-ring" id="smile-score-ring" style="--score: 0">
+                                    <div class="smile-score-inner">
+                                        <span class="smile-score-number"><span id="smile-score-value">0</span><b>%</b></span>
+                                        <small data-i18n="smile_ai_score_label">ОБЩИЙ РЕЗУЛЬТАТ</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="smile-view-switch" role="group" aria-label="Ракурсы 3D-модели">
+                            <button type="button" class="smile-view-card is-active" data-smile-view="front" aria-pressed="true">
+                                <img id="smile-thumb-front" src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-front-balanced.webp" alt="" loading="lazy">
+                                <span data-i18n="smile_view_front">Общий вид</span>
+                            </button>
+                            <button type="button" class="smile-view-card" data-smile-view="upper" aria-pressed="false">
+                                <img id="smile-thumb-upper" src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-upper-ideal.webp" alt="" loading="lazy">
+                                <span data-i18n="smile_view_upper">Верхняя челюсть</span>
+                            </button>
+                            <button type="button" class="smile-view-card" data-smile-view="lower" aria-pressed="false">
+                                <img id="smile-thumb-lower" src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-lower-ideal.webp" alt="" loading="lazy">
+                                <span data-i18n="smile_view_lower">Нижняя челюсть</span>
+                            </button>
+                            <button type="button" class="smile-view-card" data-smile-view="side" aria-pressed="false">
+                                <img id="smile-thumb-side" src="/assets/images/Page_cosmetic-treatments/smile-meter/thumbs/smile-3d-side-balanced.webp" alt="" loading="lazy">
+                                <span data-i18n="smile_view_side">Вид сбоку</span>
+                            </button>
+                        </div>
+
+                        <div class="smile-info-strip" aria-label="Возможности Улыбкометра">
+                            <div><span aria-hidden="true">◇</span><strong data-i18n="smile_info_parameters">3 параметра анализа</strong></div>
+                            <div><span aria-hidden="true">✦</span><strong data-i18n="smile_info_analysis">Интеллектуальный эстетический анализ</strong></div>
+                            <div><span aria-hidden="true">✓</span><strong data-i18n="smile_info_recommendations">Персональные рекомендации</strong></div>
+                            <div><span aria-hidden="true">♡</span><strong data-i18n="smile_info_closer">Ваша идеальная улыбка ближе</strong></div>
+                        </div>
                     </div>
+
+                    <aside class="smile-control-column" aria-label="Настройки эстетической симуляции">
+                        <div class="smile-control-heading">
+                            <div>
+                                <span data-i18n="smile_control_eyebrow">ПЕРСОНАЛЬНАЯ НАСТРОЙКА</span>
+                                <strong data-i18n="smile_control_title">Настройте визуальный результат</strong>
+                            </div>
+                            <button type="button" class="smile-ai-demo-btn" id="smile-auto-scan">
+                                <span aria-hidden="true">✦</span><span data-i18n="smile_ai_button">AI-сценарий</span>
+                            </button>
+                        </div>
+
+                        <div class="smile-metric-card smile-metric-card--white">
+                            <div class="smile-metric-icon" aria-hidden="true">✦</div>
+                            <label class="smile-slider" for="slider-white">
+                                <span class="smile-slider-head">
+                                    <span><strong data-i18n="smile_slider_white">Белизна зубов</strong><small data-i18n="smile_white_desc">От естественно-жёлтого до яркого эстетичного оттенка</small></span>
+                                    <span class="smile-slider-value">52%</span>
+                                </span>
+                                <span class="smile-slider-track"><input type="range" min="0" max="100" value="52" id="slider-white" aria-label="Белизна зубов"></span>
+                            </label>
+                        </div>
+
+                        <div class="smile-metric-card smile-metric-card--align">
+                            <div class="smile-metric-icon" aria-hidden="true">◇</div>
+                            <label class="smile-slider" for="slider-align">
+                                <span class="smile-slider-head">
+                                    <span><strong data-i18n="smile_slider_align">Ровность зубов</strong><small data-i18n="smile_align_desc">От заметной скученности до гармоничного выравнивания</small></span>
+                                    <span class="smile-slider-value">58%</span>
+                                </span>
+                                <span class="smile-slider-track"><input type="range" min="0" max="100" value="58" id="slider-align" aria-label="Ровность зубов"></span>
+                            </label>
+                        </div>
+
+                        <div class="smile-metric-card smile-metric-card--shape">
+                            <div class="smile-metric-icon" aria-hidden="true">⌣</div>
+                            <label class="smile-slider" for="slider-shape">
+                                <span class="smile-slider-head">
+                                    <span><strong data-i18n="smile_slider_shape">Форма улыбки</strong><small data-i18n="smile_shape_desc">От лёгкой асимметрии до эстетичной smile arc</small></span>
+                                    <span class="smile-slider-value">56%</span>
+                                </span>
+                                <span class="smile-slider-track"><input type="range" min="0" max="100" value="56" id="slider-shape" aria-label="Форма улыбки"></span>
+                                <small class="smile-view-limited-note" id="smile-shape-view-note" data-i18n="smile_shape_view_hint" hidden>Форма улыбки визуализируется в режиме «Общий вид».</small>
+                            </label>
+                        </div>
+
+                        <div class="smile-presets" role="group" aria-label="Готовые эстетические сценарии">
+                            <span class="smile-presets-label" data-i18n="smile_presets_label">PRESETS</span>
+                            <div>
+                                <button type="button" data-smile-preset="natural" data-i18n="smile_preset_natural">Natural</button>
+                                <button type="button" data-smile-preset="balanced" data-i18n="smile_preset_balanced">Balanced</button>
+                                <button type="button" data-smile-preset="hollywood" data-i18n="smile_preset_hollywood">Hollywood</button>
+                            </div>
+                        </div>
+
+                        <div class="smile-ai-analysis">
+                            <div class="smile-ai-assistant" aria-hidden="true">
+                                <img src="/assets/images/Page_cosmetic-treatments/smile-meter/smile-ai-assistant.png" alt="" loading="lazy" decoding="async">
+                                <span>AI</span>
+                            </div>
+                            <div class="smile-ai-body">
+                                <div class="smile-ai-analysis__head">
+                                    <strong data-i18n="smile_ai_analysis_title">AI-анализ улыбки</strong>
+                                    <span data-i18n="smile_ai_based_3d">НА ОСНОВЕ 3D-МОДЕЛИ</span>
+                                </div>
+                                <p id="smile-result-text" aria-live="polite">У вашей улыбки хороший эстетический потенциал. Небольшая коррекция оттенка, ровности и пропорций может сделать её более гармоничной и выразительной.</p>
+                                <ul class="smile-ai-suggestions" id="smile-ai-suggestions" aria-live="polite"></ul>
+                                <small class="smile-ai-disclaimer" data-i18n="smile_ai_disclaimer">Интерактивный эстетический симулятор не является медицинской диагностикой.</small>
+                                <div class="smile-ai-actions">
+                                    <a href="#cosmetic-services" id="smile-result-link" class="smile-primary-action" data-i18n="smile_link_more">УЗНАТЬ БОЛЬШЕ</a>
+                                    <a href="/pages/contact.html" class="smile-secondary-action" data-i18n="smile_ai_book">ЗАПИСАТЬСЯ НА КОНСУЛЬТАЦИЮ</a>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </section>
 
         <!-- Types Section -->
-        <section class="types-section">
+        <section class="types-section" id="cosmetic-services">
             <div class="section-wrapper">
                 <h2 class="section-title" data-i18n="cos_types_title">Наши косметические услуги</h2>
                 <div class="types-grid">

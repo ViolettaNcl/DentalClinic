@@ -114,3 +114,69 @@
 .tech-card__body {
     gap: 10px;
 }
+
+/* ===== SERVICE CARD ALIGNMENT V6 ===== */
+.services-section .card-grid {
+    align-items: stretch;
+    grid-auto-rows: 1fr;
+}
+
+.services-section .card {
+    max-width: none;
+    height: 100%;
+    min-height: 305px;
+}
+
+.services-section .card__body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    flex: 1 1 auto;
+    gap: 10px;
+}
+
+.services-section .card__title {
+    min-height: 2.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.services-section .card__text {
+    min-height: 3.2em;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.services-section .card__live-price {
+    margin-top: auto;
+    align-self: stretch;
+    width: 100%;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+@media (max-width: 760px) {
+    .services-section .card-grid {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 14px;
+    }
+    .services-section .card {
+        min-height: 270px;
+        padding: 18px 12px;
+    }
+}
+
+@media (max-width: 470px) {
+    .services-section { padding-inline: 12px; }
+    .services-section .card-grid { grid-template-columns: 1fr; }
+    .services-section .card { min-height: 0; }
+    .services-section .card__title,
+    .services-section .card__text { min-height: 0; }
+}

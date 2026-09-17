@@ -5,6 +5,7 @@ import { ChatBot } from '/assets/js/core/chatBot.js';
 import { isBookingIntent } from '/assets/js/core/bookingIntent.js';
 import { installDentaSafetyGuard } from '/assets/js/core/dentaSafetyGuard.js';
 import { installChatBookingCookieTransport } from '/assets/js/core/chatBookingTransport.js';
+import { installDentaReplyAvatar } from '/assets/js/core/dentaReplyAvatar.js';
 import { NotificationBell } from '/assets/js/core/notificationBell.js';
 import { ready as i18nReady } from '/assets/js/core/i18n.js';
 import { installServiceDetailPriceManager } from '/assets/js/managers/public/serviceDetailPriceManager.js';
@@ -44,6 +45,11 @@ async function initializePage() {
         const bell = new NotificationBell(); bell.init();
         const nav = new NavigationManager(); nav.init();
         const langSwitcher = new LanguageSwitcher(); await langSwitcher.init();
+
+        // Install the reply-avatar observer before Denta renders any messages.
+        // It upgrades both streamed and fallback bot bubbles to the same real
+        // generated operator portrait and leaves the CSS background as fallback.
+        installDentaReplyAvatar();
         const bot = new ChatBot(); bot.init();
     } catch (err) {
         console.error('Ошибка загрузки header:', err);

@@ -100,7 +100,11 @@
     position: relative;
     z-index: 2;
     max-width: clamp(320px, 60vw, 720px);
-    animation: heroIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    /* Above-the-fold content must be visually stable immediately after refresh.
+       The old opacity/translate entrance animation made text look grey, outlined
+       and temporarily duplicated while the browser composited the first frame. */
+    opacity: 1;
+    transform: none;
 }
 
     .hero-content h1 {
@@ -144,22 +148,12 @@
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-    opacity: 0;
-    animation: statIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    /* Do not fade/translate the KPI cards on first paint. Their staggered
+       animation produced partially transparent numbers during refresh. */
+    opacity: 1;
+    transform: none;
     transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
 }
-
-    .stat:nth-child(1) {
-        animation-delay: 0.3s;
-    }
-
-    .stat:nth-child(2) {
-        animation-delay: 0.45s;
-    }
-
-    .stat:nth-child(3) {
-        animation-delay: 0.6s;
-    }
 
     .stat:hover {
         background: rgba(255, 255, 255, 0.16);
@@ -181,32 +175,6 @@
         font-weight: 600;
         line-height: 1.5;
     }
-
-/* ===== АНИМАЦИИ ===== */
-
-@keyframes heroIn {
-    from {
-        opacity: 0;
-        transform: translateX(-60px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes statIn {
-    from {
-        opacity: 0;
-        transform: translateY(40px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
 /* ===== АДАПТИВ ===== */
 

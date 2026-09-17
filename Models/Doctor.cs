@@ -12,25 +12,18 @@ public class Doctor
     [Required, StringLength(150)]
     public string FullName { get; set; } = null!;
 
-    // Имя врача на английском
     [StringLength(150)]
     public string? FullNameEn { get; set; }
 
-    // Имя врача на французском
     [StringLength(150)]
     public string? FullNameFr { get; set; }
 
-    // Имя врача на греческом
     [StringLength(150)]
     public string? FullNameEl { get; set; }
 
-    // Имя врача на арабском
     [StringLength(150)]
     public string? FullNameAr { get; set; }
 
-    // Специализация врача, например "импланты, хирургия" — используется
-    // и на странице /pages/doctors.html, и AI-ассистентом (Дента) в ответах
-    // пациентам, вместо того чтобы быть зашитой в промпт бота.
     [StringLength(300)]
     public string? Specialization { get; set; }
 
@@ -38,6 +31,40 @@ public class Doctor
 
     [StringLength(500)]
     public string? Bio { get; set; }
+
+    // Rich public-card content. These fields let an administrator build the same
+    // premium profile layout used by the curated doctors without editing HTML.
+    [StringLength(300)]
+    public string? RoleTitle { get; set; }
+
+    [StringLength(1200)]
+    public string? Education { get; set; }
+
+    [StringLength(1200)]
+    public string? Skills { get; set; }
+
+    [StringLength(500)]
+    public string? Philosophy { get; set; }
+
+    [StringLength(40)]
+    public string? Stat2Value { get; set; }
+
+    [StringLength(80)]
+    public string? Stat2Label { get; set; }
+
+    [StringLength(40)]
+    public string? Stat3Value { get; set; }
+
+    [StringLength(80)]
+    public string? Stat3Label { get; set; }
+
+    [StringLength(350)]
+    public string? PhotoUrl { get; set; }
+
+    public byte[]? PhotoData { get; set; }
+
+    [StringLength(50)]
+    public string? PhotoContentType { get; set; }
 
     public bool IsActive { get; set; } = true;
 }

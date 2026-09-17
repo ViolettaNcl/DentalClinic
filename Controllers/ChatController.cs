@@ -19,13 +19,7 @@ namespace DentalClinic.Controllers
         private readonly HttpClient _http;
         private readonly ILogger<ChatController> _logger;
         private readonly ApplicationDbContext _db;
-        private readonly ChatKnowledgeService _knowledge;
-
-        // gemini-2.0-flash и gemini-2.0-flash-lite отключены Google с 1 июня 2026 —
-        // держим актуальный список стабильных моделей, от самой умной к самой дешёвой,
-        // чтобы при перегрузке/квоте одной модели бот автоматически падал на следующую
-        private static readonly string[] GeminiModels =
-            { "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash" };
+        private readonly DentaAssistantService _denta;
 
         // Админская аналитика должна оставаться предсказуемой по памяти даже если
         // чат накопит большой исторический объём. Точные totals/byDay считаются в БД,
@@ -167,14 +161,6 @@ namespace DentalClinic.Controllers
             ["el"] = "Κενό μήνυμα.",
             ["ar"] = "رسالة فارغة."
         };
-        private static readonly Dictionary<string, string> ErrNoKey = new()
-        {
-            ["ru"] = "API-ключ не настроен.",
-            ["en"] = "API key not configured.",
-            ["fr"] = "Clé API non configurée.",
-            ["el"] = "Κλειδί API δεν ρυθμίστηκε.",
-            ["ar"] = "مفتاح API غير مهيأ."
-        };
         private static readonly Dictionary<string, string> ErrAi = new()
         {
             ["ru"] = "Ошибка AI. Попробуйте позже.",
@@ -191,23 +177,6 @@ namespace DentalClinic.Controllers
             ["el"] = "Υπηρεσία υπερφορτωμένη. Περιμένετε λίγο.",
             ["ar"] = "الخدمة مثقلة. انتظر دقيقة."
         };
-        private static readonly Dictionary<string, string> LangNames = new()
-        {
-            ["ru"] = "русском",
-            ["en"] = "английском (English)",
-            ["fr"] = "французском (français)",
-            ["el"] = "греческом (ελληνικά)",
-            ["ar"] = "арабском (العربية)"
-        };
-
-        private const string SymptomSafetyPrompt =
-            "СИМПТОМЫ — если пациент описывает боль или проблему:\n" +
-            "1. Коротко прояви эмпатию.\n" +
-            "2. При необходимости задай не больше одного полезного уточняющего вопроса.\n" +
-            "3. Не связывай симптом с конкретным диагнозом или процедурой. Объясняй только возможные категории причин и подчёркивай, что решение принимает стоматолог после осмотра.\n" +
-            "4. Не назначай лекарства и дозировки и не обещай безболезненность или результат лечения.\n" +
-            "5. При затруднённом дыхании или глотании, быстро растущем отёке лица/шеи, неконтролируемом кровотечении или серьёзной травме рекомендуй срочную очную/экстренную помощь.\n";
-
         private static string L(Dictionary<string, string> d, string lang) => d.TryGetValue(lang, out var v) ? v : d["ru"];
         private static string[] L(Dictionary<string, string[]> d, string lang) => d.TryGetValue(lang, out var v) ? v : d["ru"];
 
@@ -216,13 +185,13 @@ namespace DentalClinic.Controllers
             IHttpClientFactory httpFactory,
             ILogger<ChatController> logger,
             ApplicationDbContext db,
-            ChatKnowledgeService knowledge)
+            DentaAssistantService denta)
         {
             _config = config;
             _http = httpFactory.CreateClient();
             _logger = logger;
             _db = db;
-            _knowledge = knowledge;
+            _denta = denta;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -236,97 +205,65 @@ namespace DentalClinic.Controllers
             var lang = NormalizeLang(req.Lang);
 
             if (string.IsNullOrWhiteSpace(req.Message))
-                return BadRequest(new { reply = L(ErrEmpty, lang), suggestions = Array.Empty<string>(), links = Array.Empty<object>() });
+                return BadRequest(new { reply = L(ErrEmpty, lang), suggestions = Array.Empty<string>(), links = Array.Empty<object>(), startBooking = false });
 
             ClampLengths(req);
 
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
-                return StatusCode(500, new { reply = L(ErrNoKey, lang), suggestions = Array.Empty<string>(), links = Array.Empty<object>() });
-
-            // ── Проактивное сообщение — отвечаем напрямую без AI ──
+            // Proactive messages are deterministic and should not depend on the AI provider.
             if (ProactiveMessages.TryGetValue(req.Message, out var proMsgByLang))
             {
-                var proLinks = AutoLinks(L(proMsgByLang, "ru"), lang);
+                var proReply = L(proMsgByLang, lang);
                 return Ok(new
                 {
-                    reply = L(proMsgByLang, lang),
+                    reply = proReply,
                     suggestions = L(ProactiveSuggestions, lang),
-                    links = proLinks
+                    links = AutoLinks(proReply, lang),
+                    startBooking = false
                 });
             }
 
-            var systemPrompt = await BuildSystemPromptAsync(lang, req.Message);
-            var contents = BuildContents(req);
-            var body = BuildRequestBody(systemPrompt, contents);
+            var result = await _denta.AnswerAsync(
+                req.Message,
+                ToDentaHistory(req.History),
+                lang,
+                HttpContext.RequestAborted);
 
-            foreach (var model in GeminiModels)
+            if (!result.Success || result.Response is null)
+                return ProviderFailureResult(result, lang);
+
+            var response = NormalizeResponse(result.Response, req.Message, lang);
+            await LogExchangeAsync(req, lang, response.Reply);
+
+            return Ok(new
             {
-                // Never put the real secret in a request URI. IHttpClientFactory's
-                // GeminiApiKeyHandler removes this compatibility marker and sends
-                // the configured key only in the x-goog-api-key header.
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=compat";
-                using var requestContent = new StringContent(body, Encoding.UTF8, "application/json");
-                using var response = await _http.PostAsync(
-                    url,
-                    requestContent,
-                    HttpContext.RequestAborted);
-                var raw = await response.Content.ReadAsStringAsync(HttpContext.RequestAborted);
-
-                if ((int)response.StatusCode == 429 || (int)response.StatusCode == 404)
-                {
-                    _logger.LogWarning("Gemini модель {Model} недоступна ({Status}), пробуем следующую", model, (int)response.StatusCode);
-                    continue;
-                }
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("Ошибка Gemini API ({Status}) для модели {Model}: {Body}", (int)response.StatusCode, model, raw);
-                    return StatusCode(500, new { reply = L(ErrAi, lang), suggestions = Array.Empty<string>(), links = Array.Empty<object>() });
-                }
-
-                using var doc = JsonDocument.Parse(raw);
-                var fullText = doc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text")
-                    .GetString() ?? "";
-
-                var (reply, suggestions, links) = ParseModelOutput(fullText);
-                var combined = req.Message + " " + reply;
-                var startBooking = combined.Contains("записат", StringComparison.OrdinalIgnoreCase)
-                    || combined.Contains("приём", StringComparison.OrdinalIgnoreCase)
-                    || combined.Contains("запись", StringComparison.OrdinalIgnoreCase);
-                if (links.Count == 0) links = AutoLinks(combined, lang);
-
-                await LogExchangeAsync(req, lang, reply);
-
-                return Ok(new { reply, suggestions, links, startBooking });
-            }
-
-            _logger.LogError("Все модели Gemini недоступны или перегружены");
-            return StatusCode(429, new { reply = L(ErrOverloaded, lang), suggestions = Array.Empty<string>(), links = Array.Empty<object>(), startBooking = false });
+                reply = response.Reply,
+                suggestions = response.Suggestions,
+                links = response.Links,
+                startBooking = response.StartBooking
+            });
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  Потоковый чат (SSE) — печатает ответ по мере генерации,
-        //  вместо ожидания всего ответа целиком.
-        //  Клиент читает событие через fetch()+ReadableStream (не EventSource,
-        //  т.к. запрос идёт через POST с телом).
-        // ═══════════════════════════════════════════════════════════
+        // The browser endpoint remains SSE-compatible, but Denta now validates one
+        // complete typed response before anything is exposed. This avoids leaking
+        // partial/raw structured JSON and removes the old marker parser entirely.
         [HttpPost("stream")]
         [EnableRateLimiting("chat")]
         public async Task ChatStream([FromBody] ChatRequest req)
         {
             Response.ContentType = "text/event-stream";
             Response.Headers["Cache-Control"] = "no-cache";
-            Response.Headers["X-Accel-Buffering"] = "no"; // отключаем буферизацию на nginx, если он стоит перед Kestrel
+            Response.Headers["X-Accel-Buffering"] = "no";
 
             var lang = NormalizeLang(req.Lang);
 
             async Task SendAsync(object payload)
             {
-                var json = JsonSerializer.Serialize(payload);
+                // SSE bypasses MVC's normal JSON formatter, so serialize with the
+                // ASP.NET web defaults explicitly. Without this, nested DTO fields
+                // such as DentaLink.Text/Url are emitted as PascalCase while the
+                // browser contract expects text/url, producing blank arrow buttons
+                // that navigate to /undefined.
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web));
                 await Response.WriteAsync($"data: {json}\n\n", HttpContext.RequestAborted);
                 await Response.Body.FlushAsync(HttpContext.RequestAborted);
             }
@@ -339,13 +276,6 @@ namespace DentalClinic.Controllers
 
             ClampLengths(req);
 
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                await SendAsync(new { error = L(ErrNoKey, lang), done = true });
-                return;
-            }
-
             if (ProactiveMessages.TryGetValue(req.Message, out var proMsgByLang))
             {
                 var proReply = L(proMsgByLang, lang);
@@ -354,139 +284,43 @@ namespace DentalClinic.Controllers
                 {
                     done = true,
                     suggestions = L(ProactiveSuggestions, lang),
-                    links = AutoLinks(L(proMsgByLang, "ru"), lang),
+                    links = AutoLinks(proReply, lang),
                     startBooking = false
                 });
                 return;
             }
 
-            var systemPrompt = await BuildSystemPromptAsync(lang, req.Message);
-            var contents = BuildContents(req);
-            var body = BuildRequestBody(systemPrompt, contents);
+            var result = await _denta.AnswerAsync(
+                req.Message,
+                ToDentaHistory(req.History),
+                lang,
+                HttpContext.RequestAborted);
 
-            foreach (var model in GeminiModels)
+            if (!result.Success || result.Response is null)
             {
-                // Same boundary as the non-streaming request: the real Gemini key
-                // stays out of URLs and is injected by GeminiApiKeyHandler.
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key=compat";
-
-                using var upstreamReq = new HttpRequestMessage(HttpMethod.Post, url)
+                await SendAsync(new
                 {
-                    Content = new StringContent(body, Encoding.UTF8, "application/json")
-                };
-
-                HttpResponseMessage upstreamResp;
-                try
-                {
-                    upstreamResp = await _http.SendAsync(upstreamReq, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
-                }
-                catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Не удалось подключиться к Gemini stream API (модель {Model})", model);
-                    continue;
-                }
-
-                using var upstreamResponseLease = upstreamResp;
-
-                if ((int)upstreamResp.StatusCode == 429 || (int)upstreamResp.StatusCode == 404)
-                {
-                    _logger.LogWarning("Gemini модель {Model} недоступна ({Status}) в стриме, пробуем следующую", model, (int)upstreamResp.StatusCode);
-                    continue;
-                }
-                if (!upstreamResp.IsSuccessStatusCode)
-                {
-                    var errBody = await upstreamResp.Content.ReadAsStringAsync(HttpContext.RequestAborted);
-                    _logger.LogError("Ошибка Gemini stream API ({Status}) для модели {Model}: {Body}", (int)upstreamResp.StatusCode, model, errBody);
-                    await SendAsync(new { error = L(ErrAi, lang), done = true });
-                    return;
-                }
-
-                var fullText = new StringBuilder();
-                var sentLength = 0;
-                var markerFound = false;
-
-                await using var stream = await upstreamResp.Content.ReadAsStreamAsync(HttpContext.RequestAborted);
-                using var reader = new StreamReader(stream);
-                string? line;
-                while ((line = await reader.ReadLineAsync(HttpContext.RequestAborted)) != null)
-                {
-                    if (!line.StartsWith("data:")) continue;
-                    var payload = line[5..].Trim();
-                    if (string.IsNullOrEmpty(payload) || payload == "[DONE]") continue;
-
-                    string? textPart = null;
-                    try
-                    {
-                        using var chunkDoc = JsonDocument.Parse(payload);
-                        textPart = chunkDoc.RootElement
-                            .GetProperty("candidates")[0]
-                            .GetProperty("content")
-                            .GetProperty("parts")[0]
-                            .GetProperty("text")
-                            .GetString();
-                    }
-                    catch
-                    {
-                        continue; // неполный/незначимый чанк — пропускаем
-                    }
-
-                    if (string.IsNullOrEmpty(textPart)) continue;
-                    fullText.Append(textPart);
-
-                    if (markerFound) continue;
-
-                    var current = fullText.ToString();
-                    var markerIdx = current.IndexOf("SUGGESTIONS:", StringComparison.Ordinal);
-                    if (markerIdx >= 0)
-                    {
-                        markerFound = true;
-                        var safe = current[..markerIdx];
-                        if (safe.Length > sentLength)
-                        {
-                            await SendAsync(new { delta = safe[sentLength..] });
-                            sentLength = safe.Length;
-                        }
-                    }
-                    else
-                    {
-                        // Маркер SUGGESTIONS: ещё не встретился целиком, но хвост текста
-                        // может оказаться его началом (например текст обрывается на "...SUG").
-                        // Такой хвост не отправляем — иначе кусок маркера "утечёт" в чат,
-                        // как только следующий фрагмент допишет слово до конца.
-                        var safeLen = SafeSendLength(current);
-                        if (safeLen > sentLength)
-                        {
-                            await SendAsync(new { delta = current[sentLength..safeLen] });
-                            sentLength = safeLen;
-                        }
-                    }
-                }
-
-                var (reply, suggestions, links) = ParseModelOutput(fullText.ToString());
-
-                // Если модель ни разу не прислала маркер SUGGESTIONS (редкий случай
-                // обрыва потока) — досылаем остаток текста, чтобы пользователь не
-                // потерял хвост ответа.
-                if (!markerFound && reply.Length > sentLength)
-                    await SendAsync(new { delta = reply[sentLength..] });
-
-                var combined = req.Message + " " + reply;
-                var startBooking = combined.Contains("записат", StringComparison.OrdinalIgnoreCase)
-                    || combined.Contains("приём", StringComparison.OrdinalIgnoreCase)
-                    || combined.Contains("запись", StringComparison.OrdinalIgnoreCase);
-                if (links.Count == 0) links = AutoLinks(combined, lang);
-
-                await SendAsync(new { done = true, suggestions, links, startBooking });
-                await LogExchangeAsync(req, lang, reply);
+                    error = ProviderFailureMessage(result.Failure, lang),
+                    done = true,
+                    errorCode = result.Failure.ToString()
+                });
                 return;
             }
 
-            _logger.LogError("Все модели Gemini недоступны или перегружены (стрим)");
-            await SendAsync(new { error = L(ErrOverloaded, lang), done = true });
+            var response = NormalizeResponse(result.Response, req.Message, lang);
+
+            // One validated reply event, then one metadata event. The frontend still
+            // uses the same SSE contract, but never sees provider JSON or legacy markers.
+            await SendAsync(new { delta = response.Reply });
+            await SendAsync(new
+            {
+                done = true,
+                suggestions = response.Suggestions,
+                links = response.Links,
+                startBooking = response.StartBooking
+            });
+
+            await LogExchangeAsync(req, lang, response.Reply);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -687,23 +521,6 @@ namespace DentalClinic.Controllers
 
         private static string NormalizeLang(string? lang) => string.IsNullOrWhiteSpace(lang) ? "ru" : lang.ToLowerInvariant();
 
-        private const string SuggestionsMarker = "SUGGESTIONS:";
-
-        // Возвращает длину префикса text, который точно безопасно отдавать
-        // клиенту в потоке — т.е. хвост, который потенциально может быть
-        // недописанным началом маркера "SUGGESTIONS:", отрезается и придерживается
-        // до следующего чанка.
-        private static int SafeSendLength(string text)
-        {
-            var maxOverlap = Math.Min(SuggestionsMarker.Length - 1, text.Length);
-            for (var len = maxOverlap; len > 0; len--)
-            {
-                if (text.EndsWith(SuggestionsMarker[..len], StringComparison.Ordinal))
-                    return text.Length - len;
-            }
-            return text.Length;
-        }
-
         // Ограничиваем длину сообщения и истории — иначе один запрос можно
         // раздуть до огромного количества токенов и накрутить счёт за AI API.
         private static void ClampLengths(ChatRequest req)
@@ -722,85 +539,121 @@ namespace DentalClinic.Controllers
             }
         }
 
-        private async Task<string> BuildSystemPromptAsync(string lang, string userQuery)
+        private static List<DentaTurn> ToDentaHistory(IEnumerable<ChatMessage>? history) =>
+            history?
+                .Where(m => !string.IsNullOrWhiteSpace(m.Text))
+                .TakeLast(10)
+                .Select(m => new DentaTurn(m.Role, m.Text.Trim()))
+                .ToList()
+            ?? new List<DentaTurn>();
+
+        private static DentaResponse NormalizeResponse(DentaResponse response, string userMessage, string lang)
         {
-            var langName = LangNames.TryGetValue(lang, out var ln) ? ln : LangNames["ru"];
-            var knowledgeBlock = await _knowledge.GetKnowledgeBlockAsync(userQuery, HttpContext.RequestAborted);
-            var contactsBlock = _knowledge.GetContactsBlock();
+            response.Reply = Truncate(response.Reply?.Trim(), 2200);
+            response.Suggestions = (response.Suggestions ?? new List<string>())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => Truncate(s.Trim(), 120))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .ToList();
 
-            return
-                "Ты — Дента, умный AI-ассистент стоматологической клиники Dental Clinic (Волгоград).\n" +
-                "\n" +
-                "СТИЛЬ: коротко (2-3 предложения), тепло, по делу.\n" +
-                $"ЯЗЫК: отвечай ТОЛЬКО на {langName}. Кнопки SUGGESTIONS тоже на {langName}.\n" +
-                "\n" +
-                SymptomSafetyPrompt +
-                "\n" +
-                "ЗАПИСЬ: если пациент хочет записаться — добавь startBooking:true в ответ (отдельным полем)\n" +
-                "\n" +
-                "ФОРМАТ — строго три блока:\n" +
-                "Текст (2-3 предложения)\n" +
-                "SUGGESTIONS:[\"кнопка1\",\"кнопка2\",\"кнопка3\"]\n" +
-                "LINKS:[{\"text\":\"Название →\",\"url\":\"/pages/...\"}] или LINKS:[]\n" +
-                "\n" +
-                "=== ДАННЫЕ КЛИНИКИ ===\n" +
-                contactsBlock + "\n" +
-                "\n" +
-                knowledgeBlock +
-                "\n" +
-                "СТРАНИЦЫ:\n" +
-                "/pages/services/implants.html /pages/services/crowns.html /pages/services/fillings.html\n" +
-                "/pages/services/root-canal.html /pages/services/extractions.html /pages/services/bridges.html\n" +
-                "/pages/services/prosthetics.html /pages/services/cosmetic-treatments.html\n" +
-                "/pages/doctors.html /pages/contact.html /pages/about.html\n";
-        }
+            response.Links = (response.Links ?? new List<DentaLink>())
+                .Where(link => !string.IsNullOrWhiteSpace(link.Text)
+                               && DentaLinkPolicy.IsAllowedInternalUrl(link.Url)
+                               && ServiceCatalogPolicy.IsValidPageUrl(link.Url))
+                .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .Take(2)
+                .ToList();
 
-        private static List<object> BuildContents(ChatRequest req)
-        {
-            var contents = new List<object>();
-            if (req.History != null)
-                foreach (var msg in req.History)
-                    contents.Add(new { role = msg.Role == "bot" ? "model" : "user", parts = new[] { new { text = msg.Text } } });
-            contents.Add(new { role = "user", parts = new[] { new { text = req.Message } } });
-            return contents;
-        }
-
-        private static string BuildRequestBody(string systemPrompt, List<object> contents) => JsonSerializer.Serialize(new
-        {
-            system_instruction = new { parts = new[] { new { text = systemPrompt } } },
-            contents,
-            generationConfig = new { temperature = 0.75, maxOutputTokens = 600 }
-        });
-
-        // Разбирает "Текст\nSUGGESTIONS:[...]\nLINKS:[...]" из сырого ответа модели
-        private static (string reply, List<string> suggestions, List<Dictionary<string, string>> links) ParseModelOutput(string fullText)
-        {
-            var reply = fullText;
-            var suggestions = new List<string>();
-            var links = new List<Dictionary<string, string>>();
-
-            var idxS = fullText.IndexOf("SUGGESTIONS:", StringComparison.Ordinal);
-            if (idxS >= 0)
+            if (response.Links.Count == 0)
             {
-                reply = fullText[..idxS].Trim();
-                var afterS = fullText[(idxS + 12)..].Trim();
-                var idxL = afterS.IndexOf("LINKS:", StringComparison.Ordinal);
-                var suggJson = idxL >= 0 ? afterS[..idxL].Trim() : afterS.Trim();
-                try { suggestions = JsonSerializer.Deserialize<List<string>>(suggJson) ?? new(); } catch { }
-
-                if (idxL >= 0)
-                {
-                    var linksJson = afterS[(idxL + 6)..].Trim();
-                    try
+                response.Links = AutoLinks(userMessage + " " + response.Reply, lang)
+                    .Select(link => new DentaLink
                     {
-                        var parsedLinks = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(linksJson) ?? new();
-                        links = DentaLinkPolicy.Filter(parsedLinks);
-                    }
-                    catch { }
-                }
+                        Text = link["text"],
+                        Url = link["url"]
+                    })
+                    .ToList();
             }
 
-            return (reply, suggestions, links);
+            return response;
+        }
+
+        private IActionResult ProviderFailureResult(DentaProviderResult result, string lang)
+        {
+            var status = result.Failure switch
+            {
+                DentaFailureKind.RateLimited => StatusCodes.Status429TooManyRequests,
+                DentaFailureKind.Timeout => StatusCodes.Status504GatewayTimeout,
+                DentaFailureKind.Network => StatusCodes.Status502BadGateway,
+                DentaFailureKind.Authentication => StatusCodes.Status503ServiceUnavailable,
+                DentaFailureKind.MissingApiKey => StatusCodes.Status503ServiceUnavailable,
+                DentaFailureKind.ModelUnavailable => StatusCodes.Status503ServiceUnavailable,
+                _ => StatusCodes.Status502BadGateway
+            };
+
+            return StatusCode(status, new
+            {
+                reply = ProviderFailureMessage(result.Failure, lang),
+                suggestions = Array.Empty<string>(),
+                links = Array.Empty<object>(),
+                startBooking = false,
+                errorCode = result.Failure.ToString()
+            });
+        }
+
+        private static string ProviderFailureMessage(DentaFailureKind failure, string lang)
+        {
+            static string Pick(string lang, string ru, string en, string fr, string el, string ar) => lang switch
+            {
+                "en" => en,
+                "fr" => fr,
+                "el" => el,
+                "ar" => ar,
+                _ => ru
+            };
+
+            return failure switch
+            {
+                DentaFailureKind.RateLimited => L(ErrOverloaded, lang),
+                DentaFailureKind.Timeout => Pick(lang,
+                    "AI отвечает слишком долго. Попробуйте ещё раз через несколько секунд.",
+                    "The AI is taking too long to respond. Please try again in a few seconds.",
+                    "L’IA met trop de temps à répondre. Réessayez dans quelques secondes.",
+                    "Η AI αργεί να απαντήσει. Δοκιμάστε ξανά σε λίγα δευτερόλεπτα.",
+                    "يستغرق المساعد وقتاً طويلاً للرد. حاول مرة أخرى بعد بضع ثوانٍ."),
+                DentaFailureKind.Network => Pick(lang,
+                    "Не удалось связаться с AI-сервисом. Проверьте соединение и попробуйте снова.",
+                    "The clinic could not reach the AI service. Please check the connection and try again.",
+                    "Impossible de joindre le service IA. Vérifiez la connexion et réessayez.",
+                    "Δεν ήταν δυνατή η σύνδεση με την υπηρεσία AI. Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.",
+                    "تعذر الاتصال بخدمة الذكاء الاصطناعي. تحقق من الاتصال وحاول مرة أخرى."),
+                DentaFailureKind.Authentication or DentaFailureKind.MissingApiKey => Pick(lang,
+                    "AI-функция временно недоступна из-за настройки доступа. Вопросы о врачах, услугах, ценах и записи всё равно можно задать Денте.",
+                    "The AI feature is temporarily unavailable because of its access configuration. Denta can still answer database-backed questions about doctors, services, prices and booking.",
+                    "La fonction IA est temporairement indisponible en raison de sa configuration d’accès. Denta peut toujours répondre aux questions issues de la base sur les médecins, services, tarifs et rendez-vous.",
+                    "Η λειτουργία AI είναι προσωρινά μη διαθέσιμη λόγω ρύθμισης πρόσβασης. Η Denta μπορεί ακόμη να απαντά σε ερωτήσεις από τη βάση για γιατρούς, υπηρεσίες, τιμές και ραντεβού.",
+                    "ميزة الذكاء الاصطناعي غير متاحة مؤقتاً بسبب إعداد الوصول. ما زالت دنتا قادرة على الإجابة عن أسئلة قاعدة البيانات حول الأطباء والخدمات والأسعار والحجز."),
+                DentaFailureKind.InvalidResponse => Pick(lang,
+                    "Получен некорректный ответ AI. Попробуйте сформулировать вопрос ещё раз.",
+                    "The AI returned an invalid response. Please try asking the question again.",
+                    "L’IA a renvoyé une réponse invalide. Reformulez votre question et réessayez.",
+                    "Η AI επέστρεψε μη έγκυρη απάντηση. Διατυπώστε ξανά την ερώτηση.",
+                    "أعاد المساعد استجابة غير صالحة. أعد صياغة السؤال وحاول مرة أخرى."),
+                DentaFailureKind.ModelUnavailable => Pick(lang,
+                    "AI-модель временно недоступна. Попробуйте немного позже.",
+                    "The AI model is temporarily unavailable. Please try again shortly.",
+                    "Le modèle IA est temporairement indisponible. Réessayez un peu plus tard.",
+                    "Το μοντέλο AI δεν είναι προσωρινά διαθέσιμο. Δοκιμάστε ξανά λίγο αργότερα.",
+                    "نموذج الذكاء الاصطناعي غير متاح مؤقتاً. حاول مرة أخرى بعد قليل."),
+                _ => Pick(lang,
+                    "Сейчас не удалось получить ответ от AI-сервиса. Попробуйте ещё раз через несколько секунд; вопросы о врачах, услугах, ценах, сайте клиники и записи Дента продолжает обрабатывать напрямую.",
+                    "The AI service could not answer right now. Please try again in a few seconds; Denta can still handle doctors, services, prices, clinic-site facts and booking directly.",
+                    "Le service IA n’a pas pu répondre pour le moment. Réessayez dans quelques secondes ; Denta peut toujours traiter directement les médecins, services, tarifs, informations du site et rendez-vous.",
+                    "Η υπηρεσία AI δεν μπόρεσε να απαντήσει αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγα δευτερόλεπτα· η Denta εξακολουθεί να χειρίζεται απευθείας γιατρούς, υπηρεσίες, τιμές, στοιχεία του ιστότοπου και ραντεβού.",
+                    "تعذر على خدمة الذكاء الاصطناعي الرد حالياً. حاول مرة أخرى بعد بضع ثوانٍ؛ وما زالت دنتا تتعامل مباشرة مع الأطباء والخدمات والأسعار ومعلومات موقع العيادة والحجز.")
+            };
         }
 
         // Страховка: авто-ссылки по ключевым словам, когда модель сама не вернула LINKS.

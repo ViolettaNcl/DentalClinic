@@ -1,13 +1,23 @@
-﻿import {
+import {
     formatDate, formatDateTime, toInputDateTime, dateToString
 } from '../../services/dateUtils.js'; import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, showConfirm, escapeHtml, renderPagination } from '../../services/ui.js';
 import { initAvatarUploader, paintAvatarEverywhere } from '../../services/avatarService.js';
 import { t } from '../../core/i18n.js';
+import { runWhenDomReady } from '../../core/domReady.js';
+import { installDoctorCalendarAvailability } from './doctorCalendarAvailability.js';
+import { installAdminLogoutGuard, bootstrapAdminSession } from './adminLogoutGuard.js';
+import { installAdminAnalyticsSummary } from './adminAnalyticsSummary.js';
 
 function checkAdminAccess() {
     const role = sessionStorage.getItem('userRole');
-    if (role?.toLowerCase() !== 'admin') { window.location.href = '/index.html'; return false; }
+    // A valid HttpOnly-cookie session may be restoring sessionStorage in the
+    // background. Only reject an explicitly known non-admin role here; the secure
+    // server-session bootstrap redirects invalid/missing sessions independently.
+    if (role && role.toLowerCase() !== 'admin') {
+        window.location.href = '/index.html';
+        return false;
+    }
     return true;
 }
 
@@ -367,24 +377,35 @@ class AdminRequestsManager {
         };
         try {
             await apiFetch(`/appointmentrequest/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-            this._hideModal(); await this.loadAll(); showSuccess('Изменения сохранены');
+            this._hideModal();
+            await this.loadAll();
+            window.invalidateAdminAnalyticsSummary?.();
+            showSuccess('Изменения сохранены');
         } catch (err) { showError('Ошибка сохранения: ' + err.message); }
     }
 
     async _changeStatus(id, status) {
         try {
             await apiFetch(`/appointmentrequest/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-            await this.loadAll(); showSuccess('Статус обновлён');
+            await this.loadAll();
+            window.invalidateAdminAnalyticsSummary?.();
+            showSuccess('Статус обновлён');
         } catch (err) { showError('Ошибка изменения статуса: ' + err.message); }
     }
 }
 
-function initAdminProfile() {
+let adminProfileLoadPromise = null;
+let adminProfileLoaded = false;
+
+function loadAdminProfileOnce() {
+    if (adminProfileLoaded) return Promise.resolve();
+    if (adminProfileLoadPromise) return adminProfileLoadPromise;
+
     const emailEl = document.getElementById('admin-profile-email');
     const createdEl = document.getElementById('admin-profile-created');
-    if (!emailEl && !createdEl) return;
+    if (!emailEl && !createdEl) return Promise.resolve();
 
-    apiFetch('/auth/admin/profile')
+    adminProfileLoadPromise = apiFetch('/auth/admin/profile')
         .then(profile => {
             if (emailEl) emailEl.value = profile.email || '';
             if (createdEl) createdEl.value = profile.createdAt ? formatDate(profile.createdAt) : '';
@@ -395,11 +416,22 @@ function initAdminProfile() {
                 initialUrl: profile.avatarUrl,
                 fallbackIcon: '👤'
             });
+            adminProfileLoaded = true;
         })
         .catch(err => {
-            console.error('initAdminProfile error:', err);
+            console.error('loadAdminProfileOnce error:', err);
             showError('Не удалось загрузить данные профиля');
-        });
+        })
+        .finally(() => { adminProfileLoadPromise = null; });
+
+    return adminProfileLoadPromise;
+}
+
+function initAdminProfileLazy() {
+    const nav = document.querySelector('.panel-nav-link[data-section="profile"]');
+    nav?.addEventListener('click', () => loadAdminProfileOnce());
+    if (sessionStorage.getItem('admin_active_section') === 'profile')
+        loadAdminProfileOnce();
 }
 
 function initPhoneForm() {
@@ -443,7 +475,8 @@ function initPhoneForm() {
             });
             showSuccess('Запись по телефону сохранена'); form.reset();
             document.querySelectorAll('.phone-quickpick-card .quickpick-chip.active').forEach(c => c.classList.remove('active'));
-            window.AdminRequestsManagerInstance?.loadAll();
+            await window.AdminRequestsManagerInstance?.loadAll?.();
+            window.invalidateAdminAnalyticsSummary?.();
         } catch (err) { showError('Ошибка создания записи: ' + (err.message || 'неизвестная ошибка')); }
     });
 }
@@ -538,27 +571,53 @@ class AnalyticsManager {
         this._chatStats = null;
         this._chatSessions = null;
         this._rendered = false;
+        this._remoteAnalyticsLoaded = false;
+        this._remoteAnalyticsPromise = null;
+        this._chartRetryCount = 0;
     }
 
     init() {
         if (!this.section) return;
         const navBtn = document.querySelector('.panel-nav-link[data-section="analytics"]');
-        // Строим графики, когда пользователь реально открыл вкладку
-        // (Chart.js не умеет рисовать в canvas со скрытым родителем)
-        navBtn?.addEventListener('click', () => this._tryRender());
-        if (sessionStorage.getItem('admin_active_section') === 'analytics') this._tryRender();
-        this.loadReviews();
-        this.loadChatAnalytics();
+        // Hidden analytics used to trigger five remote API calls during every admin
+        // page load. Load that data only when the operator actually opens Analytics.
+        navBtn?.addEventListener('click', () => {
+            this._tryRender();
+            // Re-entering Analytics should show current DB state rather than a stale
+            // snapshot kept from an earlier visit during the same admin session.
+            this._remoteAnalyticsLoaded = false;
+            this._ensureRemoteAnalyticsLoaded();
+        });
+        if (sessionStorage.getItem('admin_active_section') === 'analytics') {
+            this._tryRender();
+            this._ensureRemoteAnalyticsLoaded();
+        }
+    }
+
+    _ensureRemoteAnalyticsLoaded() {
+        if (this._remoteAnalyticsLoaded) return Promise.resolve();
+        if (this._remoteAnalyticsPromise) return this._remoteAnalyticsPromise;
+
+        this._remoteAnalyticsPromise = (async () => {
+            // The remote development database is sensitive to connection bursts.
+            // Load analytics sources sequentially; the UI stays responsive and each
+            // request can reuse the SQL connection pool instead of racing handshakes.
+            await this.loadReviews();
+            await this.loadChatAnalytics();
+        })().finally(() => {
+            this._remoteAnalyticsLoaded = true;
+            this._remoteAnalyticsPromise = null;
+        });
+
+        return this._remoteAnalyticsPromise;
     }
 
     // AI-чат «Дента»: сколько вопросов задают и о чём чаще всего спрашивают —
     // прямая подсказка админу какие услуги продвигать активнее.
     async loadChatAnalytics() {
         try {
-            const [stats, sessions] = await Promise.all([
-                apiFetch('/chat/admin/stats?days=30'),
-                apiFetch('/chat/admin/sessions?take=30'),
-            ]);
+            const stats = await apiFetch('/chat/admin/stats?days=30');
+            const sessions = await apiFetch('/chat/admin/sessions?take=30');
             this._chatStats = stats;
             this._chatSessions = sessions;
             this._renderChatCards();
@@ -659,16 +718,12 @@ class AnalyticsManager {
         return div.innerHTML;
     }
 
-    // Отзывы для аналитики загружаются отдельно от заявок (свой набор эндпоинтов),
-    // поэтому у них собственный метод загрузки, а не setData() снаружи.
+    // Для аналитики нужны только агрегаты. Один компактный endpoint заменяет
+    // три параллельных запроса полных массивов отзывов и заметно снижает нагрузку
+    // на удалённый SQL Server при открытии вкладки.
     async loadReviews() {
         try {
-            const [pending, approved, rejected] = await Promise.all([
-                apiFetch('/review/admin/pending'),
-                apiFetch('/review/admin/approved'),
-                apiFetch('/review/admin/rejected'),
-            ]);
-            this._reviewData = { pending, approved, rejected };
+            this._reviewData = await apiFetch('/review/admin/summary');
             this._renderReviewCards();
             this._tryRender();
         } catch (err) {
@@ -678,28 +733,29 @@ class AnalyticsManager {
 
     _renderReviewCards() {
         if (!this._reviewData) return;
-        const { pending, approved, rejected } = this._reviewData;
-        const total = pending.length + approved.length + rejected.length;
-        const avg = approved.length
-            ? (approved.reduce((s, r) => s + r.rating, 0) / approved.length).toFixed(1)
-            : '—';
+        const pending = Number(this._reviewData.pending) || 0;
+        const approved = Number(this._reviewData.approved) || 0;
+        const rejected = Number(this._reviewData.rejected) || 0;
+        const average = Number(this._reviewData.averageApproved) || 0;
+        const total = pending + approved + rejected;
 
         if (this.reviewEls.total) this.reviewEls.total.textContent = total;
-        if (this.reviewEls.avg) this.reviewEls.avg.textContent = approved.length ? `${avg} ★` : '—';
-        if (this.reviewEls.pending) this.reviewEls.pending.textContent = pending.length;
-        if (this.reviewEls.rejected) this.reviewEls.rejected.textContent = rejected.length;
+        if (this.reviewEls.avg) this.reviewEls.avg.textContent = approved ? `${average.toFixed(1)} ★` : '—';
+        if (this.reviewEls.pending) this.reviewEls.pending.textContent = pending;
+        if (this.reviewEls.rejected) this.reviewEls.rejected.textContent = rejected;
     }
 
     _renderReviewsRatingChart() {
         const ctx = this.canvases.reviewsRating;
         if (!ctx || !this._reviewData) return;
-        const { approved } = this._reviewData;
 
-        const counts = [1, 2, 3, 4, 5].map(star => approved.filter(r => r.rating === star).length);
+        const approved = Number(this._reviewData.approved) || 0;
+        const byRating = new Map((this._reviewData.ratings || []).map(item => [Number(item.rating), Number(item.count) || 0]));
+        const counts = [1, 2, 3, 4, 5].map(star => byRating.get(star) || 0);
 
         this.charts.reviewsRating?.destroy();
 
-        if (!approved.length) {
+        if (!approved) {
             const wrap = ctx.closest('.analytics-chart-wrap');
             if (wrap) wrap.innerHTML = '<div class="analytics-chart-empty">Пока нет опубликованных отзывов</div>';
             return;
@@ -740,10 +796,15 @@ class AnalyticsManager {
     _tryRender() {
         if (!this._data && !this._reviewData && !this._chatStats) return;
         if (typeof Chart === 'undefined') {
-            // Chart.js подключён с defer — на случай если ещё не готов, подождём немного
-            setTimeout(() => this._tryRender(), 150);
+            // Chart.js is optional UI sugar. Never keep the dashboard in a retry
+            // loop forever when a CDN is blocked/offline; cards and tables continue
+            // to work without charts.
+            if (this._chartRetryCount++ < 20) {
+                setTimeout(() => this._tryRender(), 150);
+            }
             return;
         }
+        this._chartRetryCount = 0;
         if (this._data) {
             this._renderByDayChart();
             this._renderSourceChart();
@@ -912,9 +973,22 @@ class AnalyticsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Await the shared session module and install guards before publishing managers.
+installAdminLogoutGuard();
+
+runWhenDomReady(async () => {
     if (!checkAdminAccess()) return;
+
+    // Local navigation is pure DOM work and must become interactive immediately,
+    // even if the remote SQL-backed session/data requests are slow.
     initNav();
+
+    // Wait for exactly one secure session bootstrap before starting the protected
+    // data fan-out. The shared bootstrap promise prevents the first paint from
+    // spawning several simultaneous TokenVersion checks against remote SQL.
+    const adminSession = await bootstrapAdminSession();
+    if (!adminSession) return;
+
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) logoutBtn.addEventListener('click', async e => {
         e.preventDefault();
@@ -928,12 +1002,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (ok) logout();
     });
     window.reloadDoctorSelects = loadDoctors;
-    await loadDoctors();
-    const calendar = new DoctorCalendarManager(); calendar.init(); window.DoctorCalendarManagerInstance = calendar;
-    const analytics = new AnalyticsManager(); analytics.init(); window.AnalyticsManagerInstance = analytics;
-    const requests = new AdminRequestsManager(); requests.init(); window.AdminRequestsManagerInstance = requests;
+    const calendar = new DoctorCalendarManager();
+    window.DoctorCalendarManagerInstance = calendar;
+    installDoctorCalendarAvailability();
+    calendar.init();
+
+    const analytics = new AnalyticsManager();
+    window.AnalyticsManagerInstance = analytics;
+    analytics.init();
+
+    const requests = new AdminRequestsManager();
+    window.AdminRequestsManagerInstance = requests;
+    installAdminAnalyticsSummary();
+
+    // Navigation and the main requests feed must not wait for the doctor catalog.
+    // Start both remote calls in parallel; this keeps tabs responsive even when the
+    // remote SQL database has a slow connection.
+    requests.init();
+    loadDoctors().catch(err => console.error('Initial doctor preload failed:', err));
+
     initPhoneForm();
-    initAdminProfile();
+    initAdminProfileLazy();
     initExportButtons();
 });
 

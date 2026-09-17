@@ -1,5 +1,6 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showConfirm, showError, showSuccess } from '../../services/ui.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 const SECTION_ID = 'section-admin-access';
 const STORAGE_KEY = 'admin_active_section';
@@ -307,4 +308,4 @@ async function initAdminAccessManager() {
         showSection();
 }
 
-document.addEventListener('DOMContentLoaded', initAdminAccessManager);
+runWhenDomReady(initAdminAccessManager);

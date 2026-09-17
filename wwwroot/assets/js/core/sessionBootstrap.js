@@ -1,4 +1,5 @@
 const SESSION_KEYS = ['patientId', 'patientName', 'patientEmail', 'userRole', 'authToken'];
+const SESSION_REQUEST_TIMEOUT_MS = 25000;
 let currentSessionPromise = null;
 
 function getDefaultStorage() {
@@ -6,20 +7,35 @@ function getDefaultStorage() {
 }
 
 async function requestServerSession() {
-    const response = await fetch('/api/auth/session', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' }
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SESSION_REQUEST_TIMEOUT_MS);
 
-    if (response.status === 401 || response.status === 403) return null;
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        const error = new Error(payload.message || `Ошибка ${response.status}`);
-        error.status = response.status;
+    try {
+        const response = await fetch('/api/auth/session', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            signal: controller.signal
+        });
+
+        if (response.status === 401 || response.status === 403) return null;
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            const error = new Error(payload.message || `Ошибка ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+
+        return response.json();
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            const timeout = new Error('Сервер слишком долго проверяет сеанс. Проверьте подключение к базе данных и повторите попытку.');
+            timeout.code = 'SESSION_TIMEOUT';
+            throw timeout;
+        }
         throw error;
+    } finally {
+        clearTimeout(timer);
     }
-
-    return response.json();
 }
 
 export function clearSessionMetadata(storage = getDefaultStorage()) {

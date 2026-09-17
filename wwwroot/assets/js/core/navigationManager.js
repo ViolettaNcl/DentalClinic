@@ -14,12 +14,11 @@ class NavigationManager {
     init() {
         this.initHamburger();
         this.initServicesDropdown();
-        this.initActiveLinks();      // ← подсветка включена
-        this.initScrollTopButton();  // ← стрелка наверх включена
-        this.initHeaderScrollEffect(); // ← стеклянный хедер при скролле
+        this.initActiveLinks();
+        this.initScrollTopButton();
+        this.initHeaderScrollEffect();
     }
 
-    // ===== Эффект хедера при прокрутке =====
     initHeaderScrollEffect() {
         const header = document.querySelector('header');
         if (!header) return;
@@ -28,60 +27,70 @@ class NavigationManager {
         window.addEventListener('scroll', update, { passive: true });
     }
 
-    // ===== Мобильное меню (гамбургер) =====
     initHamburger() {
         const { hamburger, navMenu, headerButtons } = this;
         if (!hamburger || !navMenu) return;
 
-        hamburger.addEventListener('click', () => {
-            const isOpen = navMenu.classList.toggle('active');
+        const applyState = isOpen => {
+            navMenu.classList.toggle('active', isOpen);
             hamburger.classList.toggle('open', isOpen);
+            hamburger.setAttribute('aria-expanded', String(isOpen));
             headerButtons?.classList.toggle('active', isOpen);
+            document.documentElement.classList.toggle('mobile-menu-open', isOpen);
             document.documentElement.style.overflow = isOpen ? 'hidden' : '';
+        };
+
+        hamburger.setAttribute('role', 'button');
+        hamburger.setAttribute('tabindex', '0');
+        hamburger.setAttribute('aria-label', 'Меню');
+        hamburger.setAttribute('aria-expanded', 'false');
+
+        const toggle = () => applyState(!navMenu.classList.contains('active'));
+        hamburger.addEventListener('click', toggle);
+        hamburger.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
         });
+
+        navMenu.querySelectorAll('a').forEach(link => link.addEventListener('click', () => applyState(false)));
+        headerButtons?.querySelectorAll('a').forEach(link => link.addEventListener('click', () => applyState(false)));
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && navMenu.classList.contains('active')) applyState(false);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 992 && navMenu.classList.contains('active')) applyState(false);
+        }, { passive: true });
     }
 
-    // ===== Подсветка активной ссылки =====
     initActiveLinks() {
         const links = document.querySelectorAll('nav a');
         if (!links.length) return;
-
         const currentPage = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
-
         links.forEach(a => {
             const href = (a.getAttribute('href') || '').split('/').pop().toLowerCase();
             a.classList.toggle('active', href === currentPage);
         });
     }
 
-    // ===== Подменю "Услуги" (только ПК) =====
     initServicesDropdown() {
         const { servicesMenu, servicesDropdown } = this;
         if (!servicesMenu || !servicesDropdown) return;
-
-        const toggle = show =>
-            window.innerWidth > 768 && servicesDropdown.classList.toggle('active', show);
-
+        const toggle = show => window.innerWidth > 992 && servicesDropdown.classList.toggle('active', show);
         servicesMenu.addEventListener('mouseenter', () => toggle(true));
         servicesMenu.addEventListener('mouseleave', () => toggle(false));
-
         document.addEventListener('click', e => {
             if (!servicesMenu.contains(e.target)) servicesDropdown.classList.remove('active');
         });
     }
 
-    // ===== Кнопка "Наверх" =====
     initScrollTopButton() {
         const btn = document.createElement('button');
         btn.className = 'scroll-to-top';
         btn.ariaLabel = 'Наверх';
         document.body.appendChild(btn);
-
         btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        window.addEventListener('scroll', () => {
-            btn.classList.toggle('visible', window.scrollY > 300);
-        });
+        window.addEventListener('scroll', () => btn.classList.toggle('visible', window.scrollY > 300), { passive: true });
     }
 }
 

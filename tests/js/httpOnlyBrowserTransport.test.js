@@ -26,7 +26,7 @@ test('server authentication never accepts JWT from query strings', async () => {
 
     assert.doesNotMatch(text, /Request\.Query\["access_token"\]/);
     assert.doesNotMatch(text, /context\.Token\s*=\s*accessToken/);
-    assert.match(text, /Request\.Cookies\.TryGetValue\("dc_auth"/);
+    assert.match(text, /Request\.Cookies\.TryGetValue\([\s\S]*?"dc_auth"/);
 });
 
 test('avatar mutations rely on same-origin HttpOnly cookie', async () => {

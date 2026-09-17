@@ -17,10 +17,10 @@ test('relational schema migrations are not skipped on Vercel startup', async () 
     assert.notEqual(startupEnd, -1);
 
     const startup = program.slice(startupStart, startupEnd);
-    assert.match(startup, /if\s*\(db\.Database\.IsRelational\(\)\)\s*await\s+db\.Database\.MigrateAsync\(\)/);
+    assert.match(startup, /if\s*\(db\.Database\.IsRelational\(\)\)\s*\{?\s*await\s+db\.Database\.MigrateAsync\(\);?\s*\}?/);
     assert.doesNotMatch(startup, /!isVercel\s*&&\s*db\.Database\.IsRelational\(\)/);
 
     // Seeding must remain after migrations so seed queries never run against an
     // older schema during a fresh container/cold start.
-    assert.ok(startup.indexOf('MigrateAsync') < startup.indexOf('DbSeeder.SeedAsync'));
+    assert.ok(startup.indexOf('MigrateAsync') < startup.indexOf('DbSeeder'));
 });

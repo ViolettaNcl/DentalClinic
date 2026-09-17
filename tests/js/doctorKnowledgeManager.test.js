@@ -74,3 +74,27 @@ test('formats knowledge summary without inventing missing data', () => {
     );
     assert.equal(formatDoctorKnowledgeSummary({}), 'Профиль для Денты не заполнен');
 });
+
+test('builds rich public doctor-card fields for admin editor', () => {
+    const result = buildDoctorPayload({
+        fullName: 'Dr. Rich Profile',
+        roleTitle: 'Хирург-имплантолог · Врач высшей категории',
+        specialization: 'имплантология, хирургия',
+        experienceYears: '8',
+        bio: 'Профессиональный профиль врача.',
+        education: 'Волгоградский ГМУ\nОрдинатура — хирургия',
+        skills: 'Имплантация\nКостная пластика',
+        philosophy: 'Точный план лечения и понятная коммуникация.',
+        stat2Value: '250+',
+        stat2Label: 'Операций',
+        stat3Value: '5/5',
+        stat3Label: 'Рейтинг',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.payload.roleTitle, 'Хирург-имплантолог · Врач высшей категории');
+    assert.equal(result.payload.education.includes('Ординатура'), true);
+    assert.equal(result.payload.skills.includes('Имплантация'), true);
+    assert.equal(result.payload.stat2Value, '250+');
+    assert.equal(result.payload.stat3Label, 'Рейтинг');
+});

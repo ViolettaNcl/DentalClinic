@@ -10,14 +10,15 @@
     <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/pages/dashboard.css">
 </head>
 <body class="cabinet-body">
     <main class="panel-main">
         <div class="panel-layout">
+            <button type="button" class="panel-mobile-nav-toggle" aria-label="Открыть навигацию" aria-expanded="false" aria-controls="dashboard-sidebar"><span aria-hidden="true">☰</span></button>
+            <div class="panel-sidebar-backdrop" hidden></div>
 
-            <aside class="panel-sidebar">
+            <aside class="panel-sidebar" id="dashboard-sidebar" aria-label="Навигация кабинета">
                 <div class="panel-brand">
                     <span class="panel-logo">DC</span>
                     <span class="panel-title" data-i18n="patient_brand_title">Кабинет</span>
@@ -41,17 +42,51 @@
                     <span class="panel-nav-label" data-i18n="patient_settings_label">Настройки</span>
                     <button class="panel-nav-link" data-section="profile" data-i18n="patient_profile_nav">Профиль</button>
                 </nav>
+                <div class="patient-sidebar-footer">
+                    <button type="button" class="panel-btn-logout patient-logout-btn" id="btn-patient-logout">
+                        <span data-i18n="auth_logout_btn">Выход</span>
+                    </button>
+                </div>
             </aside>
 
             <section class="panel-content">
+                <h1 class="sr-only" data-i18n="patient_title">Личный кабинет</h1>
                 <div class="panel-content-inner">
 
                     <section class="panel-section" id="section-active">
-                        <div class="panel-section-header">
+                        <div class="patient-dashboard-overview">
+                            <div class="patient-welcome-card">
+                                <div class="patient-welcome-copy">
+                                    <span class="patient-welcome-kicker" data-i18n="patient_dashboard_kicker">Личный кабинет</span>
+                                    <h2 data-i18n="patient_dashboard_welcome_title">Ваше здоровье — в одном месте</h2>
+                                    <p data-i18n="patient_dashboard_welcome_desc">Следите за записями, историей посещений и профилем без лишних шагов.</p>
+                                </div>
+                                <div class="patient-welcome-mark" aria-hidden="true">🦷</div>
+                            </div>
+                            <div class="patient-overview-metrics" aria-label="Краткая информация">
+                                <article class="patient-overview-card patient-overview-card-active">
+                                    <span class="patient-overview-icon" aria-hidden="true">📅</span>
+                                    <strong id="patient-overview-active">—</strong>
+                                    <span data-i18n="patient_overview_active">Активные записи</span>
+                                </article>
+                                <article class="patient-overview-card patient-overview-card-next">
+                                    <span class="patient-overview-icon" aria-hidden="true">⏱</span>
+                                    <strong id="patient-overview-next">—</strong>
+                                    <span data-i18n="patient_overview_next">Ближайший визит</span>
+                                </article>
+                                <article class="patient-overview-card patient-overview-card-completed">
+                                    <span class="patient-overview-icon" aria-hidden="true">✓</span>
+                                    <strong id="patient-overview-completed">—</strong>
+                                    <span data-i18n="patient_overview_completed">Завершённые визиты</span>
+                                </article>
+                            </div>
+                        </div>
+
+                        <div class="panel-section-header patient-appointments-heading">
                             <h2 data-i18n="patient_active_title">Активные записи</h2>
                             <p data-i18n="patient_active_desc">Текущие и ожидающие подтверждения заявки.</p>
                         </div>
-                        <div class="panel-card">
+                        <div class="panel-card patient-appointments-card">
                             <div class="panel-table-wrap">
                                 <table class="panel-table">
                                     <thead>
@@ -199,7 +234,7 @@
 
     <div id="reschedule-modal" class="panel-modal hidden">
         <div class="panel-modal-backdrop"></div>
-        <div class="panel-modal-dialog">
+        <div class="panel-modal-dialog" role="dialog" aria-modal="true" aria-label="Диалог">
             <div class="panel-modal-header">
                 <h3 data-i18n="patient_reschedule_modal_title">Перенести запись</h3>
                 <button type="button" class="panel-modal-close" id="reschedule-modal-close">&times;</button>
@@ -221,10 +256,10 @@
         </div>
     </div>
 
-    <div id="review-modal" class="modal">
+    <div id="review-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2 data-i18n="review_modal_title">Ваш отзыв</h2>
+            <h2 id="review-modal-title" data-i18n="review_modal_title">Ваш отзыв</h2>
             <form id="review-form">
                 <div class="review-rating-picker" id="review-rating-picker">
                     <span class="star-rating interactive">
@@ -236,6 +271,7 @@
                     </span>
                     <span class="rating-hint" id="review-rating-hint" data-i18n="rating_hint_default">Выберите оценку</span>
                 </div>
+                <label class="sr-only" for="review-text" data-i18n="review_text_placeholder">Текст отзыва</label>
                 <textarea id="review-text" maxlength="1000" placeholder="Расскажите о вашем опыте посещения клиники..." data-i18n-placeholder="review_text_placeholder" required></textarea>
                 <div class="review-char-count" id="review-char-count">0/1000</div>
                 <button type="submit" class="btn-primary btn-modal" data-i18n="review_submit_btn">Отправить на проверку</button>
@@ -250,5 +286,7 @@
     <script src="/assets/js/core/scrollReveal.js" defer></script>
     <script src="/assets/js/core/wowEffects.js" defer></script>
     <script type="module" src="/assets/js/managers/patient/patientDashboardEntry.js"></script>
+    <script type="module" src="/assets/js/core/dashboardResponsive.js"></script>
+    <script type="module" src="/assets/js/core/dashboardLocale.js"></script>
 </body>
 </html>

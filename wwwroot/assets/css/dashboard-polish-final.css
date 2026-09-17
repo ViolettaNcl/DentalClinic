@@ -1,0 +1,72 @@
+
+/* Final dashboard UI polish - frontend only */
+.dashboard-sidebar,
+.sidebar,
+.patient-sidebar,
+.admin-sidebar {
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.dashboard-sidebar a,
+.sidebar a,
+.patient-sidebar a,
+.admin-sidebar a {
+    border-radius: 14px;
+    transition: background .2s ease, transform .2s ease;
+}
+
+.dashboard-sidebar a:hover,
+.sidebar a:hover,
+.patient-sidebar a:hover,
+.admin-sidebar a:hover {
+    transform: translateX(4px);
+}
+
+.dashboard-card,
+.stat-card,
+.patient-card,
+.admin-card {
+    border-radius: 22px;
+    box-shadow: 0 12px 35px rgba(0,0,0,.06);
+}
+
+.service-card,
+.price-card {
+    display:flex;
+    flex-direction:column;
+}
+
+.service-card .price,
+.price-card .price {
+    min-height:96px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.service-card .btn,
+.price-card .btn {
+    margin-top:auto;
+}
+
+@media (max-width: 768px) {
+    .dashboard-sidebar,
+    .sidebar,
+    .patient-sidebar,
+    .admin-sidebar {
+        width:100%;
+        max-width:none;
+    }
+
+    .dashboard-content,
+    .patient-content,
+    .admin-content {
+        width:100%;
+    }
+
+    .dashboard-grid,
+    .cards-grid,
+    .stats-grid {
+        grid-template-columns:1fr !important;
+    }
+}

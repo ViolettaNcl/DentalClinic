@@ -5,6 +5,7 @@ import { formatDate, formatTime, toInputDateTime } from '../../services/dateUtil
 import { TabManager } from '../../core/tabManager.js';
 import { t, onLanguageChange, getLang } from '../../core/i18n.js';
 import { translateText } from '../../services/textTranslate.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class CabinetManager {
     constructor() {
@@ -60,25 +61,29 @@ class CabinetManager {
         set('patient-name', 'patientName');
         set('patient-email', 'patientEmail');
 
-        const tabManager = new TabManager({
-            navSelector: '.panel-nav-link',
-            sectionSelector: '.panel-section',
-            defaultSection: 'active',
-        });
-        tabManager.init();
+        if (!window.__patientDashboardTabsInstalled) {
+            const tabManager = new TabManager({
+                navSelector: '.panel-nav-link',
+                sectionSelector: '.panel-section',
+                defaultSection: 'active',
+            });
+            tabManager.init();
+            window.__patientDashboardTabsInstalled = true;
+        }
 
         this._setupRescheduleModal();
         this._setupProfileForms();
 
-        // Не блокируем отрисовку записей ожиданием этого запроса — если он
-        // придёт позже первого рендера, просто перерисуем таблицы, когда
-        // словарь переводов из базы будет готов.
-        this._loadDoctorTranslations().then(() => {
-            if (this._loaded) this._renderAppointments(this._data);
+        // The appointment feed is the useful first paint. Do not hit the remote
+        // database with three authenticated queries at the same instant. Once the
+        // appointments request settles, fetch secondary profile/translation data in
+        // the background and refresh the already rendered view when needed.
+        this.loadAppointments().finally(() => {
+            this._loadDoctorTranslations().then(() => {
+                if (this._loaded) this._renderAppointments(this._data);
+            });
+            this.loadProfile();
         });
-
-        this.loadAppointments();
-        this.loadProfile();
     }
 
     // Резервный вариант перевода имени врача — берётся напрямую из базы
@@ -113,11 +118,15 @@ class CabinetManager {
             this._loaded = true;
         } catch (err) {
             console.error('loadAppointments error:', err);
-            showError(t('patient_load_appointments_error', 'Не удалось загрузить ваши записи'));
+            const message = err?.message || t('patient_load_appointments_error', 'Не удалось загрузить ваши записи');
+            showError(message);
+            const retry = `<button type="button" class="panel-btn-secondary" data-retry-patient-appointments>${t('ui_retry', 'Повторить')}</button>`;
             const activeEl = document.getElementById('active-appointments');
-            if (activeEl) activeEl.innerHTML = `<tr><td colspan="6" class="panel-error">${t('ui_load_error', 'Ошибка загрузки')}</td></tr>`;
+            if (activeEl) activeEl.innerHTML = `<tr><td colspan="6" class="panel-error">${escapeHtml(message)} ${retry}</td></tr>`;
             const histEl = document.getElementById('history-appointments');
-            if (histEl) histEl.innerHTML = `<tr><td colspan="5" class="panel-error">${t('ui_load_error', 'Ошибка загрузки')}</td></tr>`;
+            if (histEl) histEl.innerHTML = `<tr><td colspan="5" class="panel-error">${escapeHtml(message)} ${retry}</td></tr>`;
+            document.querySelectorAll('[data-retry-patient-appointments]').forEach(button =>
+                button.addEventListener('click', () => this.loadAppointments()));
         }
     }
 
@@ -130,6 +139,7 @@ class CabinetManager {
         this._renderTable('active-appointments', active, t('patient_no_active', 'Активных записей нет'), true);
         this._renderTable('history-appointments', history, t('patient_history_empty', 'История пуста'), false);
         this._renderHistoryStats(data, history);
+        this._renderOverview(data, active, history);
 
         // Автоматический перевод — только для имени врача (запасной вариант,
         // если в базе нет перевода на нужный язык, см. doctorCell выше).
@@ -177,7 +187,7 @@ class CabinetManager {
             if (withActions) {
                 if (a.status === 'pending') {
                     actions = `
-                      <td class="col-actions">
+                      <td class="col-actions" data-label="${escapeHtml(t('table_actions', 'Действия'))}">
                         <div class="panel-table-actions">
                             <button class="btn-tag btn-edit" data-action="reschedule" data-id="${a.id}" title="${escapeHtml(t('action_reschedule', 'Перенести'))}">🔄</button>
                             <button class="btn-tag btn-cancel" data-action="cancel" data-id="${a.id}" title="${escapeHtml(t('action_cancel', 'Отменить'))}">✕</button>
@@ -186,7 +196,7 @@ class CabinetManager {
                 } else {
                     // Подтверждённую запись пациент не может изменить сам — только через администратора клиники.
                     actions = `
-                      <td class="col-actions">
+                      <td class="col-actions" data-label="${escapeHtml(t('table_actions', 'Действия'))}">
                         <div class="panel-table-actions">
                             <button class="btn-tag btn-call-hint" data-action="call-hint" title="${escapeHtml(t('action_call_to_change', 'Позвоните администратору, чтобы изменить'))}">📞</button>
                         </div>
@@ -215,11 +225,11 @@ class CabinetManager {
                 : '';
 
             return `<tr data-appointment-row="${a.id}">
-              <td>${doctorCell}</td>
-              <td>${formatDate(a.appointmentDate)}</td>
-              <td>${formatTime(a.appointmentDate)}</td>
-              <td class="col-comment">${a.comment ? `<span data-translate-text="${escapeHtml(a.comment)}">${escapeHtml(a.comment)}</span> ${commentBtn}` : '—'}</td>
-              <td><span class="status-badge ${cls}">${label}</span></td>
+              <td data-label="${escapeHtml(t('table_doctor', 'Врач'))}">${doctorCell}</td>
+              <td data-label="${escapeHtml(t('table_date', 'Дата'))}">${formatDate(a.appointmentDate)}</td>
+              <td data-label="${escapeHtml(t('table_time', 'Время'))}">${formatTime(a.appointmentDate)}</td>
+              <td class="col-comment" data-label="${escapeHtml(t('table_comment', 'Комментарий'))}">${a.comment ? `<span data-translate-text="${escapeHtml(a.comment)}">${escapeHtml(a.comment)}</span> ${commentBtn}` : '—'}</td>
+              <td data-label="${escapeHtml(t('table_status', 'Статус'))}"><span class="status-badge ${cls}">${label}</span></td>
               ${actions}
             </tr>`;
         }).join('');
@@ -369,6 +379,25 @@ class CabinetManager {
 
     // «История в цифрах»: считаем прямо из уже загруженных записей,
     // без дополнительных запросов к серверу.
+
+    _renderOverview(all, active, history) {
+        const activeEl = document.getElementById('patient-overview-active');
+        const nextEl = document.getElementById('patient-overview-next');
+        const completedEl = document.getElementById('patient-overview-completed');
+
+        if (activeEl) activeEl.textContent = String(active.length);
+        if (completedEl) completedEl.textContent = String(history.filter(a => a.status === 'completed').length);
+
+        if (nextEl) {
+            const now = Date.now();
+            const upcoming = active
+                .map(a => ({ appointment: a, date: new Date(a.appointmentDate) }))
+                .filter(x => !Number.isNaN(x.date.getTime()) && x.date.getTime() >= now)
+                .sort((a, b) => a.date - b.date)[0];
+            nextEl.textContent = upcoming ? `${formatDate(upcoming.appointment.appointmentDate)} · ${formatTime(upcoming.appointment.appointmentDate)}` : '—';
+        }
+    }
+
     _renderHistoryStats(all, history) {
         const totalVisitsEl = document.getElementById('stat-total-visits');
         const clientSinceEl = document.getElementById('stat-client-since');
@@ -479,4 +508,4 @@ class CabinetManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new CabinetManager().init());
+runWhenDomReady(() => new CabinetManager().init());

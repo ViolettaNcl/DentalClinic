@@ -1,4 +1,4 @@
-﻿using DentalClinic.Data;
+using DentalClinic.Data;
 using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
@@ -101,10 +101,16 @@ namespace DentalClinic.Services
                     AppendOptionalField(sb, "name_el", d.FullNameEl);
                     AppendOptionalField(sb, "name_ar", d.FullNameAr);
                     sb.Append("|specialization=").Append(Clean(d.Specialization));
+                    if (!string.IsNullOrWhiteSpace(d.RoleTitle))
+                        sb.Append("|role_title=").Append(Clean(d.RoleTitle));
                     if (d.ExperienceYears is > 0)
                         sb.Append("|experience_years=").Append(d.ExperienceYears.Value);
                     if (!string.IsNullOrWhiteSpace(d.Bio))
                         sb.Append("|bio=").Append(Clean(d.Bio));
+                    if (!string.IsNullOrWhiteSpace(d.Skills))
+                        sb.Append("|skills=").Append(Clean(d.Skills, 600));
+                    if (!string.IsNullOrWhiteSpace(d.Education))
+                        sb.Append("|education=").Append(Clean(d.Education, 600));
                     sb.AppendLine("|url=/pages/doctors.html");
                 }
             }
@@ -343,6 +349,16 @@ namespace DentalClinic.Services
         }
 
         private static string FactOrUnavailable(string? value)
-            => string.IsNullOrWhiteSpace(value) ? "unavailable" : Clean(value);
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "unavailable";
+            var cleaned = Clean(value);
+            if (cleaned.Contains("999-99-99", StringComparison.OrdinalIgnoreCase)
+                || cleaned.Contains("support@dentalclinic.ru", StringComparison.OrdinalIgnoreCase)
+                || cleaned.Contains("ул. Мира 25", StringComparison.OrdinalIgnoreCase))
+            {
+                return "unavailable";
+            }
+            return cleaned;
+        }
     }
 }

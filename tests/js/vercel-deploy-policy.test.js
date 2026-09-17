@@ -4,14 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../', import.meta.url);
 
-test('production container uses the app registry after the legacy web registry reached quota', async () => {
+test('Vercel Git deployments stay paused while local development is in progress', async () => {
     const raw = await readFile(new URL('vercel.json', root), 'utf8');
     const config = JSON.parse(raw);
 
-    assert.deepEqual(config.git?.deploymentEnabled, {
-        '*': false,
-        main: true
-    });
+    assert.equal(config.git?.deploymentEnabled, false);
 
     assert.equal(config.services?.app?.entrypoint, 'Dockerfile.vercel');
     assert.equal(config.services?.web, undefined);

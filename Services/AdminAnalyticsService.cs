@@ -25,54 +25,53 @@ public sealed class AdminAnalyticsService
     public async Task<AdminAnalyticsSummary> GetSummaryAsync(CancellationToken cancellationToken = default)
     {
         var clinicNow = _clock.Now;
+        var monthStartLocal = new DateTime(clinicNow.Year, clinicNow.Month, 1);
+        var nextMonthLocal = monthStartLocal.AddMonths(1);
+        var monthStartUtc = _clock.ToUtc(monthStartLocal);
+        var nextMonthUtc = _clock.ToUtc(nextMonthLocal);
 
-        // Aggregate the lifetime cards in SQL instead of materializing every
-        // appointment request into the web process. This keeps dashboard memory
-        // bounded as CRM history grows while preserving the legacy normalization
-        // rules for status values with casing/whitespace drift.
-        var statusGroups = await _db.AppointmentRequests
+        // One aggregate round trip replaces the former sequence of separate status,
+        // source and month COUNT queries. This matters noticeably when the developer
+        // build talks to a remote SQL Server.
+        var aggregate = await _db.AppointmentRequests
             .AsNoTracking()
-            .GroupBy(a => a.Status == null ? string.Empty : a.Status.Trim().ToLower())
-            .Select(group => new StatusCount(group.Key, group.Count()))
-            .ToListAsync(cancellationToken);
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Total = group.Count(),
+                Pending = group.Count(a => a.Status != null
+                    && a.Status.Trim().ToLower() == AppointmentStatuses.Pending),
+                Confirmed = group.Count(a => a.Status != null
+                    && a.Status.Trim().ToLower() == AppointmentStatuses.Confirmed),
+                Completed = group.Count(a => a.Status != null
+                    && a.Status.Trim().ToLower() == AppointmentStatuses.Completed),
+                Cancelled = group.Count(a => a.Status != null
+                    && a.Status.Trim().ToLower() == AppointmentStatuses.Cancelled),
+                Denta = group.Count(a => a.Comment != null && a.Comment.Contains(DentaMarker)),
+                Registered = group.Count(a => (a.Comment == null || !a.Comment.Contains(DentaMarker))
+                    && a.PatientId > 0),
+                ThisMonth = group.Count(a => a.CreatedAt >= monthStartUtc && a.CreatedAt < nextMonthUtc)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
 
-        var total = statusGroups.Sum(group => group.Count);
-        var pending = CountStatus(statusGroups, AppointmentStatuses.Pending);
-        var confirmed = CountStatus(statusGroups, AppointmentStatuses.Confirmed);
-        var completed = CountStatus(statusGroups, AppointmentStatuses.Completed);
-        var cancelled = CountStatus(statusGroups, AppointmentStatuses.Cancelled);
+        var total = aggregate?.Total ?? 0;
+        var pending = aggregate?.Pending ?? 0;
+        var confirmed = aggregate?.Confirmed ?? 0;
+        var completed = aggregate?.Completed ?? 0;
+        var cancelled = aggregate?.Cancelled ?? 0;
+        var denta = aggregate?.Denta ?? 0;
+        var registered = aggregate?.Registered ?? 0;
+        var thisMonth = aggregate?.ThisMonth ?? 0;
         var unknown = total - pending - confirmed - completed - cancelled;
+        var guest = total - denta - registered;
         var confirmedLike = confirmed + completed;
         var confirmedOrCompletedRate = total == 0
             ? 0
             : Math.Round(confirmedLike * 100d / total, 1, MidpointRounding.AwayFromZero);
 
-        // Sources are deliberately mutually exclusive. Denta wins even when a
-        // signed-in patient created the chat booking, matching Calculate().
-        var denta = await _db.AppointmentRequests
-            .AsNoTracking()
-            .CountAsync(a => a.Comment != null && a.Comment.Contains(DentaMarker), cancellationToken);
-        var registered = await _db.AppointmentRequests
-            .AsNoTracking()
-            .CountAsync(a => (a.Comment == null || !a.Comment.Contains(DentaMarker))
-                             && a.PatientId > 0,
-                cancellationToken);
-        var guest = total - denta - registered;
-
-        // CreatedAt is stored in UTC, while dashboard periods are clinic-local.
-        // Convert local period boundaries to UTC before filtering in SQL; this also
-        // preserves correct behavior across DST transitions without per-row timezone
-        // conversion for the full historical table.
-        var monthStartLocal = new DateTime(clinicNow.Year, clinicNow.Month, 1);
-        var nextMonthLocal = monthStartLocal.AddMonths(1);
-        var monthStartUtc = _clock.ToUtc(monthStartLocal);
-        var nextMonthUtc = _clock.ToUtc(nextMonthLocal);
-        var thisMonth = await _db.AppointmentRequests
-            .AsNoTracking()
-            .CountAsync(a => a.CreatedAt >= monthStartUtc && a.CreatedAt < nextMonthUtc, cancellationToken);
-
         // Only the 30-day chart needs individual timestamps. Bound materialization
-        // to exactly that clinic-local window, then convert those rows for grouping.
+        // to that small clinic-local window and group in memory after timezone
+        // conversion, preserving DST-safe ClinicClock semantics.
         var dayStartLocal = clinicNow.Date.AddDays(-29);
         var dayEndExclusiveLocal = clinicNow.Date.AddDays(1);
         var dayStartUtc = _clock.ToUtc(dayStartLocal);
@@ -98,9 +97,8 @@ public sealed class AdminAnalyticsService
             .Select(pair => new AdminAnalyticsDay(pair.Key.ToString("yyyy-MM-dd"), pair.Value))
             .ToArray();
 
-        // Lifetime doctor totals are aggregated in SQL. Materialize one row per
-        // doctor rather than one row per appointment, fetch names only for doctors
-        // that actually appear in history, then keep the existing count/name sort.
+        // Lifetime doctor totals stay aggregated in SQL. This is intentionally two
+        // small queries rather than materializing appointment history.
         var doctorCounts = await _db.AppointmentRequests
             .AsNoTracking()
             .Where(a => a.DoctorId.HasValue)

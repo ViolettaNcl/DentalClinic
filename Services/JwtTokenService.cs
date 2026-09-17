@@ -22,9 +22,17 @@ public class JwtTokenService
 
     public DateTime GetExpiryUtc() => DateTime.UtcNow.AddMinutes(ExpiryMinutes);
 
-    public string GenerateToken(int id, string email, string name, string role, int tokenVersion)
+    public const string AvatarUrlClaim = "dc_avatar_url";
+
+    public string GenerateToken(
+        int id,
+        string email,
+        string name,
+        string role,
+        int tokenVersion,
+        string? avatarUrl = null)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, id.ToString()),
             new Claim(ClaimTypes.Email, email),
@@ -33,6 +41,9 @@ public class JwtTokenService
             new Claim(TokenVersionClaim, tokenVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
+
+        if (!string.IsNullOrWhiteSpace(avatarUrl))
+            claims.Add(new Claim(AvatarUrlClaim, avatarUrl));
 
         var keyValue = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("Jwt:Key не задан в конфигурации");

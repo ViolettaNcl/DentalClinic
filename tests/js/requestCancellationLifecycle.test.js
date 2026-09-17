@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+const dentaAiService = await readFile(
+    new URL('../../Services/DentaAiService.cs', import.meta.url),
+    'utf8');
 const chatController = await readFile(
     new URL('../../Controllers/ChatController.cs', import.meta.url),
     'utf8');
@@ -10,20 +13,13 @@ const appointmentController = await readFile(
     'utf8');
 
 test('paid chat provider I/O observes request cancellation and disposes responses', () => {
-    assert.doesNotMatch(chatController, /ReadAsStringAsync\(\)/);
-    assert.doesNotMatch(chatController, /ReadAsStreamAsync\(\)/);
-    assert.doesNotMatch(chatController, /ReadLineAsync\(\)/);
-    assert.doesNotMatch(chatController, /FlushAsync\(\)/);
+    assert.match(dentaAiService, /client\.SendAsync\([\s\S]*?cancellationToken\)/);
+    assert.match(dentaAiService, /ReadAsStringAsync\(cancellationToken\)/);
+    assert.match(dentaAiService, /using \(response\)/);
+    assert.match(dentaAiService, /catch \(OperationCanceledException\) when \(cancellationToken\.IsCancellationRequested\)/);
 
-    assert.match(
-        chatController,
-        /using var response = await _http\.PostAsync\([\s\S]*?HttpContext\.RequestAborted\);/);
-    assert.equal(
-        (chatController.match(/catch \(OperationCanceledException\) when \(HttpContext\.RequestAborted\.IsCancellationRequested\)/g) || []).length,
-        2);
-    assert.equal(
-        (chatController.match(/using var upstreamResponseLease = upstreamResp;/g) || []).length,
-        2);
+    assert.match(chatController, /Response\.WriteAsync\([\s\S]*?HttpContext\.RequestAborted\)/);
+    assert.match(chatController, /Response\.Body\.FlushAsync\(HttpContext\.RequestAborted\)/);
 });
 
 test('appointment creation does not translate request cancellation into HTTP 500', () => {

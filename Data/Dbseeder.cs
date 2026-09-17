@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using DentalClinic.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -102,6 +102,26 @@ namespace DentalClinic.Data
                     new Service { Category = "Протезы", Name = "Нейлон", PriceFrom = 40000, PageUrl = "/pages/services/prosthetics.html", Keywords = "протез,нейлон", SortOrder = 2 },
                     new Service { Category = "Протезы", Name = "Бюгельные", PriceFrom = 55000, PageUrl = "/pages/services/prosthetics.html", Keywords = "протез,бюгель", SortOrder = 3 }
                 );
+            }
+
+            // Denta needs the same confirmed sedation fact that is already published
+            // on the public About page. Keep this idempotent so existing clinic-managed
+            // knowledge is never duplicated or overwritten.
+            var hasSedationKnowledge = await db.ClinicKnowledgeItems
+                .AnyAsync(k => k.Category == "sedation" && k.Title == "Седация", cancellationToken);
+
+            if (!hasSedationKnowledge)
+            {
+                db.ClinicKnowledgeItems.Add(new ClinicKnowledgeItem
+                {
+                    Category = "sedation",
+                    Title = "Седация",
+                    Content = "В клинике предусмотрена седация для пациентов с дентофобией. На сайте клиники указана официальная лицензия на проведение седации. Возможность и формат седации определяются врачом после оценки состояния пациента и противопоказаний.",
+                    Keywords = "седация,дентофобия,лечение во сне,sedation,sédation,καταστολή,تهدئة",
+                    SortOrder = 10,
+                    IsActive = true,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             await db.SaveChangesAsync(cancellationToken);

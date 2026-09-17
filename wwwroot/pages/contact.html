@@ -19,7 +19,7 @@
     <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <link rel="stylesheet" href="/assets/css/pages/contact.css">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -190,26 +190,143 @@
             </article>
         </div>
 
-        <section class="location-section" hidden>
-            <div class="map-title">
-                <h2 class="section-title" data-i18n="contact_map_title">Наше местоположение</h2>
+        <section class="location-section ai-location-section" hidden>
+            <div class="map-title ai-map-heading">
+                <div>
+                    <span class="ai-map-heading__eyebrow" data-i18n="contact_map_ai_eyebrow">AI НАВИГАЦИЯ</span>
+                    <h2 class="section-title" data-i18n="contact_map_title">Наше местоположение</h2>
+                    <p class="ai-map-heading__subtitle" data-i18n="contact_map_ai_subtitle">Живая карта и интеллектуальный маршрут до клиники — прямо на странице.</p>
+                </div>
+                <span class="ai-map-heading__badge" data-i18n="contact_map_ai_badge">LIVE ROUTE</span>
             </div>
 
-            <div class="map-wrapper">
-                <div class="map-container">
-                    <span class="map-pulse" aria-hidden="true"></span>
+            <div class="map-experience ai-map-shell" id="map-experience">
+                <aside class="route-companion" data-ai-route-console id="route-companion" hidden aria-label="Маршрут до клиники">
+                    <div class="ai-route-console__head">
+                        <div>
+                            <div class="smart-map-panel__eyebrow" data-i18n="smart_route_eyebrow">УМНЫЙ МАРШРУТ</div>
+                            <h3 class="smart-map-panel__title" data-i18n="contact_map_ai_title">AI Route Studio</h3>
+                        </div>
+                        <button type="button"
+                                id="route-dock-toggle"
+                                class="route-dock-toggle"
+                                aria-expanded="true"
+                                aria-controls="smart-map-panel">
+                            <span class="route-dock-toggle__icon" aria-hidden="true">✦</span>
+                            <span class="route-dock-toggle__label" data-i18n="route_btn_label">Умный маршрут</span>
+                        </button>
+                    </div>
 
-                    <iframe title="Dental Clinic location"
-                            allowfullscreen=""
-                            loading="lazy"
-                            hidden>
-                    </iframe>
+                    <div class="ai-clinic-facts" aria-label="Контакты клиники">
+                        <div class="ai-clinic-fact ai-clinic-fact--address">
+                            <span class="ai-clinic-fact__icon" aria-hidden="true">⌖</span>
+                            <div>
+                                <span class="ai-clinic-fact__label" data-i18n="contact_card_address_title">Посетите нас</span>
+                                <strong id="smart-map-address"></strong>
+                            </div>
+                        </div>
+                        <div class="ai-clinic-fact">
+                            <span class="ai-clinic-fact__icon" aria-hidden="true">☎</span>
+                            <div>
+                                <span class="ai-clinic-fact__label" data-i18n="contact_card_phone_title">Позвоните нам</span>
+                                <strong id="ai-map-phone">—</strong>
+                            </div>
+                        </div>
+                        <div class="ai-clinic-fact">
+                            <span class="ai-clinic-fact__icon" aria-hidden="true">◷</span>
+                            <div>
+                                <span class="ai-clinic-fact__label" data-i18n="contact_card_hours_title">Часы работы</span>
+                                <strong id="ai-map-hours">—</strong>
+                            </div>
+                        </div>
+                    </div>
 
-                    <button type="button" id="route-fab" class="route-fab-btn" hidden>
-                        <span class="route-fab-icon">🧭</span>
-                        <span class="route-fab-label" data-i18n="route_btn_label">Построить маршрут</span>
-                    </button>
-                    <div id="route-result" class="route-result-toast"></div>
+                    <div class="smart-map-panel" id="smart-map-panel">
+                        <div class="smart-map-panel__head smart-map-panel__head--mobile">
+                            <div>
+                                <div class="smart-map-panel__eyebrow" data-i18n="smart_route_title">Как добраться</div>
+                            </div>
+                            <button type="button" class="smart-map-panel__close" id="route-panel-close" aria-label="Свернуть">×</button>
+                        </div>
+
+                        <label class="route-origin-field" for="route-origin-input">
+                            <span data-i18n="route_origin_label">Откуда вы едете?</span>
+                            <input id="route-origin-input"
+                                   type="text"
+                                   autocomplete="street-address"
+                                   data-i18n-placeholder="route_origin_placeholder"
+                                   placeholder="Введите адрес или используйте геолокацию">
+                        </label>
+
+                        <button type="button" class="route-location-btn" id="route-use-location">
+                            <span aria-hidden="true">⌖</span>
+                            <span data-i18n="route_use_location">Использовать моё местоположение</span>
+                        </button>
+
+                        <div class="smart-map-modes" role="group" aria-label="Способ передвижения">
+                            <button type="button" class="smart-map-mode is-active" data-route-mode="driving">🚗 <span data-i18n="smart_route_driving">Машина</span></button>
+                            <button type="button" class="smart-map-mode" data-route-mode="walking">🚶 <span data-i18n="smart_route_walking">Пешком</span></button>
+                            <button type="button" class="smart-map-mode" data-route-mode="transit">🚌 <span data-i18n="smart_route_transit">Транспорт</span></button>
+                        </div>
+
+                        <div class="ai-route-prediction" aria-live="polite">
+                            <div class="ai-route-prediction__top">
+                                <span><span class="ai-pulse-dot" aria-hidden="true"></span><span data-i18n="ai_route_prediction">AI-прогноз маршрута</span></span>
+                                <strong id="route-ai-score">—</strong>
+                            </div>
+                            <div class="smart-map-insight" id="smart-map-insight" data-i18n="smart_route_hint">Разрешите геолокацию — маршрут подстроится под вас.</div>
+                            <div class="ai-route-meter" aria-hidden="true"><span id="route-ai-meter"></span></div>
+                            <small data-i18n="ai_route_model_note">Локальная модель учитывает расстояние, способ передвижения и время суток. Это ориентировочная оценка.</small>
+                        </div>
+
+                        <div class="route-panel-actions">
+                            <button type="button" class="route-build-btn" id="route-build-on-map" data-i18n="route_build_here">Построить на этой карте</button>
+                            <button type="button" class="route-reset-btn" id="route-reset-map" data-i18n="route_reset_map">Показать только клинику</button>
+                        </div>
+
+                        <div id="route-result" class="route-result-inline" role="status" aria-live="polite"></div>
+                    </div>
+
+                    <div class="route-nudge" id="route-nudge" hidden>
+                        <button type="button" class="route-nudge__close" id="route-nudge-close" aria-label="Закрыть">×</button>
+                        <span class="route-nudge__spark" aria-hidden="true">✦</span>
+                        <strong data-i18n="route_nudge_title">Изучаете карту?</strong>
+                        <p data-i18n="route_nudge_text">Я могу построить маршрут прямо здесь — без перехода на другой сайт.</p>
+                        <button type="button" class="route-nudge__action" id="route-nudge-action" data-i18n="route_nudge_action">Показать маршрут</button>
+                    </div>
+                </aside>
+
+                <div class="map-wrapper ai-map-canvas" id="clinic-map-interaction-zone">
+                    <div class="map-container">
+                        <span class="map-pulse" aria-hidden="true"></span>
+                        <iframe title="Dental Clinic location"
+                                allowfullscreen=""
+                                loading="lazy"
+                                hidden>
+                        </iframe>
+
+                        <div class="ai-map-overlay ai-map-overlay--origin" aria-hidden="true">
+                            <div class="ai-map-overlay__row">
+                                <span class="ai-map-pin ai-map-pin--you"></span>
+                                <div><small data-i18n="ai_route_from">Старт</small><strong id="map-origin-status" data-i18n="route_origin_current">Моё местоположение</strong></div>
+                            </div>
+                            <div class="ai-map-overlay__divider"></div>
+                            <div class="ai-map-overlay__row">
+                                <span class="ai-map-pin ai-map-pin--clinic"></span>
+                                <div><small data-i18n="ai_route_to">Клиника</small><strong id="map-destination-label">Dental Clinic</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="ai-map-overlay ai-map-overlay--eta" aria-hidden="true">
+                            <span class="ai-map-overlay__spark">✦</span>
+                            <div><small data-i18n="ai_route_estimate">AI-оценка</small><strong id="map-route-eta">—</strong><span id="map-route-distance"></span></div>
+                        </div>
+
+                        <div class="ai-map-overlay ai-map-overlay--note" aria-hidden="true">
+                            <span>🌿</span>
+                            <p data-i18n="ai_route_live">Спокойный путь к здоровой улыбке</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

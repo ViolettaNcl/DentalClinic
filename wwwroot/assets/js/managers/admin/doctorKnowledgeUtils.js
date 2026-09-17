@@ -2,29 +2,70 @@
 // Kept browser-independent so validation can be covered by Node tests.
 
 const LOCALIZED_NAME_FIELDS = ['fullNameEn', 'fullNameFr', 'fullNameEl', 'fullNameAr'];
+const LIMITS = Object.freeze({
+    specialization: 300,
+    bio: 500,
+    roleTitle: 300,
+    education: 1200,
+    skills: 1200,
+    philosophy: 500,
+    stat2Value: 40,
+    stat2Label: 80,
+    stat3Value: 40,
+    stat3Label: 80,
+});
+
+function clean(value) {
+    return String(value ?? '').trim();
+}
+
+function validateLength(field, value, label) {
+    const max = LIMITS[field];
+    if (max && value.length > max)
+        return `${label} слишком длинное (максимум ${max} символов)`;
+    return null;
+}
 
 export function buildDoctorPayload(values = {}, { edit = false } = {}) {
-    const fullName = String(values.fullName || '').trim();
+    const fullName = clean(values.fullName);
     if (!fullName) return { ok: false, error: 'Укажите ФИО врача' };
     if (fullName.length > 150) return { ok: false, error: 'ФИО врача слишком длинное' };
 
     const localizedNames = {};
     for (const field of LOCALIZED_NAME_FIELDS) {
-        const value = String(values[field] || '').trim();
+        const value = clean(values[field]);
         if (value.length > 150)
             return { ok: false, error: 'Локализованное имя врача слишком длинное' };
         localizedNames[field] = value;
     }
 
-    const specialization = String(values.specialization || '').trim();
-    if (specialization.length > 300)
-        return { ok: false, error: 'Специализация слишком длинная' };
+    const richFields = {
+        specialization: clean(values.specialization),
+        bio: clean(values.bio),
+    };
+    for (const field of ['roleTitle', 'education', 'skills', 'philosophy', 'stat2Value', 'stat2Label', 'stat3Value', 'stat3Label']) {
+        if (Object.prototype.hasOwnProperty.call(values, field)) richFields[field] = clean(values[field]);
+    }
 
-    const bio = String(values.bio || '').trim();
-    if (bio.length > 500)
-        return { ok: false, error: 'Описание врача слишком длинное' };
+    const labels = {
+        specialization: 'Специализация',
+        bio: 'Описание врача',
+        roleTitle: 'Профессиональный заголовок',
+        education: 'Образование',
+        skills: 'Направления работы',
+        philosophy: 'Философия врача',
+        stat2Value: 'Второй показатель',
+        stat2Label: 'Подпись второго показателя',
+        stat3Value: 'Третий показатель',
+        stat3Label: 'Подпись третьего показателя',
+    };
 
-    const rawExperience = String(values.experienceYears ?? '').trim();
+    for (const [field, value] of Object.entries(richFields)) {
+        const error = validateLength(field, value, labels[field]);
+        if (error) return { ok: false, error };
+    }
+
+    const rawExperience = clean(values.experienceYears);
     let experienceYears = null;
     if (rawExperience) {
         experienceYears = Number(rawExperience);
@@ -35,9 +76,8 @@ export function buildDoctorPayload(values = {}, { edit = false } = {}) {
     const payload = {
         fullName,
         ...localizedNames,
-        specialization,
+        ...richFields,
         experienceYears,
-        bio,
     };
 
     if (edit) {
@@ -50,9 +90,11 @@ export function buildDoctorPayload(values = {}, { edit = false } = {}) {
 }
 
 export function formatDoctorKnowledgeSummary(doctor = {}) {
-    const specialization = String(doctor.specialization || '').trim();
+    const specialization = clean(doctor.specialization);
+    const role = clean(doctor.roleTitle);
     const experience = Number.isInteger(doctor.experienceYears) && doctor.experienceYears >= 0
         ? `стаж ${doctor.experienceYears} лет`
         : '';
-    return [specialization, experience].filter(Boolean).join(' · ') || 'Профиль для Денты не заполнен';
+    const photo = doctor.photoUrl ? 'фото ✓' : '';
+    return [role || specialization, experience, photo].filter(Boolean).join(' · ') || 'Профиль для Денты не заполнен';
 }

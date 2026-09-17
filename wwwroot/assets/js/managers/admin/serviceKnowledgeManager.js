@@ -5,6 +5,7 @@ import {
     formatServicePrice,
     SERVICE_FIELD_LIMITS,
 } from './serviceKnowledgeUtils.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class ServiceKnowledgeManager {
     constructor() {
@@ -69,7 +70,7 @@ class ServiceKnowledgeManager {
                 </div>
                 <div class="knowledge-summary" id="knowledge-summary">Загрузка…</div>
                 <div class="panel-table-wrap">
-                    <table class="panel-table">
+                    <table class="panel-table service-knowledge-table">
                         <thead><tr>
                             <th>ID</th><th>Категория / услуга</th><th>Цена</th><th>База Денты</th><th>Статус</th><th class="col-actions">Действия</th>
                         </tr></thead>
@@ -159,8 +160,10 @@ class ServiceKnowledgeManager {
             this._render();
         } catch (error) {
             console.error('ServiceKnowledgeManager load error:', error);
-            this.tbody.innerHTML = '<tr><td colspan="6">Ошибка загрузки базы услуг</td></tr>';
-            showError('Не удалось загрузить услуги');
+            const message = error?.message || 'Не удалось загрузить услуги';
+            this.tbody.innerHTML = `<tr><td colspan="6" class="panel-error">${escapeHtml(message)} <button type="button" class="panel-btn-secondary" data-retry-service-knowledge>Повторить</button></td></tr>`;
+            this.tbody.querySelector('[data-retry-service-knowledge]')?.addEventListener('click', () => this.loadAll());
+            showError(message);
         }
     }
 
@@ -189,12 +192,12 @@ class ServiceKnowledgeManager {
         this.tbody.innerHTML = rows.map(service => {
             const knowledge = [service.keywords, service.pageUrl].filter(Boolean).map(escapeHtml).join('<br>') || '—';
             return `<tr data-service-id="${service.id}">
-                <td>${service.id}</td>
-                <td><strong>${escapeHtml(service.category)}</strong><br>${escapeHtml(service.name)}</td>
-                <td>${escapeHtml(formatServicePrice(service))}</td>
-                <td class="knowledge-cell">${knowledge}</td>
-                <td><span class="status-badge ${service.isActive ? 'status-confirmed' : 'status-cancelled'}">${service.isActive ? 'Активна' : 'Отключена'}</span></td>
-                <td><div class="panel-table-actions">
+                <td data-label="ID">${service.id}</td>
+                <td data-label="Категория / услуга"><strong>${escapeHtml(service.category)}</strong><br>${escapeHtml(service.name)}</td>
+                <td data-label="Цена">${escapeHtml(formatServicePrice(service))}</td>
+                <td data-label="База Денты" class="knowledge-cell">${knowledge}</td>
+                <td data-label="Статус"><span class="status-badge ${service.isActive ? 'status-confirmed' : 'status-cancelled'}">${service.isActive ? 'Активна' : 'Отключена'}</span></td>
+                <td data-label="Действия"><div class="panel-table-actions">
                     <button type="button" class="btn-tag btn-edit" data-edit-service="${service.id}" title="Редактировать">✏️</button>
                     <button type="button" class="btn-tag ${service.isActive ? 'btn-cancel' : 'btn-confirm'}" data-toggle-service="${service.id}" title="${service.isActive ? 'Отключить' : 'Активировать'}">${service.isActive ? '✕' : '✓'}</button>
                 </div></td>
@@ -290,10 +293,21 @@ class ServiceKnowledgeManager {
             .knowledge-toolbar input,.knowledge-toolbar select{padding:10px 12px;border:1px solid #d9e5e1;border-radius:8px;background:#fff}
             .knowledge-summary{font-size:.86rem;color:#687a75;margin:8px 0 14px}
             .knowledge-info-card{font-size:.92rem;line-height:1.5;border-left:4px solid #13b39b}
-            .knowledge-cell{max-width:260px;white-space:normal;word-break:break-word}
+            .knowledge-cell{max-width:260px;white-space:normal;overflow-wrap:anywhere}
             .knowledge-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
             .knowledge-modal-dialog{max-width:720px}
-            @media(max-width:700px){.knowledge-form-grid{grid-template-columns:1fr}.knowledge-toolbar>*{width:100%}}
+            .service-knowledge-table{table-layout:fixed;width:100%}
+            .service-knowledge-table th,.service-knowledge-table td{white-space:normal;overflow-wrap:anywhere;vertical-align:top}
+            @media(max-width:900px){
+                .knowledge-form-grid{grid-template-columns:1fr}
+                .knowledge-toolbar>*{width:100%;min-width:0!important}
+                .service-knowledge-table,.service-knowledge-table tbody,.service-knowledge-table tr,.service-knowledge-table td{display:block;width:100%!important}
+                .service-knowledge-table thead{display:none}
+                .service-knowledge-table tr{padding:12px 14px;margin:0 0 12px;border:1px solid #e1ece8;border-radius:12px;background:#fff}
+                .service-knowledge-table td{display:grid;grid-template-columns:minmax(110px,34%) 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #eef3f1}
+                .service-knowledge-table td:last-child{border-bottom:0}
+                .service-knowledge-table td::before{content:attr(data-label);font-size:.74rem;font-weight:800;text-transform:uppercase;color:#4b7a70}
+            }
         `;
         document.head.appendChild(style);
     }
@@ -301,7 +315,7 @@ class ServiceKnowledgeManager {
 
 export function installServiceKnowledgeManager() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const manager = new ServiceKnowledgeManager();
         manager.init();
         window.ServiceKnowledgeManagerInstance = manager;

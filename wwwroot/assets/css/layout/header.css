@@ -521,3 +521,200 @@ nav ul li.services-menu:hover .dropdown {
         padding: 18px 24px;
     }
 }
+
+/* ===== RESPONSIVE NAVIGATION V6 =====
+   Compact, scroll-safe menu for phones/tablets. Keeps every page and auth button
+   reachable on short screens and removes the oversized 2rem mobile links. */
+@media (max-width: 992px) {
+    .header-container {
+        min-height: 68px;
+        padding: 6px clamp(10px,3vw,18px);
+        gap: 8px;
+    }
+
+    .logo { gap: 8px; min-width: 0; }
+    .logo img { width: 48px; height: 48px; }
+    .logo-text::before { font-size: 1.2rem; letter-spacing: 3px; }
+    .logo-text::after { font-size: .62rem; letter-spacing: 4px; }
+    .hamburger { display: flex; order: 4; width: 42px; height: 42px; margin-left: 0; }
+    .lang-switcher { order: 3; margin-left: auto; }
+
+    nav { order: 5; width: auto; flex: 0 0 auto; }
+    nav ul {
+        position: fixed;
+        inset: 68px 0 0 0;
+        width: 100%;
+        height: calc(100dvh - 68px);
+        max-height: calc(100dvh - 68px);
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 2px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 14px clamp(18px,6vw,56px) 154px;
+        background: linear-gradient(180deg,rgba(5,8,8,.99),rgba(4,13,12,.985));
+        border-top: 1px solid rgba(19,179,155,.22);
+        box-shadow: none;
+        opacity: 0;
+        transform: translateY(-10px);
+        z-index: 2000;
+        box-sizing: border-box;
+    }
+
+    nav ul.active {
+        display: flex;
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    nav ul li { width: 100%; margin: 0; }
+    nav ul li a {
+        width: 100%;
+        justify-content: center;
+        padding: 11px 12px;
+        border-radius: 12px;
+        font-size: clamp(1rem,4.3vw,1.28rem);
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: .01em;
+        box-sizing: border-box;
+    }
+
+    nav ul li a::after { left: 30%; right: 30%; }
+    nav ul li.services-menu .dropdown { display: none !important; }
+
+    .header-buttons { display: none; }
+    .header-buttons.active {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        position: fixed;
+        left: 50%;
+        bottom: max(12px,env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        width: min(92vw,620px);
+        max-width: none;
+        padding: 10px;
+        gap: 8px;
+        border-radius: 16px;
+        background: rgba(5,12,11,.96);
+        border: 1px solid rgba(19,179,155,.26);
+        box-shadow: 0 16px 44px rgba(0,0,0,.5);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 2100;
+        box-sizing: border-box;
+    }
+
+    .header-buttons.active a {
+        width: 100%;
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 12px;
+        font-size: .92rem;
+        line-height: 1.15;
+        white-space: normal;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    html.mobile-menu-open #chat-widget,
+    html.mobile-menu-open .scroll-to-top,
+    html.mobile-menu-open #notification-bell {
+        display: none !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .header-container { min-height: 64px; padding-inline: 10px; }
+    .logo img { width: 44px; height: 44px; }
+    .logo-text::before { font-size: 1.05rem; letter-spacing: 2.5px; }
+    .logo-text::after { font-size: .56rem; letter-spacing: 3.5px; }
+    .lang-btn { min-height: 40px; padding-inline: 10px; }
+    .hamburger { width: 40px; height: 40px; }
+
+    nav ul {
+        inset: 64px 0 0 0;
+        height: calc(100dvh - 64px);
+        max-height: calc(100dvh - 64px);
+        padding: 10px 16px 144px;
+    }
+
+    nav ul li a {
+        padding: 9px 10px;
+        font-size: clamp(1rem,5.4vw,1.22rem);
+    }
+
+    .header-buttons.active {
+        grid-template-columns: 1fr;
+        width: calc(100vw - 24px);
+        padding: 8px;
+        gap: 7px;
+    }
+
+    .header-buttons.active a { min-height: 44px; padding: 9px 10px; font-size: .9rem; }
+}
+
+@media (max-width: 380px) {
+    .logo-text::before { font-size: .95rem; letter-spacing: 2px; }
+    .logo-text::after { font-size: .52rem; letter-spacing: 3px; }
+    .logo img { width: 40px; height: 40px; }
+    .lang-btn { padding-inline: 8px; min-width: 48px; }
+    .hamburger { width: 38px; height: 38px; }
+    nav ul li a { font-size: 1rem; padding-block: 8px; }
+}
+
+@media (max-height: 640px) and (max-width: 992px) {
+    nav ul { gap: 0; padding-top: 7px; }
+    nav ul li a { padding-block: 7px; font-size: 1rem; }
+    .header-buttons.active { grid-template-columns: 1fr 1fr; }
+    .header-buttons.active a { min-height: 40px; font-size: .82rem; }
+}
+
+
+/* ===== MOBILE HEADER CONTROL PAIR =====
+   Language sits directly left of the menu button; menu stays at the right edge. */
+@media (max-width: 600px) {
+    .header-container {
+        position: relative;
+        padding-left: 10px;
+        padding-right: 116px;
+    }
+
+    .hamburger {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        margin: 0;
+        transform: translateY(-50%);
+        z-index: 1450;
+    }
+
+    .lang-switcher {
+        position: absolute;
+        top: 50%;
+        right: 58px;
+        margin: 0;
+        transform: translateY(-50%);
+        z-index: 1450;
+    }
+
+    .lang-dropdown {
+        right: 0;
+        left: auto;
+    }
+
+    [dir="rtl"] .lang-switcher {
+        right: 58px;
+        margin: 0;
+    }
+}
+
+@media (max-width: 380px) {
+    .header-container { padding-right: 108px; }
+    .lang-switcher { right: 54px; }
+    .hamburger { right: 8px; }
+}

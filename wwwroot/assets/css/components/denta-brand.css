@@ -1,81 +1,132 @@
 /* Denta bot branding -------------------------------------------------------
    The floating launcher and chat header use the dedicated Denta logo.
-   Bot replies use the compact tooth-only Denta mascot, so the conversation keeps
-   the same character without repeating the full wordmark on every message. */
+   Individual bot replies use the generated Denta AI operator portrait. The
+   CSS background is an immediate fallback; a tiny DOM upgrader also inserts a
+   real <img> so the avatar stays visible across streaming and fallback replies. */
 
 .chat-toggle > svg {
-    display: none;
+  display: none;
 }
 
 .chat-toggle::after {
-    content: '';
-    position: relative;
-    z-index: 1;
-    width: 58px;
-    height: 58px;
-    display: block;
-    background: url('/assets/images/denta-logo.svg') center / contain no-repeat;
-    filter: drop-shadow(0 4px 8px rgba(4, 53, 103, .22));
-    pointer-events: none;
+  content: '';
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  display: block;
+  background: url('/assets/images/denta-logo.svg') center / contain no-repeat;
+  filter: drop-shadow(0 4px 8px rgba(4, 53, 103, .22));
+  pointer-events: none;
 }
 
 .chat-toggle {
-    background: linear-gradient(145deg, #f9fdff 0%, #dff9ff 52%, #bfeaff 100%);
-    box-shadow: 0 8px 28px rgba(0, 126, 214, .34), 0 0 0 1px rgba(255,255,255,.9) inset;
-    overflow: visible;
+  background: linear-gradient(145deg, #f9fdff 0%, #dff9ff 52%, #bfeaff 100%);
+  box-shadow: 0 8px 28px rgba(0, 126, 214, .34), 0 0 0 1px rgba(255,255,255,.9) inset;
+  overflow: visible;
 }
 
-.chat-toggle:hover {
+  .chat-toggle:hover {
     box-shadow: 0 12px 38px rgba(0, 126, 214, .42);
-}
+  }
 
 .chat-avatar {
-    width: 54px;
-    height: 54px;
-    flex: 0 0 54px;
-    font-size: 0;
-    background-color: rgba(255,255,255,.96);
-    background-image: url('/assets/images/denta-logo.svg');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 112%;
-    border: 2px solid rgba(255,255,255,.78);
-    border-radius: 18px;
-    box-shadow: 0 6px 18px rgba(3, 64, 117, .24), 0 0 0 4px rgba(255,255,255,.1);
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  font-size: 0;
+  background-color: rgba(255,255,255,.96);
+  background-image: url('/assets/images/denta-logo.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 112%;
+  border: 2px solid rgba(255,255,255,.78);
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(3, 64, 117, .24), 0 0 0 4px rgba(255,255,255,.1);
 }
 
-/* Tooth-only Denta mascot for every bot reply. The legacy 🦷 text remains in the
-   DOM as a harmless fallback, but is visually replaced by the branded asset. */
-.chat-bubble-avatar {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    font-size: 0;
-    background-color: transparent;
-    background-image: url('/assets/images/denta-reply-avatar.png');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    border: 0;
-    border-radius: 0;
-    filter: drop-shadow(0 2px 5px rgba(3, 64, 117, .18));
+/* Keep Denta's portrait physically inside the reply row instead of relying on
+   an inline emoji/background-only span. Explicit sizing/min-width prevents the
+   avatar slot from collapsing when a long streamed reply is rendered. */
+.chat-bubble--bot .chat-bubble-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* REPLY AVATAR WITHOUT BOX / SQUARE BACKGROUND */
+.chat-bubble--bot .chat-bubble-avatar {
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: visible;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+  background: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.chat-bubble--bot .chat-bubble-avatar--ready {
+  background-image: none;
+}
+
+/* Show only the PNG tooth itself */
+.chat-bubble--bot .denta-reply-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Optional: a very soft glow only around the tooth itself, not a square box */
+.chat-bubble--bot .denta-reply-avatar-image {
+  filter: drop-shadow(0 2px 6px rgba(0, 208, 255, .18));
+}
+
+[data-theme="dark"] .chat-bubble--bot .chat-bubble-avatar {
+  background: transparent;
+  border: none;
 }
 
 @media (max-width: 480px) {
-    .chat-toggle::after {
-        width: 52px;
-        height: 52px;
-    }
+  .chat-toggle::after {
+    width: 52px;
+    height: 52px;
+  }
 
-    .chat-avatar {
-        width: 48px;
-        height: 48px;
-        flex-basis: 48px;
-    }
+  .chat-avatar {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+  }
 
-    .chat-bubble-avatar {
-        width: 34px;
-        height: 34px;
-        flex-basis: 34px;
-    }
+  .chat-bubble--bot .chat-bubble-avatar {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+  }
+
+  .chat-bubble--bot .denta-reply-avatar-image {
+    border-radius: 0;
+  }
 }

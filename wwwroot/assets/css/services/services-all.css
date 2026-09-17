@@ -1,4 +1,4 @@
-﻿/* ---------- INTRO (текст + картинка с анимацией) ---------- */
+/* ---------- INTRO (текст + картинка с анимацией) ---------- */
 
 .intro-section {
     background: radial-gradient(circle at top left, #e9fffa 0%, #fbfbfb 55%, #ecf7f4 100%);
@@ -407,5 +407,89 @@
     .ba-image-wrapper,
     .after-image {
         height: 250px;
+    }
+}
+
+
+/* ===== CONSISTENT SERVICE PRICING CARDS =====
+   Keep headings, price panels and CTAs aligned across every service detail page. */
+.service-detail-page .card-grid--pricing {
+    align-items: stretch;
+}
+
+.service-detail-page .card-grid--pricing .card--pricing {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Featured pricing cards keep their highlight but do not float/scale out of row alignment. */
+.service-detail-page .card-grid--pricing .card--pricing.card--featured,
+.service-detail-page .card-grid--pricing .card--pricing.featured {
+    transform: none;
+    animation: none;
+}
+
+.service-detail-page .card--pricing .card__header {
+    min-height: 136px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.service-detail-page .card--pricing .card__header h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    line-height: 1.35;
+}
+
+.service-detail-page .card--pricing .card__desc {
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 1.45;
+}
+
+.service-detail-page .card--pricing .card__price {
+    min-height: 108px;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.service-detail-page .card--pricing .card__price .amount {
+    white-space: nowrap;
+    font-size: clamp(2rem, 2.55vw, 2.5rem);
+    line-height: 1.05;
+}
+
+.service-detail-page .card--pricing .card__price .currency {
+    flex: 0 0 auto;
+}
+
+.service-detail-page .card--pricing .card__list {
+    margin-top: 0;
+    flex: 1 1 auto;
+}
+
+.service-detail-page .card--pricing > .btn-primary {
+    margin-top: auto;
+    min-height: 62px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+    .service-detail-page .card--pricing .card__header {
+        min-height: 0;
+    }
+
+    .service-detail-page .card--pricing .card__price {
+        min-height: 92px;
+    }
+
+    .service-detail-page .card--pricing .card__price .amount {
+        font-size: clamp(1.95rem, 9vw, 2.35rem);
     }
 }

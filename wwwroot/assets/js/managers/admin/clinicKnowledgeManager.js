@@ -1,6 +1,7 @@
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, escapeHtml } from '../../services/ui.js';
 import { buildClinicKnowledgePayload, CLINIC_KNOWLEDGE_LIMITS } from './clinicKnowledgeUtils.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 class ClinicKnowledgeManager {
     constructor() {
@@ -66,7 +67,7 @@ class ClinicKnowledgeManager {
                 </div>
                 <div class="clinic-knowledge-summary" id="clinic-knowledge-summary">Загрузка…</div>
                 <div class="panel-table-wrap">
-                    <table class="panel-table">
+                    <table class="panel-table clinic-knowledge-table">
                         <thead><tr>
                             <th>ID</th><th>Категория / заголовок</th><th>Содержание</th><th>Ключевые слова</th><th>Статус</th><th class="col-actions">Действия</th>
                         </tr></thead>
@@ -170,8 +171,10 @@ class ClinicKnowledgeManager {
             this._render();
         } catch (error) {
             console.error('ClinicKnowledgeManager load error:', error);
-            this.tbody.innerHTML = '<tr><td colspan="6">Ошибка загрузки базы знаний</td></tr>';
-            showError('Не удалось загрузить базу знаний Denta');
+            const message = error?.message || 'Не удалось загрузить базу знаний Denta';
+            this.tbody.innerHTML = `<tr><td colspan="6" class="panel-error">${escapeHtml(message)} <button type="button" class="panel-btn-secondary" data-retry-clinic-knowledge>Повторить</button></td></tr>`;
+            this.tbody.querySelector('[data-retry-clinic-knowledge]')?.addEventListener('click', () => this.loadAll());
+            showError(message);
         }
     }
 
@@ -199,12 +202,12 @@ class ClinicKnowledgeManager {
 
         this.tbody.innerHTML = rows.map(item => `
             <tr data-knowledge-id="${item.id}">
-                <td>${item.id}</td>
-                <td><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.title)}<div class="clinic-knowledge-order">Порядок: ${item.sortOrder}</div></td>
-                <td class="clinic-knowledge-content">${escapeHtml(item.content)}</td>
-                <td class="clinic-knowledge-keywords">${escapeHtml(item.keywords || '—')}</td>
-                <td><span class="status-badge ${item.isActive ? 'status-confirmed' : 'status-cancelled'}">${item.isActive ? 'Активно' : 'Отключено'}</span></td>
-                <td><div class="panel-table-actions">
+                <td data-label="ID">${item.id}</td>
+                <td data-label="Категория / заголовок"><strong>${escapeHtml(item.category)}</strong><br>${escapeHtml(item.title)}<div class="clinic-knowledge-order">Порядок: ${item.sortOrder}</div></td>
+                <td data-label="Содержание" class="clinic-knowledge-content">${escapeHtml(item.content)}</td>
+                <td data-label="Ключевые слова" class="clinic-knowledge-keywords">${escapeHtml(item.keywords || '—')}</td>
+                <td data-label="Статус"><span class="status-badge ${item.isActive ? 'status-confirmed' : 'status-cancelled'}">${item.isActive ? 'Активно' : 'Отключено'}</span></td>
+                <td data-label="Действия"><div class="panel-table-actions">
                     <button type="button" class="btn-tag btn-edit" data-edit-knowledge="${item.id}" title="Редактировать">✏️</button>
                     <button type="button" class="btn-tag ${item.isActive ? 'btn-cancel' : 'btn-confirm'}" data-toggle-knowledge="${item.id}" title="${item.isActive ? 'Отключить' : 'Активировать'}">${item.isActive ? '✕' : '✓'}</button>
                 </div></td>
@@ -309,10 +312,28 @@ class ClinicKnowledgeManager {
             .clinic-knowledge-info{font-size:.92rem;line-height:1.5;border-left:4px solid #13b39b}
             .clinic-knowledge-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
             .clinic-knowledge-dialog{max-width:760px}
-            .clinic-knowledge-content{max-width:420px;white-space:normal;word-break:break-word;line-height:1.45}
-            .clinic-knowledge-keywords{max-width:220px;white-space:normal;word-break:break-word}
+            .clinic-knowledge-table{table-layout:fixed;width:100%}
+            .clinic-knowledge-table th,.clinic-knowledge-table td{white-space:normal;overflow-wrap:anywhere;word-break:normal;vertical-align:top}
+            .clinic-knowledge-table th:nth-child(1),.clinic-knowledge-table td:nth-child(1){width:5%}
+            .clinic-knowledge-table th:nth-child(2),.clinic-knowledge-table td:nth-child(2){width:19%}
+            .clinic-knowledge-table th:nth-child(3),.clinic-knowledge-table td:nth-child(3){width:34%}
+            .clinic-knowledge-table th:nth-child(4),.clinic-knowledge-table td:nth-child(4){width:20%}
+            .clinic-knowledge-table th:nth-child(5),.clinic-knowledge-table td:nth-child(5){width:12%}
+            .clinic-knowledge-table th:nth-child(6),.clinic-knowledge-table td:nth-child(6){width:10%}
+            .clinic-knowledge-content{white-space:normal;overflow-wrap:anywhere;line-height:1.45}
+            .clinic-knowledge-keywords{white-space:normal;overflow-wrap:anywhere;line-height:1.35}
             .clinic-knowledge-order{margin-top:4px;color:#7b8c87;font-size:.8rem}
-            @media(max-width:700px){.clinic-knowledge-grid{grid-template-columns:1fr}.clinic-knowledge-toolbar>*{width:100%}}
+            @media(max-width:900px){
+                .clinic-knowledge-grid{grid-template-columns:1fr}
+                .clinic-knowledge-toolbar>*{width:100%;min-width:0!important}
+                .clinic-knowledge-table,.clinic-knowledge-table tbody,.clinic-knowledge-table tr,.clinic-knowledge-table td{display:block;width:100%!important}
+                .clinic-knowledge-table thead{display:none}
+                .clinic-knowledge-table tr{padding:12px 14px;margin:0 0 12px;border:1px solid #e1ece8;border-radius:12px;background:#fff}
+                .clinic-knowledge-table td{display:grid;grid-template-columns:minmax(110px,34%) 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #eef3f1}
+                .clinic-knowledge-table td:last-child{border-bottom:0}
+                .clinic-knowledge-table td::before{content:attr(data-label);font-size:.74rem;font-weight:800;text-transform:uppercase;color:#4b7a70}
+                .clinic-knowledge-table .panel-table-actions{justify-self:start}
+            }
         `;
         document.head.appendChild(style);
     }
@@ -320,7 +341,7 @@ class ClinicKnowledgeManager {
 
 export function installClinicKnowledgeManager() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const manager = new ClinicKnowledgeManager();
         manager.init();
         window.ClinicKnowledgeManagerInstance = manager;

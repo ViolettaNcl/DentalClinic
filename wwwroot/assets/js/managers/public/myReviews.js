@@ -3,6 +3,7 @@ import { showSuccess, showError } from '../../services/ui.js';
 import { formatDate } from '../../services/dateUtils.js';
 import { t, onLanguageChange, getLang } from '../../core/i18n.js';
 import { translateReviewText } from '../../services/reviewTranslate.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 /**
  * Управляет разделом "Мои отзывы" в личном кабинете пациента:
@@ -24,6 +25,8 @@ class MyReviewsManager {
 
         this.selectedRating = 0;
         this._lastReviews = null;
+        this._loadedOnce = false;
+        this._loadPromise = null;
         this._buildDicts();
 
         // При смене языка пересобираем подписи статусов/оценок и перерисовываем
@@ -59,7 +62,23 @@ class MyReviewsManager {
         if (!this.listEl || !this.patientId) return;
         this._setupModal();
         this._setupLeaveButton();
-        this.load();
+
+        const nav = document.querySelector('.panel-nav-link[data-section="reviews"]');
+        nav?.addEventListener('click', () => this.loadOnce());
+        if (nav?.classList.contains('active')) this.loadOnce();
+    }
+
+    loadOnce() {
+        if (this._loadedOnce) return Promise.resolve(this._lastReviews);
+        if (this._loadPromise) return this._loadPromise;
+
+        this._loadPromise = this.load()
+            .then(result => {
+                if (Array.isArray(result)) this._loadedOnce = true;
+                return result;
+            })
+            .finally(() => { this._loadPromise = null; });
+        return this._loadPromise;
     }
 
     async load() {
@@ -68,9 +87,13 @@ class MyReviewsManager {
             this._lastReviews = reviews;
             this._renderNotice(reviews);
             this._renderList(reviews);
+            return reviews;
         } catch (err) {
             console.error('MyReviewsManager load error:', err);
-            this.listEl.innerHTML = `<p class="panel-error">${t('myreview_load_error', 'Не удалось загрузить ваши отзывы')}</p>`;
+            const message = err?.message || t('myreview_load_error', 'Не удалось загрузить ваши отзывы');
+            this.listEl.innerHTML = `<div class="panel-error">${this._esc(message)} <button type="button" class="panel-btn-secondary" data-retry-my-reviews>${t('ui_retry', 'Повторить')}</button></div>`;
+            this.listEl.querySelector('[data-retry-my-reviews]')?.addEventListener('click', () => this.load());
+            return null;
         }
     }
 
@@ -264,6 +287,6 @@ class MyReviewsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new MyReviewsManager().init());
+runWhenDomReady(() => new MyReviewsManager().init());
 
 export { MyReviewsManager };

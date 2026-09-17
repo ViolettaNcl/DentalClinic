@@ -382,6 +382,53 @@ public class ReviewController : ControllerBase
         return Ok(new { items, page, pageSize, total, totalPages });
     }
 
+    [HttpGet("admin/summary")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAdminSummary(CancellationToken cancellationToken)
+    {
+        // Analytics needs counts/ratings, not three full review arrays. Keep this
+        // aggregate endpoint small so opening Analytics does not create three
+        // simultaneous remote SQL reads.
+        var statusCounts = await _context.Reviews
+            .AsNoTracking()
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var approvedMetrics = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.Status == "approved")
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                Average = g.Average(r => (double)r.Rating)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var ratingCounts = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.Status == "approved")
+            .GroupBy(r => r.Rating)
+            .Select(g => new { Rating = g.Key, Count = g.Count() })
+            .OrderBy(x => x.Rating)
+            .ToListAsync(cancellationToken);
+
+        var byStatus = statusCounts.ToDictionary(
+            item => item.Status ?? string.Empty,
+            item => item.Count,
+            StringComparer.OrdinalIgnoreCase);
+
+        return Ok(new
+        {
+            pending = byStatus.GetValueOrDefault("pending"),
+            approved = byStatus.GetValueOrDefault("approved"),
+            rejected = byStatus.GetValueOrDefault("rejected"),
+            averageApproved = approvedMetrics == null ? 0 : Math.Round(approvedMetrics.Average, 1),
+            ratings = ratingCounts.Select(x => new { rating = x.Rating, count = x.Count })
+        });
+    }
+
     // Legacy array routes are retained for compatibility, but are now strictly bounded.
     [HttpGet("admin/pending")]
     [Authorize(Roles = "Admin")]

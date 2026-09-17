@@ -1,4 +1,5 @@
 import { apiFetch } from '../../services/apiClient.js';
+import { runWhenDomReady } from '../../core/domReady.js';
 
 export function buildAdminAnalyticsViewModel(summary = {}) {
     const statuses = summary.statuses || {};
@@ -175,9 +176,10 @@ function renderCharts(viewModel, analytics) {
 export function installAdminAnalyticsSummary() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    runWhenDomReady(() => {
         const analytics = window.AnalyticsManagerInstance;
-        if (!analytics) return;
+        if (!analytics || analytics.__serverSummaryInstalled) return;
+        analytics.__serverSummaryInstalled = true;
 
         // Appointment tables still load their full rows for CRM operations, but the
         // analytics cards/charts now use the tested server-side aggregate endpoint.
@@ -186,13 +188,16 @@ export function installAdminAnalyticsSummary() {
 
         let lastSummary = null;
         let chartRetry = null;
+        let chartRetryCount = 0;
+        let loadedOnce = false;
+        let loadPromise = null;
 
         const render = (summary) => {
             lastSummary = summary;
             const viewModel = buildAdminAnalyticsViewModel(summary);
             renderCards(viewModel);
 
-            if (!renderCharts(viewModel, analytics)) {
+            if (!renderCharts(viewModel, analytics) && chartRetryCount++ < 20) {
                 clearTimeout(chartRetry);
                 chartRetry = setTimeout(() => {
                     if (lastSummary) renderCharts(buildAdminAnalyticsViewModel(lastSummary), analytics);
@@ -200,39 +205,51 @@ export function installAdminAnalyticsSummary() {
             }
         };
 
-        const loadSummary = async ({ silent = false } = {}) => {
-            try {
-                const summary = await apiFetch('/adminstats/summary');
-                render(summary);
-                return summary;
-            } catch (error) {
-                console.error('Admin analytics summary error:', error);
-                if (!silent) {
-                    const total = document.getElementById('an-total');
-                    if (total && total.textContent === '—') total.textContent = 'Ошибка';
-                }
-                return null;
+        const loadSummary = ({ silent = false, force = false } = {}) => {
+            if (loadedOnce && !force) {
+                if (lastSummary) render(lastSummary);
+                return Promise.resolve(lastSummary);
             }
+            if (loadPromise && !force) return loadPromise;
+
+            loadPromise = (async () => {
+                try {
+                    const summary = await apiFetch('/adminstats/summary');
+                    loadedOnce = true;
+                    render(summary);
+                    return summary;
+                } catch (error) {
+                    console.error('Admin analytics summary error:', error);
+                    if (!silent) {
+                        const total = document.getElementById('an-total');
+                        if (total && total.textContent === '—') total.textContent = 'Ошибка';
+                    }
+                    return null;
+                } finally {
+                    loadPromise = null;
+                }
+            })();
+
+            return loadPromise;
         };
 
-        window.refreshAdminAnalyticsSummary = loadSummary;
+        window.refreshAdminAnalyticsSummary = options =>
+            loadSummary({ ...(options || {}), force: true });
 
-        const requests = window.AdminRequestsManagerInstance;
-        if (requests && !requests.__serverAnalyticsWrapped) {
-            const originalLoadAll = requests.loadAll.bind(requests);
-            requests.loadAll = async (...args) => {
-                try {
-                    return await originalLoadAll(...args);
-                } finally {
-                    await loadSummary({ silent: true });
-                }
-            };
-            requests.__serverAnalyticsWrapped = true;
-        }
+        // Appointment mutations happen on other tabs. Mark the cached aggregate as
+        // stale immediately, but only hit the database again when Analytics is visible.
+        window.invalidateAdminAnalyticsSummary = () => {
+            loadedOnce = false;
+            const analyticsNav = document.querySelector('.panel-nav-link[data-section="analytics"]');
+            if (analyticsNav?.classList.contains('active'))
+                void loadSummary({ silent: true, force: true });
+        };
 
-        document.querySelector('.panel-nav-link[data-section="analytics"]')
-            ?.addEventListener('click', () => loadSummary({ silent: true }));
+        const analyticsNav = document.querySelector('.panel-nav-link[data-section="analytics"]');
+        analyticsNav?.addEventListener('click', () => loadSummary({ silent: true, force: true }));
 
-        loadSummary();
+        if (typeof sessionStorage !== 'undefined'
+            && sessionStorage.getItem('admin_active_section') === 'analytics')
+            loadSummary({ silent: true });
     });
 }

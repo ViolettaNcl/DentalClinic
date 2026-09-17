@@ -49,6 +49,16 @@
 🇬🇷 Ελληνικά (греческий), 🇸🇦 العربية (арабский), 🇫🇷 Français (французский) — переключаются
 мгновенно, без перезагрузки страницы, кнопкой в шапке сайта.
 
+
+## ✅ Текущее состояние интерфейса
+
+- Адаптивные публичные страницы для desktop / tablet / mobile.
+- Мобильный header: меню находится в правом углу, переключатель языка — непосредственно слева от него.
+- Единое выравнивание цен, описаний и CTA-кнопок на карточках всех страниц услуг.
+- Адаптивные Admin и Patient dashboards с мобильной навигацией.
+- Smile Meter использует один активный dental render, оптимизированные WebP-кадры и строго разделённые Front / Upper / Lower / Side наборы.
+- Поддерживаются RU / EN / FR / EL / AR, включая RTL для арабского.
+
 ## 📑 Оглавление
 
 - [Живое демо](#-живое-демо)
@@ -181,6 +191,8 @@ dotnet run
 | [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) | разработчики | Установка, конфигурация, структура кода |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | разработчики / DevOps | Публикация на сервер/хостинг |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | все | Реализованные меры безопасности, работа с секретами |
+| [`docs/SMILE_METER.md`](docs/SMILE_METER.md) | разработчики / QA | Текущая архитектура и правила Smile Meter |
+| [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) | QA / разработчики | Финальная проверка desktop / tablet / mobile |
 | [`docs/DentalClinic.postman_collection.json`](docs/DentalClinic.postman_collection.json) | разработчики | Готовая коллекция запросов для Postman |
 
 🇬🇧 English version of all documents is available in [`docs/en/`](docs/en/).

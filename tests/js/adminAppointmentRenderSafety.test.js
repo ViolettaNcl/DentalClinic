@@ -27,13 +27,14 @@ test('guard intercepts manager publication instead of relying on DOMContentLoade
     const dashboard = await source('wwwroot/assets/js/managers/admin/adminDashboard.js');
     const guard = await source('wwwroot/assets/js/managers/admin/adminAppointmentRenderGuard.js');
 
-    // The dashboard yields before creating/publishing the request manager. This is why
-    // a second DOMContentLoaded listener is not a safe synchronization point.
+    // Publish the manager through the guard before any request rows can render.
+    // Waiting for doctor names must not delay installation of the guard.
     assert.match(
         dashboard,
-        /await\s+loadDoctors\(\);[\s\S]*requests\.init\(\);\s*window\.AdminRequestsManagerInstance\s*=\s*requests;/
+        /window\.AdminRequestsManagerInstance\s*=\s*requests;[\s\S]*requests\.init\(\);[\s\S]*loadDoctors\(\)\.catch/
     );
 
+    assert.match(dashboard, /installAdminLogoutGuard\(\);[\s\S]*runWhenDomReady\(async/);
     assert.match(guard, /Object\.defineProperty\(window,\s*property,/);
     assert.match(guard, /set\(value\)\s*\{[\s\S]*harden\(value\);[\s\S]*Object\.defineProperty\(window,\s*property,/);
     assert.doesNotMatch(guard, /document\.addEventListener\('DOMContentLoaded'/);

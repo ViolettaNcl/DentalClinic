@@ -1,3 +1,4 @@
+import { runWhenDomReady } from '../../core/domReady.js';
 import { apiFetch } from '../../services/apiClient.js';
 import { showSuccess, showError, renderPagination } from '../../services/ui.js';
 import { formatDate } from '../../services/dateUtils.js';
@@ -19,6 +20,8 @@ class ReviewModerationManager {
         this._data = { pending: [], approved: [], rejected: [] };
         this._page = { pending: 1, approved: 1, rejected: 1 };
         this._total = { pending: 0, approved: 0, rejected: 0 };
+        this._loadedTabs = new Set();
+        this._loadPromises = new Map();
 
         this.modal = {
             wrap: document.getElementById('reject-review-modal'),
@@ -37,17 +40,48 @@ class ReviewModerationManager {
         this.modal.close?.addEventListener('click', () => this._hideModal());
         this.modal.cancel?.addEventListener('click', () => this._hideModal());
 
-        this.loadAll({ reset: true });
+        const nav = document.querySelector('.panel-nav-link[data-section="reviews"]');
+        nav?.addEventListener('click', () => this.loadTabOnce('pending'));
+
+        document.querySelectorAll('#section-reviews .panel-tab[data-tab]').forEach(button => {
+            button.addEventListener('click', () => {
+                const key = String(button.dataset.tab || '').replace('reviews-', '');
+                if (['pending', 'approved', 'rejected'].includes(key))
+                    this.loadTabOnce(key);
+            });
+        });
+
+        if (sessionStorage.getItem('admin_active_section') === 'reviews')
+            this.loadTabOnce('pending');
+    }
+
+    loadTabOnce(key) {
+        if (this._loadedTabs.has(key)) return Promise.resolve();
+        if (this._loadPromises.has(key)) return this._loadPromises.get(key);
+
+        const task = this._loadTab(key, this._page[key])
+            .then(success => {
+                if (success) this._loadedTabs.add(key);
+                return success;
+            })
+            .finally(() => { this._loadPromises.delete(key); });
+        this._loadPromises.set(key, task);
+        return task;
     }
 
     async loadAll({ reset = false } = {}) {
-        if (reset) this._page = { pending: 1, approved: 1, rejected: 1 };
+        if (reset) {
+            this._page = { pending: 1, approved: 1, rejected: 1 };
+            this._loadedTabs.clear();
+        }
 
-        await Promise.all([
-            this._loadTab('pending', this._page.pending),
-            this._loadTab('approved', this._page.approved),
-            this._loadTab('rejected', this._page.rejected),
-        ]);
+        // Moderation changes can affect more than one tab, so explicit refreshes
+        // update every tab sequentially instead of opening three SQL connections at once.
+        for (const key of ['pending', 'approved', 'rejected']) {
+            const success = await this._loadTab(key, this._page[key]);
+            if (success) this._loadedTabs.add(key);
+            else this._loadedTabs.delete(key);
+        }
     }
 
     async _loadTab(key, page = 1) {
@@ -62,10 +96,16 @@ class ReviewModerationManager {
             this._page[key] = Number(result?.page) || 1;
             this._total[key] = Number(result?.total) || 0;
             this._render(key);
+            return true;
         } catch (err) {
             console.error(`ReviewModeration [${key}] error:`, err);
-            tbody.innerHTML = `<tr><td colspan="6" class="panel-error">Ошибка загрузки</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="panel-error">
+                ${this._esc(err?.message || 'Ошибка загрузки')}
+                <button type="button" class="panel-btn-secondary" data-retry-review="${key}" style="margin-left:10px">Повторить</button>
+            </td></tr>`;
+            tbody.querySelector(`[data-retry-review="${key}"]`)?.addEventListener('click', () => this._loadTab(key, this._page[key]));
             if (this.paginationEl[key]) this.paginationEl[key].innerHTML = '';
+            return false;
         }
     }
 
@@ -200,7 +240,7 @@ class ReviewModerationManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+runWhenDomReady(() => {
     const manager = new ReviewModerationManager();
     manager.init();
     window.ReviewModerationManagerInstance = manager;

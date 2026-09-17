@@ -1,8 +1,8 @@
 namespace DentalClinic.Models;
 
 /// <summary>
-/// Public projection for doctor catalogue consumers. Keeping this contract explicit
-/// prevents future internal/admin-only Doctor fields from being exposed automatically.
+/// Explicit public projection for the doctor catalogue. Binary photo data and
+/// future internal fields never leave the server through this contract.
 /// </summary>
 public sealed record PublicDoctorDto(
     int Id,
@@ -13,4 +13,13 @@ public sealed record PublicDoctorDto(
     string? FullNameAr,
     string? Specialization,
     int? ExperienceYears,
-    string? Bio);
+    string? Bio,
+    string? RoleTitle,
+    string? Education,
+    string? Skills,
+    string? Philosophy,
+    string? Stat2Value,
+    string? Stat2Label,
+    string? Stat3Value,
+    string? Stat3Label,
+    string? PhotoUrl);

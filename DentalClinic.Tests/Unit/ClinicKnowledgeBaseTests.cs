@@ -145,17 +145,20 @@ public class ClinicKnowledgeBaseTests
     }
 
     [Fact]
-    public void ChatController_WiresCurrentMessageIntoBothKnowledgePaths()
+    public void DentaAiService_WiresCurrentMessageIntoAuthoritativeKnowledge()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-        var source = File.ReadAllText(Path.Combine(root, "Controllers/ChatController.cs"));
+        var aiSource = File.ReadAllText(Path.Combine(root, "Services/DentaAiService.cs"));
+        var controllerSource = File.ReadAllText(Path.Combine(root, "Controllers/ChatController.cs"));
 
-        Assert.Equal(2, CountOccurrences(source, "BuildSystemPromptAsync(lang, req.Message)"));
-        Assert.Contains("BuildSystemPromptAsync(string lang, string userQuery)", source, StringComparison.Ordinal);
         Assert.Contains(
-            "_knowledge.GetKnowledgeBlockAsync(userQuery, HttpContext.RequestAborted)",
-            source,
+            "_knowledge.GetKnowledgeBlockAsync(userQuery, cancellationToken)",
+            aiSource,
             StringComparison.Ordinal);
+        Assert.Contains("_knowledge.GetContactsBlock()", aiSource, StringComparison.Ordinal);
+        Assert.Contains("_siteKnowledge.GetRelevantKnowledgeBlockAsync(userQuery, cancellationToken)", aiSource, StringComparison.Ordinal);
+        Assert.Contains("_denta.AnswerAsync(", controllerSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("BuildSystemPromptAsync(lang, req.Message)", controllerSource, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -205,18 +208,6 @@ public class ClinicKnowledgeBaseTests
                 ["ChatKnowledge:MaxItems"] = maxItems.ToString()
             })
             .Build();
-
-    private static int CountOccurrences(string source, string value)
-    {
-        var count = 0;
-        var index = 0;
-        while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += value.Length;
-        }
-        return count;
-    }
 
     private static ApplicationDbContext CreateContext()
     {

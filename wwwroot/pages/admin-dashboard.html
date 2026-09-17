@@ -10,7 +10,7 @@
     <link rel="shortcut icon" href="/assets/images/logo/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/services/wow-effects.css">
+    <link rel="stylesheet" href="/assets/css/pages/dashboard.css">
     <style>
         .hidden {
             display: none !important;
@@ -50,17 +50,18 @@
                 border-bottom: none;
             }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <!-- Chart.js для раздела «Аналитика» -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" async></script>
 </head>
 <body class="panel-body">
 
     <main class="panel-main">
         <div class="panel-layout">
+            <button type="button" class="panel-mobile-nav-toggle" aria-label="Открыть навигацию" aria-expanded="false" aria-controls="dashboard-sidebar"><span aria-hidden="true">☰</span></button>
+            <div class="panel-sidebar-backdrop" hidden></div>
 
             <!-- Сайдбар -->
-            <aside class="panel-sidebar">
+            <aside class="panel-sidebar" id="dashboard-sidebar" aria-label="Навигация кабинета">
                 <div class="panel-brand">
                     <span class="panel-logo">DC</span>
                     <span class="panel-title">Администратор</span>
@@ -95,6 +96,7 @@
 
             <!-- Контент -->
             <section class="panel-content">
+                <h1 class="sr-only">Панель администратора DentalClinic</h1>
                 <div class="panel-content-inner">
 
                     <!-- Новые заявки -->
@@ -251,7 +253,7 @@
                             <div class="history-filters">
                                 <div class="history-search-wrap">
                                     <svg class="history-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-                                    <input type="text" id="history-search" class="history-search" placeholder="Поиск по имени или телефону...">
+                                    <input type="text" id="history-search" aria-label="Поиск по истории" class="history-search" placeholder="Поиск по имени или телефону...">
                                 </div>
                                 <div class="history-filter-group">
                                     <button class="history-filter-btn active" data-filter="all">Все</button>
@@ -642,15 +644,15 @@
                             <div class="panel-form">
                                 <div class="panel-form-group">
                                     <label>Email</label>
-                                    <input type="email" id="admin-profile-email" disabled>
+                                    <input type="email" id="admin-profile-email" aria-label="Email администратора" disabled>
                                 </div>
                                 <div class="panel-form-group">
                                     <label>Роль</label>
-                                    <input type="text" value="Администратор" disabled>
+                                    <input type="text" value="Администратор" aria-label="Роль" disabled>
                                 </div>
                                 <div class="panel-form-group">
                                     <label>Аккаунт создан</label>
-                                    <input type="text" id="admin-profile-created" disabled>
+                                    <input type="text" id="admin-profile-created" aria-label="Дата создания профиля" disabled>
                                 </div>
                             </div>
                         </div>
@@ -663,7 +665,7 @@
     <!-- Модальное окно причины отклонения отзыва -->
     <div id="reject-review-modal" class="panel-modal hidden">
         <div class="panel-modal-backdrop"></div>
-        <div class="panel-modal-dialog">
+        <div class="panel-modal-dialog" role="dialog" aria-modal="true" aria-label="Диалог">
             <div class="panel-modal-header">
                 <h3>Отклонить отзыв</h3>
                 <button type="button" class="panel-modal-close" id="reject-modal-close">&times;</button>
@@ -687,7 +689,7 @@
     <!-- Модальное окно редактирования -->
     <div id="edit-appointment-modal" class="panel-modal hidden">
         <div class="panel-modal-backdrop"></div>
-        <div class="panel-modal-dialog">
+        <div class="panel-modal-dialog" role="dialog" aria-modal="true" aria-label="Диалог">
             <div class="panel-modal-header">
                 <h3>Редактировать запись</h3>
                 <button type="button" class="panel-modal-close" id="edit-modal-close">&times;</button>
@@ -719,7 +721,7 @@
     <!-- Модальное окно добавления/редактирования врача -->
     <div id="doctor-modal" class="panel-modal hidden">
         <div class="panel-modal-backdrop"></div>
-        <div class="panel-modal-dialog">
+        <div class="panel-modal-dialog" role="dialog" aria-modal="true" aria-label="Диалог">
             <div class="panel-modal-header">
                 <h3 id="doctor-modal-title">Добавить врача</h3>
                 <button type="button" class="panel-modal-close" id="doctor-modal-close">&times;</button>
@@ -733,7 +735,7 @@
                     </div>
                     <div class="panel-form-group" id="doctor-active-group" style="display:none;">
                         <label>
-                            <input type="checkbox" id="doctor-active">
+                            <input type="checkbox" id="doctor-active" aria-label="Врач активен">
                             Врач активен (показывается в записи и на сайте)
                         </label>
                     </div>
@@ -751,5 +753,7 @@
     <script type="module" src="/assets/js/managers/admin/adminDashboard.js"></script>
     <script type="module" src="/assets/js/managers/admin/reviewModeration.js"></script>
     <script type="module" src="/assets/js/managers/admin/doctorsManager.js"></script>
+    <script type="module" src="/assets/js/core/dashboardResponsive.js"></script>
+    <script type="module" src="/assets/js/core/dashboardLocale.js"></script>
 </body>
 </html>

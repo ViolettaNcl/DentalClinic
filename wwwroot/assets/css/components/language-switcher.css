@@ -103,10 +103,12 @@
 /* ── Мобильный: кнопка языка всегда видна ── */
 @media (max-width: 600px) {
     .lang-switcher {
-        position: fixed;
-        top: 26px;
-        right: 66px;
-        z-index: 1400;
+        position: absolute;
+        top: 50%;
+        right: 58px;
+        transform: translateY(-50%);
+        margin: 0;
+        z-index: 1450;
     }
 
     .lang-btn {
@@ -189,5 +191,6 @@
 @media (max-width: 600px) {
     [dir="rtl"] .lang-switcher {
         right: 58px;
+        margin: 0;
     }
 }

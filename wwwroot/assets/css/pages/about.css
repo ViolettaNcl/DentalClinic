@@ -1,7 +1,6 @@
 .about-section {
     background: linear-gradient(135deg, #f5f8f7 0%, #e8f5f2 100%);
     padding: clamp(60px, 10vw, 90px) 20px;
-    overflow-x: hidden;
     position: relative;
 }
 

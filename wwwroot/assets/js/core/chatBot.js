@@ -704,9 +704,12 @@ class ChatBot {
                     try { payload = JSON.parse(line.slice(5).trim()); } catch { continue; }
 
                     if (payload.error) {
+                        // Explicit server/provider errors are already classified by the backend.
+                        // Do not repeat the same AI request through /api/chat: that used to double
+                        // quota/cost and often produced a second identical failure.
                         this._hideTyping();
-                        if (!gotAnyDelta) return false; // ошибка до старта — пусть сработает фолбэк
                         this._addBotMessage(payload.error, [], []);
+                        this.history.push({ role: 'bot', text: payload.error });
                         return true;
                     }
 
@@ -794,12 +797,19 @@ class ChatBot {
             const linksWrap = document.createElement('div');
             linksWrap.className = 'chat-links';
             links.forEach(link => {
+                // Normal API responses use camelCase. Older/local SSE responses may
+                // contain PascalCase DTO fields. Accept both, and never render a
+                // broken link when a provider/backend response is malformed.
+                const url = String(link?.url ?? link?.Url ?? '').trim();
+                const text = String(link?.text ?? link?.Text ?? '').trim();
+                if (!url.startsWith('/pages/') || !text) return;
+
                 const a = document.createElement('a');
                 a.className = 'chat-link-btn';
-                a.href = link.url;
-                a.dataset.origText = link.text;
+                a.href = url;
+                a.dataset.origText = text;
                 a.dataset.origLang = this.lang;
-                a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> <span class="chat-link-label">${this._escapeHtml(link.text)}</span>`;
+                a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> <span class="chat-link-label">${this._escapeHtml(text)}</span>`;
                 linksWrap.appendChild(a);
             });
             messages.appendChild(linksWrap);
@@ -1109,12 +1119,19 @@ class ChatBot {
             const linksWrap = document.createElement('div');
             linksWrap.className = 'chat-links';
             links.forEach(link => {
+                // Normal API responses use camelCase. Older/local SSE responses may
+                // contain PascalCase DTO fields. Accept both, and never render a
+                // broken link when a provider/backend response is malformed.
+                const url = String(link?.url ?? link?.Url ?? '').trim();
+                const text = String(link?.text ?? link?.Text ?? '').trim();
+                if (!url.startsWith('/pages/') || !text) return;
+
                 const a = document.createElement('a');
                 a.className = 'chat-link-btn';
-                a.href = link.url;
-                a.dataset.origText = link.text;
+                a.href = url;
+                a.dataset.origText = text;
                 a.dataset.origLang = this.lang;
-                a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> <span class="chat-link-label">${this._escapeHtml(link.text)}</span>`;
+                a.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> <span class="chat-link-label">${this._escapeHtml(text)}</span>`;
                 linksWrap.appendChild(a);
             });
             messages.appendChild(linksWrap);
@@ -1213,7 +1230,7 @@ class ChatBot {
     }
 
     _removeSuggestions() {
-        document.querySelectorAll('.chat-suggestions, .chat-links, .chat-booking-start').forEach(el => el.remove());
+        document.querySelectorAll('.chat-suggestions, .chat-booking-start').forEach(el => el.remove());
     }
 
     _showTyping() {

@@ -9,31 +9,54 @@ import { installAdminAppointmentRenderGuard } from './adminAppointmentRenderGuar
 let installed = false;
 let logoutInProgress = false;
 let bootstrappedAdminSession = null;
+let adminSessionBootstrapPromise = null;
 
-// This module is imported by doctorsManager.js, one of the parser-inserted admin
-// dashboard modules. Top-level await keeps DOMContentLoaded behind the cookie
-// session check so adminDashboard.js sees restored metadata even in a new tab.
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    try {
-        // Access management is browser-only. Keep the dynamic import inside this
-        // guard so Node regression tests can import this session module without a DOM.
-        await import('./adminAccessManager.js');
+function showSessionBootstrapError() {
+    if (typeof document === 'undefined') return;
+    if (document.querySelector('[data-admin-session-bootstrap-error]')) return;
 
-        bootstrappedAdminSession = await requireServerSession('admin');
-        if (bootstrappedAdminSession) {
+    const message = document.createElement('div');
+    message.className = 'panel-error';
+    message.dataset.adminSessionBootstrapError = 'true';
+    message.style.margin = '16px';
+    message.textContent = 'Не удалось проверить сеанс администратора. Данные могут загружаться медленно; попробуйте обновить страницу или проверьте соединение.';
+    document.body.prepend(message);
+}
+
+// Session verification can touch a remote SQL Server. Start it in the background,
+// but never hold the ES-module graph (and therefore DOMContentLoaded/tab handlers)
+// behind that network request. Invalid/missing sessions are still redirected by
+// requireServerSession(), so this changes responsiveness, not the security boundary.
+export function bootstrapAdminSession() {
+    if (adminSessionBootstrapPromise) return adminSessionBootstrapPromise;
+    if (typeof window === 'undefined' || typeof document === 'undefined')
+        return Promise.resolve(null);
+
+    adminSessionBootstrapPromise = (async () => {
+        try {
+            // Verify the cookie session first. This primes the short-lived token-version
+            // cache before the dashboard starts its other protected API requests, which
+            // prevents an initial burst of duplicate remote-SQL auth checks.
+            bootstrappedAdminSession = await requireServerSession('admin');
+            if (!bootstrappedAdminSession) return null;
+
             const nameEl = document.querySelector('.panel-user-name');
             const emailEl = document.querySelector('.panel-user-email');
             if (nameEl) nameEl.textContent = bootstrappedAdminSession.name || 'Администратор';
             if (emailEl) emailEl.textContent = bootstrappedAdminSession.email || '—';
+
+            // Access management is browser-only and may perform its own protected API
+            // call. Load it only after the session check above has completed.
+            await import('./adminAccessManager.js');
+            return bootstrappedAdminSession;
+        } catch (err) {
+            console.error('Admin session bootstrap failed:', err?.message || err);
+            showSessionBootstrapError();
+            return null;
         }
-    } catch (err) {
-        console.error('Admin session bootstrap failed:', err?.message || err);
-        const message = document.createElement('div');
-        message.className = 'panel-error';
-        message.style.margin = '16px';
-        message.textContent = 'Не удалось проверить сеанс администратора. Обновите страницу или проверьте соединение.';
-        document.body.prepend(message);
-    }
+    })();
+
+    return adminSessionBootstrapPromise;
 }
 
 export function getBootstrappedAdminSession() {
@@ -82,4 +105,9 @@ export function installAdminLogoutGuard() {
             showError('Не удалось завершить серверную сессию. Проверьте соединение и попробуйте ещё раз.');
         }
     }, true);
+}
+
+// Fire-and-forget on browser pages: this deliberately does not use top-level await.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    void bootstrapAdminSession();
 }

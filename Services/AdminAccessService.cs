@@ -50,10 +50,14 @@ IF @lockResult < 0
 
     private static readonly SemaphoreSlim ProcessGate = new(1, 1);
     private readonly ApplicationDbContext _db;
+    private readonly TokenVersionCache? _tokenVersionCache;
 
-    public AdminAccessService(ApplicationDbContext db)
+    public AdminAccessService(
+        ApplicationDbContext db,
+        TokenVersionCache? tokenVersionCache = null)
     {
         _db = db;
+        _tokenVersionCache = tokenVersionCache;
     }
 
     public Task<bool> IsSuperAdminAsync(int adminId, CancellationToken cancellationToken = default)
@@ -166,6 +170,7 @@ IF @lockResult < 0
             target.IsSuperAdmin = isSuperAdmin;
             target.TokenVersion = checked(target.TokenVersion + 1);
             await _db.SaveChangesAsync(cancellationToken);
+            _tokenVersionCache?.Set("Admin", target.Id, target.TokenVersion);
 
             return new AdminAccessOperation(AdminAccessError.None, ToSummary(target));
         }, cancellationToken);
@@ -189,6 +194,7 @@ IF @lockResult < 0
             target.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
             target.TokenVersion = checked(target.TokenVersion + 1);
             await _db.SaveChangesAsync(cancellationToken);
+            _tokenVersionCache?.Set("Admin", target.Id, target.TokenVersion);
 
             return new AdminAccessOperation(AdminAccessError.None, ToSummary(target));
         }, cancellationToken);
@@ -223,6 +229,7 @@ IF @lockResult < 0
             var summary = ToSummary(target);
             _db.Admins.Remove(target);
             await _db.SaveChangesAsync(cancellationToken);
+            _tokenVersionCache?.Remove("Admin", target.Id);
             return new AdminAccessOperation(AdminAccessError.None, summary);
         }, cancellationToken);
 
