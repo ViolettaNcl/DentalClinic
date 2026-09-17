@@ -85,6 +85,7 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         return response;
     }
 
+
     private void ApplyApiKey(HttpRequestMessage request)
     {
         var apiKey = _configuration["Gemini:ApiKey"];
@@ -93,8 +94,11 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
         {
             request.Headers.Remove("x-goog-api-key");
 
-            request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
+            request.Headers.TryAddWithoutValidation(
+                "x-goog-api-key",
+                apiKey);
         }
+
 
         var builder = new UriBuilder(request.RequestUri!);
 
@@ -105,15 +109,16 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
                     .TrimStart('?')
                     .Split('&', StringSplitOptions.RemoveEmptyEntries)
                     .Where(pair =>
-                        !pair.StartsWith(
-                            "key=",
+                        !pair.StartsWith("key=",
                             StringComparison.OrdinalIgnoreCase));
+
 
             builder.Query = string.Join("&", filtered);
 
             request.RequestUri = builder.Uri;
         }
     }
+
 
     private static async Task RemoveDuplicateTrailingUserMessageAsync(
         HttpRequestMessage request,
@@ -128,8 +133,10 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return;
         }
 
+
         var raw = await request.Content.ReadAsStringAsync(
             cancellationToken);
+
 
         JsonNode? root;
 
@@ -142,11 +149,13 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return;
         }
 
+
         if (root?["contents"] is not JsonArray contents ||
             contents.Count < 2)
         {
             return;
         }
+
 
         if (!IsSameUserMessage(
                 contents[^2],
@@ -155,17 +164,22 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return;
         }
 
+
         contents.RemoveAt(contents.Count - 1);
 
+
         var oldContent = request.Content;
+
 
         request.Content = new StringContent(
             root.ToJsonString(),
             Encoding.UTF8,
             "application/json");
 
+
         oldContent.Dispose();
     }
+
 
     private static bool IsSameUserMessage(
         JsonNode? left,
@@ -184,11 +198,13 @@ public sealed class GeminiApiKeyHandler : DelegatingHandler
             return false;
         }
 
+
         var leftText =
             left?["parts"]?[0]?["text"]?.GetValue<string>();
 
         var rightText =
             right?["parts"]?[0]?["text"]?.GetValue<string>();
+
 
         return !string.IsNullOrWhiteSpace(leftText)
             && string.Equals(
