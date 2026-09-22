@@ -1,12 +1,21 @@
 <div align="center">
 
-<img src="wwwroot/assets/images/denta-logo.svg" alt="Логотип DentalClinic" width="104">
+<img src="docs/assets/readme-hero-ru.svg" alt="DentalClinic — современная платформа стоматологической клиники" width="100%">
 
-# DentalClinic
+<br>
 
-**Веб-платформа стоматологической клиники: публичный сайт, личный кабинет пациента, управление работой клиники, уведомления в реальном времени и ИИ-ассистент с проверкой ответов.**
+<a href="README.md"><img src="https://img.shields.io/badge/English-13B39B?style=for-the-badge" alt="English"></a>
+<a href="README.ru.md"><img src="https://img.shields.io/badge/Русский-0A8A77?style=for-the-badge" alt="Русский"></a>
 
-[English](README.md) · [Русский](README.ru.md)
+<br><br>
+
+<a href="https://dental-clinic-vn.vercel.app/"><img src="https://img.shields.io/badge/LIVE_DEMO-13B39B?style=for-the-badge&logo=vercel&logoColor=white" alt="Live demo"></a>
+<a href="docs/README.ru.md"><img src="https://img.shields.io/badge/ДОКУМЕНТАЦИЯ-0A8A77?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Документация"></a>
+<a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/АРХИТЕКТУРА-0A534A?style=for-the-badge&logo=diagramsdotnet&logoColor=white" alt="Архитектура"></a>
+<a href="docs/API.md"><img src="https://img.shields.io/badge/API-FFB672?style=for-the-badge&logo=swagger&logoColor=111111" alt="API"></a>
+<a href="docs/SECURITY.md"><img src="https://img.shields.io/badge/БЕЗОПАСНОСТЬ-111827?style=for-the-badge&logo=shield&logoColor=white" alt="Безопасность"></a>
+
+<br><br>
 
 [![CI](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml)
@@ -14,11 +23,25 @@
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 
-[Открыть приложение](https://dental-clinic-vn.vercel.app/) · [Документация](docs/README.ru.md) · [Архитектура](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Участие в разработке](CONTRIBUTING.md)
-
 </div>
 
 ![Главная страница DentalClinic](docs/screenshots/home.png)
+<details>
+<summary><strong>✨ Исследовать систему DentalClinic</strong></summary>
+
+<br>
+
+| Раздел | Открыть |
+|---|---|
+| 🏗 Архитектура | [Устройство системы, границы доверия и потоки данных](docs/ARCHITECTURE.md) |
+| 📡 API | [Справочник REST API](docs/API.md) |
+| 🔒 Безопасность | [Меры защиты, границы и остаточные риски](docs/SECURITY.md) |
+| 👨‍💻 Руководство разработчика | [Локальный запуск, миграции и тесты](docs/DEVELOPER_GUIDE.md) |
+| 🚀 Развёртывание | [Vercel, Docker и проверки выпуска](docs/DEPLOYMENT.md) |
+| 👤 Руководство пациента | [Сценарии посетителя и пациента](docs/USER_GUIDE.md) |
+| 👑 Руководство администратора | [Работа клиники и суперадминистратора](docs/ADMIN_GUIDE.md) |
+
+</details>
 
 ## Что демонстрирует проект
 

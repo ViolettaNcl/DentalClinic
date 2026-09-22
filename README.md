@@ -1,12 +1,21 @@
 <div align="center">
 
-<img src="wwwroot/assets/images/denta-logo.svg" alt="DentalClinic logo" width="104">
+<img src="docs/assets/readme-hero.svg" alt="DentalClinic — production-oriented dental platform" width="100%">
 
-# DentalClinic
+<br>
 
-**A production-oriented dental clinic platform combining a public website, patient self-service, clinic operations, realtime notifications, and a safety-bounded AI assistant.**
+<a href="README.md"><img src="https://img.shields.io/badge/English-13B39B?style=for-the-badge" alt="English"></a>
+<a href="README.ru.md"><img src="https://img.shields.io/badge/Русский-0A8A77?style=for-the-badge" alt="Русский"></a>
 
-[English](README.md) · [Русский](README.ru.md)
+<br><br>
+
+<a href="https://dental-clinic-vn.vercel.app/"><img src="https://img.shields.io/badge/LIVE_DEMO-13B39B?style=for-the-badge&logo=vercel&logoColor=white" alt="Live demo"></a>
+<a href="docs/README.md"><img src="https://img.shields.io/badge/DOCUMENTATION-0A8A77?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation"></a>
+<a href="docs/en/ARCHITECTURE.md"><img src="https://img.shields.io/badge/ARCHITECTURE-0A534A?style=for-the-badge&logo=diagramsdotnet&logoColor=white" alt="Architecture"></a>
+<a href="docs/en/API.md"><img src="https://img.shields.io/badge/API-FFB672?style=for-the-badge&logo=swagger&logoColor=111111" alt="API"></a>
+<a href="docs/en/SECURITY.md"><img src="https://img.shields.io/badge/SECURITY-111827?style=for-the-badge&logo=shield&logoColor=white" alt="Security"></a>
+
+<br><br>
 
 [![CI](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml)
@@ -15,11 +24,25 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ViolettaNcl/DentalClinic?style=social)](https://github.com/ViolettaNcl/DentalClinic/stargazers)
 
-[Live application](https://dental-clinic-vn.vercel.app/) · [Documentation](docs/README.md) · [Architecture](docs/en/ARCHITECTURE.md) · [API](docs/en/API.md) · [Contributing](CONTRIBUTING.md)
-
 </div>
 
 ![DentalClinic home page](docs/screenshots/home.png)
+<details>
+<summary><strong>✨ Explore the DentalClinic system</strong></summary>
+
+<br>
+
+| Area | Open |
+|---|---|
+| 🏗 Architecture | [System design, trust boundaries and data flow](docs/en/ARCHITECTURE.md) |
+| 📡 API | [REST API reference](docs/en/API.md) |
+| 🔒 Security | [Controls, boundaries and residual risks](docs/en/SECURITY.md) |
+| 👨‍💻 Developer Guide | [Local setup, migrations and tests](docs/en/DEVELOPER_GUIDE.md) |
+| 🚀 Deployment | [Vercel, Docker and release checks](docs/en/DEPLOYMENT.md) |
+| 👤 Patient Guide | [Visitor and patient workflows](docs/en/USER_GUIDE.md) |
+| 👑 Administrator Guide | [Clinic and super-admin operations](docs/en/ADMIN_GUIDE.md) |
+
+</details>
 
 ## What this project demonstrates
 
