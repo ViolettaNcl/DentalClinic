@@ -1,288 +1,184 @@
 <div align="center">
 
-# 🦷 DentalClinic
+<img src="wwwroot/assets/images/denta-logo.svg" alt="DentalClinic logo" width="104">
 
-### Веб-платформа стоматологической клиники: сайт + CRM + AI-консультант
+# DentalClinic
 
-<p>
-  <a href="README.en.md"><img src="https://img.shields.io/badge/🇬🇧_English-blue?style=for-the-badge" alt="English"></a>
-  <a href="README.md"><img src="https://img.shields.io/badge/🇷🇺_Русский-red?style=for-the-badge" alt="Русский"></a>
-</p>
+**A production-oriented dental clinic platform combining a public website, patient self-service, clinic operations, realtime notifications, and a safety-bounded AI assistant.**
 
-<p>
-  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 10">
-  <img src="https://img.shields.io/badge/EF_Core-10.0-512BD4?style=flat-square" alt="EF Core 10">
-  <img src="https://img.shields.io/badge/SQL_Server-2019+-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white" alt="SQL Server">
-  <img src="https://img.shields.io/badge/SignalR-realtime-512BD4?style=flat-square" alt="SignalR">
-  <img src="https://img.shields.io/badge/AI-Gemini-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini AI">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License">
-  <br/>
-  <img src="https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml/badge.svg" alt="CI status">
-</p>
+[English](README.md) · [Русский](README.ru.md)
 
-Полноценное веб-приложение для стоматологической клиники: публичный сайт с онлайн-записью,
-личный кабинет пациента, панель администратора, ИИ-консультант с голосовым ответом и
-интерфейс на 5 языках.
+[![CI](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml)
+[![Production smoke](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/production-smoke.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/production-smoke.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/ViolettaNcl/DentalClinic?style=social)](https://github.com/ViolettaNcl/DentalClinic/stargazers)
 
-**[🌐 Живое демо](#-живое-демо) · [📖 Документация](#-документация) · [🚀 Быстрый старт](#-быстрый-старт) · [🖼 Скриншоты](#-скриншоты) · [🏗 Архитектура](docs/ARCHITECTURE.md) · [👤 Автор](#-автор)**
+[Live application](https://dental-clinic-vn.vercel.app/) · [Documentation](docs/README.md) · [Architecture](docs/en/ARCHITECTURE.md) · [API](docs/en/API.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
----
+![DentalClinic home page](docs/screenshots/home.png)
 
-## 🌐 Vercel deployment
+## What this project demonstrates
 
-Целевой production-домен проекта:
+DentalClinic is an end-to-end clinic operations system, not a static landing-page demo. It covers the workflows that connect a patient request to administrative scheduling, durable notifications, reporting, and post-visit follow-up.
 
-### 👉 [dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/)
-
-> Сервер разворачивается как ASP.NET Core container service в Vercel. Для первого
-> production-запуска нужно задать БД и секреты из
-> [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md); без них приложение намеренно не стартует.
-
-**Учётные записи:** приложение не создаёт известные demo/default-пароли. Пациентскую
-учётную запись можно создать через обычную регистрацию. Административный доступ должен
-быть подготовлен владельцем deployment отдельно и с уникальным сильным паролем; не
-используйте публично известные тестовые credentials в production.
-
-**Языки интерфейса:** сайт полностью поддерживает 5 языков — 🇷🇺 Русский, 🇬🇧 English,
-🇬🇷 Ελληνικά (греческий), 🇸🇦 العربية (арабский), 🇫🇷 Français (французский) — переключаются
-мгновенно, без перезагрузки страницы, кнопкой в шапке сайта.
-
-
-## ✅ Текущее состояние интерфейса
-
-- Адаптивные публичные страницы для desktop / tablet / mobile.
-- Мобильный header: меню находится в правом углу, переключатель языка — непосредственно слева от него.
-- Единое выравнивание цен, описаний и CTA-кнопок на карточках всех страниц услуг.
-- Адаптивные Admin и Patient dashboards с мобильной навигацией.
-- Smile Meter использует один активный dental render, оптимизированные WebP-кадры и строго разделённые Front / Upper / Lower / Side наборы.
-- Поддерживаются RU / EN / FR / EL / AR, включая RTL для арабского.
-
-## 📑 Оглавление
-
-- [Живое демо](#-живое-демо)
-- [О проекте](#-о-проекте)
-- [Возможности](#-возможности)
-- [Стек технологий](#-стек-технологий)
-- [Быстрый старт](#-быстрый-старт)
-- [Переменные окружения](#-переменные-окружения)
-- [Документация](#-документация)
-- [Скриншоты](#-скриншоты)
-- [Известные ограничения и план развития](#-известные-ограничения-и-план-развития)
-- [Автор](#-автор)
-- [Лицензия](#-лицензия)
-
-## 📌 О проекте
-
-DentalClinic — full-stack веб-платформа для стоматологической клиники, разработанная по
-заказу практикующего врача-стоматолога. Проект охватывает полный цикл: от сбора и
-согласования требований с клиентом до разработки, деплоя и сопровождения.
-
-Технически — это backend на ASP.NET Core с собственной JWT-аутентификацией и REST API,
-реляционная БД на EF Core, realtime-слой на SignalR и интеграция с внешними AI-сервисами,
-плюс адаптивный фронтенд без фреймворков (чистые HTML/CSS/JS) с поддержкой 5 языков.
-
-Проект демонстрирует практическое владение:
-
-- 🏗 проектированием REST API и слоистой архитектурой ASP.NET Core (Controllers → Services → Data);
-- 🗄 EF Core: миграции, индексы, каскадное удаление, сидирование начальных данных;
-- 🔐 аутентификацией/авторизацией на JWT для двух ролей (пациент / администратор), хэшированием паролей (BCrypt);
-- ⚡ realtime-взаимодействием через SignalR (мгновенные уведомления без polling);
-- ⏱ фоновыми задачами (`BackgroundService`) — напоминания о приёме, автоочистка «зависших» заявок;
-- 🤖 интеграцией с внешними AI API (Google Gemini для чата и перевода, ElevenLabs для голоса);
-- 🛡 практиками безопасности: rate limiting, CORS, глобальная обработка ошибок, разделение секретов и кода;
-- 🌍 мультиязычностью интерфейса (i18n на 5 языков) без сторонних библиотек — клиника принимает
-  русско-, англо-, греко-, арабо- и франкоязычных пациентов.
-
-## ✨ Возможности
-
-### 🌐 Для посетителей сайта
-- Онлайн-заявка на приём без регистрации
-- Каталог услуг с ценами, страница врачей, отзывы пациентов
-- Мультиязычный интерфейс: 🇷🇺 Русский · 🇬🇧 English · 🇫🇷 Français · 🇬🇷 Ελληνικά · 🇸🇦 العربية
-- AI-консультант «Дента» — отвечает на вопросы о ценах/врачах/услугах (данные берутся из
-  БД в реальном времени, а не «зашиты» в промпт), умеет озвучивать ответ
-
-### 🧑‍⚕️ Для пациента (личный кабинет)
-- Регистрация/вход, редактирование профиля и аватара
-- История своих заявок на приём, статус, перенос/отмена записи
-- Отзыв с оценкой, автоматический перевод отзывов на нужный язык
-- Уведомления в реальном времени о статусе заявки (SignalR, без перезагрузки страницы)
-
-### 👑 Для администратора
-- Модерация заявок на приём (подтверждение/отмена/запись по телефону)
-- Управление врачами и прайс-листом услуг
-- Модерация отзывов пациентов с указанием причины отклонения
-- Статистика за период и выгрузка отчётов в Excel / печатную форму
-- Мониторинг сессий и статистики AI-чат-бота
-
-### ⚙️ Фоновые процессы
-- Автонапоминание пациенту за 24 часа до приёма
-- Автоочистка просроченных неподтверждённых заявок
-
-## 🛠 Стек технологий
-
-| Слой | Технологии |
+| Product area | Capabilities |
 |---|---|
-| **Backend** | ASP.NET Core 10 (Web API), C# |
-| **Данные** | Entity Framework Core 10, SQL Server |
-| **Аутентификация** | JWT Bearer, BCrypt.Net (хэширование паролей) |
-| **Реалтайм** | SignalR |
-| **AI-интеграции** | Google Gemini API (чат + перевод), ElevenLabs API (озвучка, TTS) |
-| **Фронтенд** | HTML5, CSS3 (ITCSS-подобная структура), Vanilla JS (модульная архитектура, ES-модули) |
-| **API-документация** | Swagger / Swashbuckle |
-| **Инфраструктура** | Rate Limiting, Response Compression, CORS, i18n (5 языков) |
+| Public experience | Service catalogue, doctor profiles, reviews, contact/map experience, guest appointment requests, five UI languages including Arabic RTL |
+| Patient workspace | Registration and secure sessions, profile/avatar management, appointment history, rescheduling and cancellation rules, reviews, realtime notifications |
+| Clinic operations | Appointment CRM, doctor and service management, schedule availability, review moderation, analytics, XLSX and printable exports |
+| Administration | Multiple administrator accounts, super-admin safeguards, password resets, role changes, and last-super-admin protection |
+| Denta assistant | Database-backed clinic knowledge, structured Gemini responses, local link allow-listing, safe booking hand-off, optional ElevenLabs speech |
+| Automation | Appointment reminders and follow-ups; opt-in stale-request cancellation; chat-data retention through a protected cron endpoint |
 
-## 🚀 Быстрый старт
+## Engineering highlights
+
+- **Protected browser sessions:** signed JWTs travel in `HttpOnly`, `SameSite=Strict` cookies. Password and access changes increment a stored token version; other instances observe the change after their short-lived cache expires. Tokens stay out of JavaScript storage and URL query strings.
+- **Defense in depth:** same-origin enforcement for state-changing and paid-AI routes, CORS allow-lists, production rate limits, SQL-backed distributed quotas, security headers, bounded payloads, and file-signature validation.
+- **Data integrity:** EF Core migrations, database check constraints and indexes, serializable scheduling operations, conflict detection, idempotency keys, and guarded cross-role email uniqueness.
+- **Reliable realtime UX:** SignalR delivers patient/admin events while REST remains the source of truth for initial state and reconnect recovery.
+- **AI with an application boundary:** deterministic clinic facts are resolved from SQL/configuration first; Gemini handles bounded natural-language work behind structured-output and healthcare-safety rules.
+- **Operational verification:** .NET integration/unit tests, Node regression tests, Playwright production E2E, CodeQL, container builds, health checks, and scheduled production smoke tests.
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    B["Browser<br/>HTML · CSS · ES modules"] -->|HTTPS / JSON| A[ASP.NET Core 10]
+    B <-->|SignalR| H[Notification hub]
+
+    subgraph Application
+        A --> C[Controllers]
+        C --> S[Domain services]
+        S --> E[EF Core]
+        J[Hosted jobs / Vercel cron] --> S
+        A --> H
+    end
+
+    E --> D[(SQL Server)]
+    S --> G[Google Gemini]
+    S --> V[ElevenLabs]
+```
+
+The application is a modular monolith: one deployable ASP.NET Core service owns the static frontend, REST API, SignalR hub, background workflows, and database access. See the [architecture guide](docs/en/ARCHITECTURE.md) for trust boundaries, request flows, and design decisions.
+
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Backend | C#, ASP.NET Core 10, REST controllers, hosted services |
+| Persistence | Entity Framework Core 10, SQL Server, code-first migrations |
+| Authentication | JWT Bearer validation, secure cookie transport, BCrypt password hashing |
+| Realtime | ASP.NET Core SignalR |
+| AI | Google Gemini structured generation and translation, optional ElevenLabs TTS |
+| Frontend | Semantic HTML, modular vanilla JavaScript, component/page CSS, JSON i18n |
+| Delivery | Docker, Vercel container service, GitHub Actions, GHCR, optional FTPS fallback |
+| Quality | xUnit, `WebApplicationFactory`, Node test runner, Playwright, axe-core, CodeQL |
+
+## Quick start
+
+### Prerequisites
+
+- [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0)
+- SQL Server 2019+ or Azure SQL
+- Git
+- Optional: Node.js 22 for frontend/E2E tests; Docker Desktop for the container workflow
+
+### Run with the .NET SDK
 
 ```bash
 git clone https://github.com/ViolettaNcl/DentalClinic.git
 cd DentalClinic
-
-# 1. Скопируйте пример конфигурации и заполните своими значениями
+dotnet tool restore
 cp appsettings.Example.json appsettings.json
+```
 
-# 2. Восстановите зависимости
+On PowerShell, use `Copy-Item appsettings.Example.json appsettings.json` instead of `cp` if preferred. Replace the example database, JWT, origin, and clinic-profile values before continuing; real secrets must never be committed.
+
+```bash
 dotnet restore
-
-# 3. Примените миграции EF Core
 dotnet ef database update
-
-# 4. Запустите приложение
 dotnet run
 ```
 
-Сайт откроется на адресе из `Properties/launchSettings.json` (обычно
-`https://localhost:7063`). В Development-режиме доступен Swagger UI: `/swagger`.
+The launch profiles expose `http://localhost:5192` and `https://localhost:7063`. Swagger UI is available at `/swagger` in Development.
 
-📖 Подробности: настройка секретов через `dotnet user-secrets`, требования к окружению,
-структура кода — в [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md).
+### Run with Docker Compose
 
-> ⚠️ **Перед первой публикацией на GitHub** обязательно прочитайте
-> [`docs/SECURITY.md`](docs/SECURITY.md) — там объясняется, как безопасно хранить секреты
-> (пароль БД, JWT-ключ, ключи API) и не допустить их утечки в публичный репозиторий.
+```bash
+cp .env.example .env
+# Replace every placeholder in .env.
+docker compose up --build
+```
 
-## 🔑 Переменные окружения
+The application is served at `http://localhost:8080`; SQL Server is exposed at `localhost:1433`. Detailed setup and troubleshooting are in the [developer guide](docs/en/DEVELOPER_GUIDE.md).
 
-Полный шаблон — в [`appsettings.Example.json`](appsettings.Example.json). Ключевые параметры:
+## Configuration
 
-| Ключ | Описание | Обязателен |
+ASP.NET Core environment variables use `__` for nested keys, for example `Jwt__Key`.
+
+| Setting | Purpose | Requirement |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | Строка подключения к SQL Server | ✅ |
-| `Jwt:Key` | Секретный ключ для подписи JWT (мин. 32 символа, случайная строка) | ✅ |
-| `Jwt:Issuer` / `Jwt:Audience` | Издатель/аудитория токена | ✅ |
-| `Jwt:ExpiryMinutes` | Время жизни токена в минутах | — (по умолч. 120) |
-| `Gemini:ApiKey` | Ключ Google Gemini API для AI-чата и перевода | ✅ |
-| `ElevenLabs:ApiKey` | Ключ ElevenLabs для озвучки ответов бота | — (без него TTS отключён) |
-| `Clinic:*` | Контактные данные клиники, отображаемые на сайте | ✅ |
-| `AllowedOrigins` | Список доменов, которым разрешён доступ к API (CORS) | ✅ |
-| `BackgroundJobs:*` | Настройки напоминаний и автоочистки заявок | — (есть значения по умолчанию) |
+| `ConnectionStrings__DefaultConnection` | SQL Server connection | Required |
+| `Jwt__Key` | HMAC signing secret, at least 32 UTF-8 bytes | Required |
+| `Jwt__Issuer`, `Jwt__Audience` | Token validation boundaries | Required |
+| `AllowedOrigins__0` | Trusted browser origin | Required outside same-origin defaults |
+| `Clinic__*` | Public clinic contact details and optional coordinates | Required for production content |
+| `Scheduling__*` | Time zone, opening hours, slot interval, duration, lead time | Recommended |
+| `Gemini__ApiKey` | Denta and translation provider access | Required for AI features |
+| `ElevenLabs__ApiKey` | Voice responses | Optional |
+| `CRON_SECRET` | Vercel maintenance endpoint authentication | Required on Vercel |
 
-## 📚 Документация
+Use `appsettings.Example.json` only as a schema/example. See [Security](docs/en/SECURITY.md) before configuring any shared or production environment.
 
-| Документ | Для кого | Описание |
-|---|---|---|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | все | Архитектура системы, диаграммы, структура БД |
-| [`docs/API.md`](docs/API.md) | разработчики | Справочник по всем REST-эндпоинтам |
-| [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md) | разработчики | Полный словарь полей БД, ограничения, диаграммы состояний |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | пациенты / клиенты | Как записаться на приём, пользоваться кабинетом |
-| [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) | администратор клиники | Работа с панелью администратора |
-| [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) | разработчики | Установка, конфигурация, структура кода |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | разработчики / DevOps | Публикация на сервер/хостинг |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | все | Реализованные меры безопасности, работа с секретами |
-| [`docs/SMILE_METER.md`](docs/SMILE_METER.md) | разработчики / QA | Текущая архитектура и правила Smile Meter |
-| [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) | QA / разработчики | Финальная проверка desktop / tablet / mobile |
-| [`docs/DentalClinic.postman_collection.json`](docs/DentalClinic.postman_collection.json) | разработчики | Готовая коллекция запросов для Postman |
+## Testing
 
-🇬🇧 English version of all documents is available in [`docs/en/`](docs/en/).
+```bash
+dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release
+npm install
+npm run test:js
+npx playwright install chromium
+npm run test:e2e
+```
 
-## 🖼 Скриншоты
+Playwright targets the deployed site by default. Set `BASE_URL` to target another approved environment; some canonical-URL checks still expect the production domain.
 
-<table>
-<tr>
-<td width="50%">
+## Operational boundaries
 
-**Главная страница**
-![Главная страница](docs/screenshots/home.png)
+Denta and the Smile Meter are informational features, not diagnostic or treatment-planning tools. Deployment requires operator-managed secrets, an external database, and separately provisioned administrator access. The current implementation has no administrator MFA or password-recovery flow, and multi-instance SignalR delivery needs additional infrastructure. See [Security](docs/en/SECURITY.md) for session-revocation, upload, proxy, and retention limitations.
 
-</td>
-<td width="50%">
+## Documentation
 
-**Каталог услуг**
-![Каталог услуг](docs/screenshots/services.png)
+The [documentation hub](docs/README.md) separates durable reference material from historical engineering records.
 
-</td>
-</tr>
-<tr>
-<td width="50%">
+| Guide | Scope |
+|---|---|
+| [Architecture](docs/en/ARCHITECTURE.md) | Components, trust boundaries, data flow, deployment model, design decisions |
+| [API reference](docs/en/API.md) | Current routes, access rules, session model, limits, error behavior |
+| [Data dictionary](docs/en/DATA_DICTIONARY.md) | Entities, constraints, indexes, retention, state machines |
+| [Developer guide](docs/en/DEVELOPER_GUIDE.md) | Setup, configuration, migrations, tests, change workflow |
+| [Deployment guide](docs/en/DEPLOYMENT.md) | Vercel, Docker, database migrations, cron, release checks |
+| [Security](docs/en/SECURITY.md) | Threat boundaries, implemented controls, residual risks, disclosure |
+| [User guide](docs/en/USER_GUIDE.md) | Patient and visitor workflows |
+| [Administrator guide](docs/en/ADMIN_GUIDE.md) | Clinic and super-admin operations |
 
-**Личный кабинет пациента**
-![Личный кабинет пациента](docs/screenshots/patient-dashboard.png)
+## Deployment status
 
-</td>
-<td width="50%">
+The repository targets Vercel at the application link above. Vercel Git deployments are currently **paused** in `vercel.json` (`git.deploymentEnabled: false`). This pause does not disable GitHub Actions: pushes to `main` still trigger CI and can trigger GHCR publication, configured FTPS delivery, and registry maintenance. Check the [deployment guide](docs/en/DEPLOYMENT.md) before merging, including documentation-only changes. Live availability and deployed-code parity are separate from repository status.
 
-**Панель администратора**
-![Панель администратора](docs/screenshots/admin-dashboard.png)
+## Contributing and roadmap
 
-</td>
-</tr>
-<tr>
-<td width="50%">
+Contributions are welcome when they preserve the project's privacy, scheduling, localization, and medical-safety boundaries. Read [CONTRIBUTING.md](CONTRIBUTING.md), review the [roadmap](ROADMAP.md), and report security concerns through the private process in [SECURITY.md](SECURITY.md).
 
-**AI-консультант «Дента»**
-![AI-консультант Дента](docs/screenshots/chat-bot.png)
+## License
 
-</td>
-<td width="50%">
-
-**Мультиязычность**
-![Переключатель языков](docs/screenshots/language-switcher.png)
-
-</td>
-</tr>
-</table>
-
-## 🧰 Инструменты для разработчиков
-
-Помимо самой документации, в репозитории уже настроено:
-
-- **CI + CodeQL** (`.github/workflows/`) — сборка, автоматические проверки и анализ безопасности на push/Pull Request;
-- **автоматические unit/integration и Node/JS regression tests** — проверяют API, БД, безопасность, CRM, Denta и frontend-контракты;
-- **Vercel Git deployment для `main`** — production merge запускает деплой автоматически, а feature-ветки не создают лишние container images;
-- **Postman-коллекция** (`docs/DentalClinic.postman_collection.json`) — готовый набор запросов ко всем эндпоинтам для ручного тестирования API;
-- **`.editorconfig`** — единые правила форматирования кода (отступы, стиль C#/JS).
-
-## 🧭 Известные ограничения и план развития
-
-Проект делался для реального клиента и уже прошёл значительный production-hardening. Ниже —
-актуальный статус, чтобы README не выдавал уже закрытые задачи за незавершённые:
-
-- [x] Автоматические unit/integration/JS regression tests и CI/CodeQL
-- [x] Автоматический production deploy из `main` через Vercel Git integration
-- [x] Аватары хранятся устойчиво в SQL, а не зависят от локального диска serverless/container-инстанса
-- [x] Платные AI-маршруты дополнительно защищены распределённой SQL-квотой между инстансами
-- [ ] Общий ASP.NET Core rate limiter для части неплатных маршрутов остаётся process-local; при горизонтальном масштабировании его стоит перенести в shared store
-- [ ] Нет ролей «второй администратор / супер-админ» — пока используется разделение patient/admin
-- [ ] Для Vercel Container Registry нужно периодически удалять старые images/настроить операционный cleanup, чтобы не упираться в лимит репозитория
-
-Это же список следующих инфраструктурных задач при дальнейшем росте клиники.
-
-## 👤 Автор
-
-**Николау Виолетта** (Nicolaou Violetta) — Full-stack разработчик
-
-- GitHub: [@ViolettaNcl](https://github.com/ViolettaNcl)
-
-Если проект оказался полезен — поставьте ⭐ репозиторию, это помогает с видимостью в портфолио.
-
-## 📄 Лицензия
-
-Проект распространяется по лицензии [MIT](LICENSE) — используйте, изменяйте, публикуйте свободно.
-
----
+Released under the [MIT License](LICENSE).
 
 <div align="center">
-Разработано по запросу реального клиента — стоматологической практики · вопросы и предложения — через Issues
+
+Built and maintained by [Violetta Nicolaou](https://github.com/ViolettaNcl). If the architecture or documentation helped you, consider giving the repository a star.
+
 </div>

@@ -1,143 +1,194 @@
-[⬅ Back to README](../../README.en.md)
+# Deployment guide
 
-# 🚀 Deploying to Vercel
+[Documentation](../README.md) · [Project README](../../README.md) · [Русский](../DEPLOYMENT.md)
 
-*[🇷🇺 Русская версия](../DEPLOYMENT.md)*
+The primary public topology is an ASP.NET Core 10 container service on Vercel backed by an external SQL Server. `Dockerfile.vercel` builds the service and `vercel.json` routes all traffic to service `app`.
 
-The project runs on Vercel as an ASP.NET Core 10 container service. Its deployment
-configuration lives in `Dockerfile.vercel` and `vercel.json`. Vercel terminates TLS
-at its proxy and passes the assigned container port through `$PORT`.
+Target domain: [https://dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/)
 
-Target production domain:
+## 1. Current release policy
 
-`https://dental-clinic-vn.vercel.app`
+`vercel.json` currently contains:
 
-## 1. Required production variables
+```json
+{
+  "git": {
+    "deploymentEnabled": false
+  }
+}
+```
 
-Add these under Vercel → Project → Settings → Environment Variables for both
-Production and Preview. Never put secrets in `vercel.json` or commit them to Git.
+This pauses Vercel Git deployments. The regression test `tests/js/vercel-deploy-policy.test.js` locks that state. It does **not** pause GitHub Actions: a push to `main`, including documentation-only changes, runs CI and can trigger GHCR publication, configured FTPS deployment, and VCR retention. A documentation branch/PR lets reviewers inspect the change before those main-branch workflows run.
 
-| Variable | Purpose | Required |
+A production release must therefore be initiated by an authorized maintainer from the Vercel dashboard or an already linked/authenticated Vercel CLI environment. Do not tell contributors that merging `main` automatically deploys while this flag remains false.
+
+To resume Git-triggered deployments in the future, make it an explicit operational change: update `vercel.json`, update the deployment-policy test, validate Preview, confirm branch/environment settings in Vercel, and document the approval/rollback process in the same pull request.
+
+## 2. Required production configuration
+
+Configure secrets and environment-specific values in Vercel Project Settings, not in `vercel.json`, the Dockerfile, source, screenshots, or GitHub issues.
+
+| Variable | Purpose | Requirement |
 |---|---|---|
-| `ConnectionStrings__DefaultConnection` | External SQL Server connection string | yes |
-| `Jwt__Key` | Random JWT signing key of at least 32 characters | yes |
-| `Jwt__Issuer` | For example, `DentalClinic` | yes |
-| `Jwt__Audience` | For example, `DentalClinicClient` | yes |
-| `CRON_SECRET` | Random secret protecting Vercel Cron endpoints | yes |
-| `Gemini__ApiKey` | Chatbot API key | for AI chat |
-| `ElevenLabs__ApiKey` | Text-to-speech API key | optional |
-| `ElevenLabs__VoiceId` | Voice identifier | optional |
-| `Scheduling__TimeZoneId` | Clinic timezone; defaults to `Europe/Moscow` | recommended |
-| `BackgroundJobs__CleanupEnabled` | Set `true` only when stale-request cancellation is wanted | optional |
+| `ConnectionStrings__DefaultConnection` | External SQL Server/Azure SQL connection | Required |
+| `Jwt__Key` | Random HMAC signing key, at least 32 UTF-8 bytes | Required |
+| `Jwt__Issuer` | Expected token issuer | Required |
+| `Jwt__Audience` | Expected token audience | Required |
+| `Jwt__ExpiryMinutes` | Session lifetime; application clamps to 5–1440 minutes | Optional, default 120 |
+| `CRON_SECRET` | Bearer secret for maintenance endpoints | Required on Vercel |
+| `AllowedOrigins__0` | Trusted frontend origin when needed | Required for cross-origin frontend; same-origin app is typical |
+| `Clinic__Phone`, `Email`, `Address`, `Hours` | Public clinic profile | Required for production facts |
+| `Clinic__Latitude`, `Longitude` | Optional complete coordinate pair | Optional |
+| `Scheduling__TimeZoneId` | Clinic-local time zone | Recommended; default `Europe/Moscow` |
+| `Scheduling__AppointmentDurationMinutes` | Collision window | Optional, default 60 |
+| `Scheduling__SlotIntervalMinutes` | Valid start-time interval | Optional, default 30 |
+| `Scheduling__MinimumLeadMinutes` | Minimum future lead | Optional, default 30 |
+| `Gemini__ApiKey` | Denta and translation provider | Required for AI features |
+| `ElevenLabs__ApiKey`, `VoiceId` | Text-to-speech | Optional |
+| `Chat__MessageRetentionDays` | Chat row retention, clamped 1–365 | Optional, default 30 |
+| `Chat__IpRetentionHours` | IP-pseudonym retention, clamped 1–168 | Optional, default 24 |
+| `ChatKnowledge__MaxItems` | Managed knowledge prompt limit, hard-capped by code | Optional, default 12 |
+| `BackgroundJobs__CleanupEnabled` | Enables destructive stale-pending cancellation | Optional, default false |
+| `AdminExports__MaxRows` | Bounded export materialization | Optional, default 25,000 |
+| `Database__CommandTimeoutSeconds` | SQL command bound | Optional, clamped 5–60 |
+| `Database__ConnectTimeoutSeconds` | SQL connect bound | Optional, clamped 5–30 |
+| `Database__MaxPoolSize` | SQL pool bound | Optional, clamped 5–50 |
 
-The frontend and API are same-origin on the default deployment. If another origin
-calls the API, add `AllowedOrigins__0=https://your-domain`.
+Use a secret manager/password generator. Rotate a credential immediately if it appears in git history, workflow output, an issue, screenshot, or chat; removing the visible text is not sufficient.
 
-## 2. Database and schema migration
+## 3. Database and migrations
 
-Vercel runs the application but does not provide SQL Server inside the container.
-Use an external managed SQL Server such as Azure SQL.
+The Vercel container does not include SQL Server. Use an external managed SQL Server reachable from the deployment.
 
-The EF migration chain is designed to upgrade the existing live schema in place:
-the baseline migration is idempotent and later migrations add the production
-hardening fields/indexes used by the current application. On every relational app
-startup, `Program.cs` now runs `Database.MigrateAsync()` **before** `DbSeeder` and
-before the app begins serving requests. This also applies on Vercel, so a newly
-published image cannot silently run against an older schema.
+On relational startup, `Program.cs` calls `Database.MigrateAsync()` before `DbSeeder` and before request serving. `DbSeeder` is protected by a SQL Server application lock so concurrent cold starts do not duplicate starter data.
 
-Before the first migration of an existing production database:
+Before a release containing migrations:
 
-1. Take a verified database backup.
-2. Point `ConnectionStrings__DefaultConnection` at the managed SQL Server.
-3. Deploy the application; startup applies pending EF migrations automatically.
-4. Check `GET /health`; it should return HTTP 200 and `"status":"Healthy"`.
-5. Verify the latest migration is recorded in `__EFMigrationsHistory`.
+1. Create and verify a restorable database backup.
+2. Review every `Up` operation and the data assumptions it enforces.
+3. Confirm the application build is compatible with both the pre-migration and post-migration state, or schedule a maintenance window.
+4. Release in a controlled manner and monitor startup logs.
+5. Verify `/health` and the expected row in `__EFMigrationsHistory`.
+6. Test the changed workflow against non-production data before production use.
 
-For a local/manual maintenance window you can still run `dotnet ef database update`.
-Do not bypass backups before schema changes.
+Application rollback does not automatically roll back the database. Do not run destructive `Down` migrations as a routine rollback; first verify schema/data compatibility and restore from backup when necessary.
 
-## 3. Deploying from GitHub
+The seed process creates catalogue/doctor/knowledge starter rows only when appropriate. It never creates a known default admin. First-administrator provisioning is an operator-controlled action.
 
-Recommended permanent workflow:
+## 4. Controlled Vercel release
 
-1. In Vercel, select **New Project → Import Git Repository**.
-2. Connect `ViolettaNcl/DentalClinic`; use `main` as Production Branch and `.` as Root Directory.
-3. Add the variables from section 1.
-4. Create a Preview deployment and verify `/health`, the home page, authentication,
-   appointment creation, and the chatbot microphone.
-5. Promote or create a Production deployment after verification.
+### Dashboard
 
-`vercel.json` rewrites all traffic to the `web` container service. Vercel provides
-HTTPS automatically. `Program.cs` honors forwarded protocol/client information from
-Vercel before rate limiting and authentication-sensitive request handling.
+1. Confirm the Vercel project is linked to `ViolettaNcl/DentalClinic`, root directory `.`, and the intended production branch/commit.
+2. Review Production environment variables and the database backup.
+3. Trigger a deployment for the exact approved commit from the Vercel dashboard.
+4. Wait for the container to become ready; inspect build and runtime logs for migration/startup failures.
+5. Complete the verification checklist below before declaring the release complete.
 
-## 4. Cron jobs
+### CLI from an already linked environment
 
-`vercel.json` defines four daily maintenance jobs:
+```bash
+npx vercel deploy
+npx vercel deploy --prod
+```
 
-| Time (UTC) | Endpoint | Purpose |
+Use the first command for a Preview verification, then promote/deploy the same reviewed code to Production. Authentication, project linking, scope/team selection, and production authorization are environment-specific and must be managed by the maintainer; never paste Vercel tokens into terminal transcripts or documentation.
+
+`Dockerfile.vercel` uses the platform's `PORT` variable with an 8080 fallback. When `VERCEL=1`, `Program.cs` accepts one forwarded-header hop and clears the known-proxy/network lists; the deployment must restrict direct access to the application so that the header source can be trusted.
+
+## 5. Scheduled maintenance
+
+Vercel containers may suspend, so hosted background services are disabled when `VERCEL=1`. `vercel.json` defines UTC cron schedules that call protected routes:
+
+| UTC | Endpoint | Purpose |
 |---|---|---|
-| `06:00` | `/api/maintenance/reminders` | Remind patients about the following day's visits |
-| `06:10` | `/api/maintenance/follow-ups` | Send one-time post-visit follow-ups |
-| `06:15` | `/api/maintenance/cleanup` | Cancel stale pending requests only when explicitly enabled |
-| `06:30` | `/api/maintenance/chat-retention` | Remove expired chat/IP-pseudonym data |
+| `06:00` daily | `/api/maintenance/reminders` | Next-day reminders |
+| `06:10` daily | `/api/maintenance/follow-ups` | Post-visit review prompts |
+| `06:15` daily | `/api/maintenance/cleanup` | Stale pending cancellation, only when explicitly enabled |
+| `06:30` daily | `/api/maintenance/chat-retention` | Clear old IP pseudonyms and delete expired chat rows |
 
-Vercel sends `Authorization: Bearer <CRON_SECRET>`. The maintenance endpoints return
-401 when the secret is missing or wrong. Regular `BackgroundService` workers are
-disabled on Vercel because containers may suspend between requests.
+Vercel sends `Authorization: Bearer <CRON_SECRET>`. The controller fails closed when the secret is missing and compares the supplied value in fixed time. Keep the configured schedule compatible with the deployment plan and account tier.
 
-## 5. GitHub Actions and FTPS backup
+No dedicated chat-retention hosted worker is registered. Outside Vercel, schedule the protected chat-retention endpoint yourself; keeping a process running is not enough to enforce retention.
 
-- `.github/workflows/ci.yml` builds the app and runs tests on pushes and PRs.
-- `.github/workflows/codeql.yml` analyzes C# and JavaScript.
-- `.github/workflows/cd.yml` repeats the test gate, publishes the Docker image to GHCR,
-  and keeps a backup FTPS deployment path to Somee.
-- Vercel is the primary production host. FTPS is only a fallback while the Vercel
-  migration is being fully verified.
+Reminder/follow-up delivery uses durable flags and unique idempotency keys so overlapping runs do not create duplicate patient notifications.
 
-The FTPS job reads only GitHub repository/environment secrets; their values are never
-stored in the repository:
+## 6. GitHub Actions and delivery artifacts
 
-- `FTP_SERVER`
-- `FTP_USERNAME`
-- `FTP_PASSWORD`
-- `FTP_SERVER_DIR`
+| Workflow | Role |
+|---|---|
+| `ci.yml` | Restore/build, Vercel container build, migration discovery, .NET tests, JS tests |
+| `codeql.yml` | C# and JavaScript/TypeScript static analysis on push/PR and weekly |
+| `cd.yml` | Post-CI test gate, optional FTPS fallback publish, GHCR image push |
+| `e2e.yml` | Scheduled/on-push Playwright checks against production |
+| `production-smoke.yml` | Hourly health, canonical domain, routes, headers, public API, HTTP→HTTPS |
+| `denta-live-smoke.yml` | Optional weekly live Gemini contract test when its secret is configured |
+| `vercel-vcr-retention.yml` | Safe retention of Vercel container-registry images |
 
-If any of the four secrets is missing, the workflow reports the FTPS deployment as
-skipped while CI, Vercel, and the GHCR image publication continue normally.
+The FTPS path requires `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, and `FTP_SERVER_DIR`. When any is missing, the job is deliberately skipped. It is a fallback path, not evidence that Vercel deployed.
 
-After Git Integration is connected, Vercel creates Preview deployments for branches
-and Production deployments from `main`.
+GHCR publishes `latest` and commit-SHA image tags after the test gate. Vercel registry cleanup requires a scoped `VERCEL_TOKEN` plus project/team/repository settings; it fails closed when it cannot identify protected production images.
 
-## 6. Local Docker
+## 7. Docker deployment
+
+For a local or controlled single-host environment:
 
 ```bash
 cp .env.example .env
-# fill in the DB password, JWT key, and API keys
-docker compose up --build
+# Replace all placeholders with environment-appropriate values.
+docker compose up --build -d
+docker compose ps
+docker compose logs -f app
 ```
 
-The app is available at `http://localhost:8080`; SQL Server at `localhost:1433`.
-Named Docker volumes retain the database across restarts.
+Compose exposes the app on port 8080 and SQL Server on 1433. Named volumes retain SQL data and the legacy upload path. Current avatars and doctor photos are stored in SQL and do not depend on the container filesystem.
 
-## 7. Avatar persistence
+For a real deployment, do not expose SQL Server publicly unless the network/authentication design explicitly requires it. Configure backups, encryption, restricted ingress, certificate trust, and credential rotation outside Compose.
 
-New patient/admin avatars are stored durably in SQL and served through the authenticated
-avatar endpoint. Legacy local avatar paths are cleaned up safely when replaced or
-deleted. The application no longer depends on Vercel's ephemeral container filesystem
-for newly uploaded avatars.
+## 8. Media persistence
 
-## 8. Post-deployment checklist
+New patient/admin avatars and doctor photos are stored as bounded bytes plus MIME metadata in SQL. Browser-facing URLs are cache-busted endpoints. This survives Vercel/container replacement and avoids treating an ephemeral filesystem as durable storage.
 
-- [ ] The Production deployment is READY.
-- [ ] `/health` returns HTTP 200 and reports a Healthy database.
-- [ ] Pending EF migrations were applied and `__EFMigrationsHistory` contains the latest migration.
-- [ ] The home page and static assets load over HTTPS.
-- [ ] Patient/admin sign-in and registration work.
-- [ ] Appointment creation rejects past dates and doctor conflicts.
-- [ ] The microphone requests browser permission and inserts recognized text into chat.
-- [ ] Cron endpoints return 401 without the correct `CRON_SECRET`.
-- [ ] `BackgroundJobs__CleanupEnabled` is enabled only deliberately.
-- [ ] Backups are configured for the production database.
-- [ ] If FTPS backup is required, all four FTP secrets are configured in GitHub.
-- [ ] Patient/admin avatar upload and retrieval survive a fresh deployment.
+Legacy local avatar paths are deleted best-effort after a successful durable update. At materially larger media volume, migrate the byte storage to private/object storage without weakening endpoint authorization or content-signature validation.
+
+## 9. Release verification
+
+### Infrastructure
+
+- [ ] Approved commit/build is the deployed one.
+- [ ] Deployment is READY and runtime logs show no migration/startup failure.
+- [ ] `GET /health` returns HTTP 200 and reports the `db` check as Healthy.
+- [ ] Latest expected migration exists in `__EFMigrationsHistory`.
+- [ ] Database backup and restore procedure were verified for this release.
+- [ ] No environment secret appears in build/runtime logs.
+
+### Security and identity
+
+- [ ] HTTPS is canonical; HTTP redirects to HTTPS.
+- [ ] Expected security headers are present on HTML responses.
+- [ ] Patient registration/login/logout/session bootstrap work with an HttpOnly cookie.
+- [ ] Admin login and super-admin-only access management enforce role/current DB state.
+- [ ] State-changing cross-origin requests and direct production AI calls without valid origin are rejected.
+- [ ] Cron routes return 401 without the correct `CRON_SECRET`.
+
+### Product workflows
+
+- [ ] Public services/doctors/clinic profile load without exposing internal fields.
+- [ ] Appointment creation rejects past/invalid/conflicting slots.
+- [ ] Admin confirmation and patient notifications work.
+- [ ] Review moderation persists the decision and notification atomically.
+- [ ] Avatar and doctor photo retrieval survive a fresh deployment.
+- [ ] Denta returns bounded safe links and degrades safely when a provider is unavailable.
+- [ ] RU/EN/FR/EL/AR switch correctly; Arabic layout is RTL.
+- [ ] Production smoke and Playwright workflows pass or have an investigated, documented exception.
+
+## 10. Rollback and incident notes
+
+1. Stop further releases and preserve logs/health evidence without copying secrets or patient content.
+2. Determine whether the incident is application-only, schema/data, provider, or infrastructure.
+3. If schema-compatible, redeploy the last known-good commit/image.
+4. If data/schema is affected, follow the verified restore/migration plan instead of guessing with `Down`.
+5. Rotate any credential that may have been exposed and invalidate affected sessions/keys.
+6. Run the verification checklist after mitigation and record the root cause/action items privately before publishing a sanitized summary.
+
+For security-specific handling, follow the root [SECURITY.md](../../SECURITY.md).

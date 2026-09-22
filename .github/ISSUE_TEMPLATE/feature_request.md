@@ -1,16 +1,25 @@
 ---
 name: Feature request
-about: Suggest an improvement for DentalClinic
+about: Propose a focused improvement for DentalClinic
 ---
 
-## Feature description
+## Problem and audience
 
-Describe the idea.
+Which patient, clinic, or developer workflow needs improvement? Describe the problem before the implementation. Do not include real patient data.
 
-## Why is it useful?
+## Proposed behavior
 
-Explain the problem this solves.
+Describe the smallest useful change and what remains out of scope.
 
-## Additional context
+## Acceptance criteria
 
-Add screenshots or examples if available.
+- What should a user be able to do?
+- How would a reviewer verify it?
+
+## Constraints and alternatives
+
+Consider authorization, privacy, scheduling, five interface languages, Arabic RTL, accessibility, provider costs, and operational impact where relevant. Describe simpler alternatives or existing workarounds.
+
+## Supporting context
+
+Link related issues or provide anonymized examples. Roadmap items are proposals, not delivery commitments.

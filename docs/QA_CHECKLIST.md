@@ -1,4 +1,8 @@
-# DentalClinic QA Checklist
+# DentalClinic QA checklist
+
+[Documentation](README.md) · [Deployment guide](en/DEPLOYMENT.md) · [Security guide](en/SECURITY.md)
+
+Use this checklist for a release candidate or a substantial user-facing change. Record the tested commit, environment, browser/device matrix, and any accepted exceptions in the pull request or release record.
 
 ## Authentication and database
 
@@ -38,8 +42,11 @@
 
 ## Before release
 
-- Run JavaScript syntax checks and regression tests.
-- Run `dotnet restore`, `dotnet build -c Release` and `dotnet test -c Release`.
+- Run `dotnet build DentalClinic.csproj --configuration Release`.
+- Run `dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release`.
+- Run `npm run test:js` and the relevant Playwright projects.
 - Run responsive browser tests and accessibility checks where the environment supports them.
 - Review database migrations before deployment.
 - Confirm production secrets are supplied through secure configuration rather than committed documentation or source.
+- Confirm `vercel.json` deployment policy matches the intended release process; Git-triggered deployment is currently paused.
+- Verify `/health`, expected security headers, same-origin rejection, cron-secret rejection, and database backup/restore readiness.

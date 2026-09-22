@@ -1,6 +1,91 @@
-@DentalClinic_HostAddress = http://localhost:5192
+@baseUrl = http://localhost:5192
+@origin = http://localhost:5192
+@patientEmail = patient@example.com
+@patientPassword = PatientP@ss123
+@patientId = 1
+@doctorId = 1
 
-GET {{DentalClinic_HostAddress}}/weatherforecast/
+# Use a disposable local database. These examples create records.
+# Credentials are examples, not seeded accounts. Replace them before use.
+# Set patientId from login/session and doctorId from the catalogue.
+# Replace the date with a future available clinic-local slot.
+# Run selected requests, not the whole file against production.
+
+### Health and database readiness
+GET {{baseUrl}}/health
 Accept: application/json
 
+### Public clinic profile
+GET {{baseUrl}}/api/clinic/profile
+Accept: application/json
+
+### Public services
+GET {{baseUrl}}/api/service
+Accept: application/json
+
+### Public doctors
+GET {{baseUrl}}/api/doctor
+Accept: application/json
+
+### Register patient (the client must retain the Set-Cookie response)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+Origin: {{origin}}
+
+{
+  "firstName": "API Test",
+  "email": "{{patientEmail}}",
+  "password": "{{patientPassword}}"
+}
+
+### Patient login (sets the HttpOnly dc_auth cookie; no token is returned in JSON)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+Origin: {{origin}}
+
+{
+  "email": "{{patientEmail}}",
+  "password": "{{patientPassword}}"
+}
+
+### Restore the current cookie session
+GET {{baseUrl}}/api/auth/session
+Accept: application/json
+
+### Read the authenticated patient's appointments
+GET {{baseUrl}}/api/appointmentrequest/patient/{{patientId}}
+Accept: application/json
+
+### Create an authenticated appointment request
+POST {{baseUrl}}/api/appointmentrequest
+Content-Type: application/json
+Origin: {{origin}}
+
+{
+  "firstName": "API Test",
+  "phone": "+79990000000",
+  "appointmentDate": "2027-01-15T10:00:00",
+  "comment": "HTTP file smoke request",
+  "doctorId": {{doctorId}}
+}
+
+### Ask Denta (production requires a matching Origin header)
+POST {{baseUrl}}/api/chat
+Content-Type: application/json
+Origin: {{origin}}
+
+{
+  "sessionId": "http-file-smoke",
+  "message": "What services are available?",
+  "history": [],
+  "lang": "en"
+}
+
+### Logout and expire the cookie
+POST {{baseUrl}}/api/auth/logout
+Origin: {{origin}}
+
 ###
+# Full route/access documentation: docs/en/API.md
+# Postman starter collection: docs/DentalClinic.postman_collection.json
+# The IDE HTTP client must keep cookies between requests for authenticated examples.

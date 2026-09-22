@@ -1,5 +1,9 @@
 # Smile Meter
 
+[Documentation](README.md) · [Project README](../README.md)
+
+This is the current implementation contract for the cosmetic-treatment visualizer. It describes shipped behavior, not a diagnostic or treatment-planning tool.
+
 ## Current implementation
 
 The Cosmetic Treatments page contains an interactive Smile Meter with one visible dental model image at runtime. It does not composite multiple jaw photographs.

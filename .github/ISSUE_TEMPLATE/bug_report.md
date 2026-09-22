@@ -1,11 +1,21 @@
 ---
 name: Bug report
-about: Report a problem in DentalClinic
+about: Report a reproducible problem in DentalClinic
 ---
 
-## Description
+## Summary
 
-Describe the issue.
+Describe the problem and its effect on the patient, clinic staff, or developer workflow.
+
+For vulnerabilities, follow [SECURITY.md](https://github.com/ViolettaNcl/DentalClinic/blob/main/SECURITY.md). Do not publish credentials, patient information, or exploit details here.
+
+## Environment
+
+- Commit or version:
+- Local / test / published deployment:
+- Browser and operating system:
+- Interface language and viewport:
+- Signed out / patient / administrator (no account details):
 
 ## Steps to reproduce
 
@@ -13,10 +23,10 @@ Describe the issue.
 2.
 3.
 
-## Expected behavior
+## Expected and actual behavior
 
-What should happen?
+Describe both outcomes, the error or HTTP status, and whether a retry changes the result.
 
-## Screenshots or logs
+## Evidence
 
-Add useful details here.
+Attach only redacted screenshots or minimal logs. Remove names, contacts, appointment content, tokens, cookies, keys, and connection strings. Do not reproduce destructive operations against a live clinic.

@@ -1,159 +1,155 @@
-[⬅ Назад в README](../README.md)
+# Руководство разработчика
 
-*[🇬🇧 English version](en/DEVELOPER_GUIDE.md)*
+[Документация](README.ru.md) · [README проекта](../README.ru.md) · [English](en/DEVELOPER_GUIDE.md)
 
-# 👨‍💻 Руководство разработчика
+## Требования
 
-## 1. Требования
+Нужны .NET SDK 10.x, Git и доступная SQL Server 2019+ / Azure SQL. Для JS- и Playwright-тестов рекомендуется Node.js 22; Docker Desktop нужен только для контейнерного варианта запуска.
 
-- [.NET SDK 9](https://dotnet.microsoft.com/download) (`dotnet --version` → 9.x)
-- SQL Server (локально, в Docker, в Azure SQL или другом managed SQL Server)
-- Ключ Google Gemini API (для чат-бота) — получить на
-  [ai.google.dev](https://ai.google.dev)
-- (Опционально) ключ ElevenLabs API — для озвучки ответов бота
+Ключи Gemini и ElevenLabs не требуются для большинства локальных задач. Они нужны при проверке соответствующих функций генерации, перевода и озвучивания.
 
-## 2. Установка и первый запуск
+## Получение и настройка
 
 ```bash
 git clone https://github.com/ViolettaNcl/DentalClinic.git
 cd DentalClinic
-
-# 1. Создайте свой appsettings.json на основе шаблона
-cp appsettings.Example.json appsettings.json
-# откройте appsettings.json и впишите свои значения (строка подключения к БД, JWT-ключ, ключи API)
-
-# 2. Восстановите зависимости
+dotnet tool restore
 dotnet restore
-
-# 3. Примените миграции EF Core (создаст таблицы в вашей БД)
-dotnet ef database update
-
-# 4. Запустите приложение
-dotnet run
 ```
 
-По умолчанию сайт будет доступен на адресе из `Properties/launchSettings.json`
-(обычно `https://localhost:7063` и `http://localhost:5192`). В режиме разработки также
-доступен Swagger UI: `https://localhost:7063/swagger`.
+Создайте локальную конфигурацию, исключённую из Git:
 
-При первом запуске на пустой базе `DbSeeder` автоматически заполнит таблицы `Services` и
-`Doctors` стартовыми данными — дальше их можно редактировать через панель администратора.
+```powershell
+Copy-Item appsettings.Example.json appsettings.json
+```
 
-## 3. Работа с секретами (важно!)
+В Bash используйте `cp appsettings.Example.json appsettings.json`. Замените заглушки: как минимум нужны доступная БД, случайный JWT-ключ длиной не менее 32 UTF-8 байт, издатель и аудитория токенов.
 
-**Никогда не коммитьте `appsettings.json` с реальными значениями.** Рекомендуемый способ
-для локальной разработки — `dotnet user-secrets`:
+Для секретов предпочтителен ASP.NET Core Secret Manager. Следующие значения — только примеры, не готовые пароли:
 
 ```bash
 dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "ваша_строка_подключения"
-dotnet user-secrets set "Jwt:Key" "случайная_длинная_строка"
-dotnet user-secrets set "Gemini:ApiKey" "ваш_ключ"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=..."
+dotnet user-secrets set "Jwt:Key" "generate-a-long-random-development-secret"
+dotnet user-secrets set "Jwt:Issuer" "DentalClinicLocal"
+dotnet user-secrets set "Jwt:Audience" "DentalClinicLocalClient"
+dotnet user-secrets set "Gemini:ApiKey" "development-key-if-needed"
 ```
 
-Секреты из `user-secrets` автоматически подхватываются `IConfiguration` при разработке и
-**не попадают в репозиторий**. Подробнее — в [`docs/SECURITY.md`](SECURITY.md).
+`user-secrets init` добавляет идентификатор в файл проекта. Не включайте это изменение в коммит, если команда не договорилась об общем идентификаторе.
 
-## 4. Структура проекта
+## База данных и запуск
 
-Смотрите раздел «Структура репозитория» в [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — там
-расписано назначение каждой папки.
-
-Коротко, если нужно добавить новую функциональность:
-
-| Что добавляете | Куда смотреть |
-|---|---|
-| Новый REST-эндпоинт | `Controllers/` — создайте контроллер или добавьте метод в существующий |
-| Новую сущность БД | `Models/` (класс) + `Data/ApplicationDbContext.cs` (`DbSet<>`, индексы) + миграция |
-| Бизнес-логику / интеграцию | `Services/` |
-| Фоновую задачу | `BackgroundJobs/` — наследник `BackgroundService`, зарегистрировать в `Program.cs` |
-| Страницу фронтенда | `wwwroot/pages/*.html` + стили в `wwwroot/assets/css/pages/` + логика в `wwwroot/assets/js/managers/` |
-| Перевод интерфейса | добавьте ключ во все файлы `wwwroot/assets/i18n/*.json` |
-
-## 5. Миграции базы данных
-
-После изменения модели данных (класс в `Models/` или `ApplicationDbContext`):
+Версия EF CLI закреплена в `.config/dotnet-tools.json`.
 
 ```bash
-dotnet ef migrations add НазваниеИзменения
+dotnet ef migrations list --no-connect
+dotnet ef database update
+dotnet run
+```
+
+Профили запуска: `http://localhost:5192` и `https://localhost:7063`. Swagger доступен по `/swagger` в Development, проверка здоровья — по `/health`.
+
+При запуске с реляционной БД приложение также применяет миграции до обслуживания запросов. `DbSeeder` заполняет начальные данные врачей, услуг и запись базы знаний о седации. Учётные записи не создаются: первого супер-администратора владелец среды подготавливает отдельно.
+
+Development отключает production-ограничения частоты запросов и допускает некоторые запросы инструментов без заголовков происхождения. Такой запуск не доказывает корректность всех production-проверок безопасности.
+
+## Docker
+
+```powershell
+Copy-Item .env.example .env
+# Замените заглушки; .env не должен попасть в Git.
+docker compose up --build
+```
+
+Compose запускает приложение и SQL Server 2022 Express. Сайт доступен по `http://localhost:8080`.
+
+```bash
+docker compose ps
+docker compose logs -f app
+docker compose down
+```
+
+Не добавляйте `-v` к остановке, если данные нужно сохранить: этот параметр удаляет именованные тома.
+
+## Карта изменений
+
+| Задача | Где искать |
+|---|---|
+| Маршруты, права, DTO | `Controllers/`, `Models/`, справочник API |
+| Бизнес-правила и конкурентные операции | `Services/`, модульные и интеграционные тесты |
+| Схема и индексы | `Models/`, `Data/ApplicationDbContext.cs`, `Migrations/`, словарь данных |
+| Конвейер и защита запросов | `Program.cs`, `Middleware/`, `Filters/` |
+| Уведомления | `Hubs/`, `NotificationService`, `wwwroot/assets/js/services/realtime.js` |
+| Служебные задачи | `BackgroundJobs/`, служба обслуживания заявок, maintenance-контроллер, `vercel.json` |
+| Публичные страницы | `wwwroot/index.html`, `wwwroot/pages/`, CSS и менеджеры страниц |
+| Кабинеты | `wwwroot/assets/js/managers/{patient,admin}/`, HTML/CSS кабинетов |
+| Общий браузерный код | `wwwroot/assets/js/core/`, `services/` |
+| Переводы | `wwwroot/assets/i18n/{ru,en,fr,el,ar}.json` |
+
+Подробности — в [архитектуре](ARCHITECTURE.md).
+
+## Изменение схемы
+
+В текущем репозитории есть явные классы миграций, но нет отслеживаемого снимка модели EF. Автоматическое создание миграции без корректной исходной модели может повторно сгенерировать создание таблиц. Сначала проверьте стратегию миграций и согласуйте снимок с существующей схемой, затем применяйте стандартный процесс:
+
+```bash
+dotnet ef migrations add DescriptiveMigrationName
+dotnet ef migrations list --no-connect
 dotnet ef database update
 ```
 
-Требуется установленный инструмент `dotnet-ef`:
+Перед применением к общей БД проверяйте операции и SQL, сохранность данных, ограничения, индексы и поведение `Down`. Несовместимые старые данные нужно разбирать явно, а не молча удалять ради успешного выпуска. Укажите требования к резервной копии в PR.
+
+## Сессии и API-инструменты
+
+JWT передаётся в `dc_auth` с `HttpOnly`. Не возвращайте его в JSON и не переносите в local/session storage, URL или журналы.
+
+Браузер использует запросы того же происхождения с cookie. Production-операции требуют корректного `Origin`/`Referer`; ИИ-маршруты требуют допустимый `Origin`.
+
+[Postman](DentalClinic.postman_collection.json) использует cookie jar, а не токен из JSON. Вход пациента и администратора заменяет одну и ту же cookie. Подставляйте реальные локальные идентификаторы и будущие даты; не запускайте изменяющие данные примеры на production.
+
+## Тесты
 
 ```bash
-dotnet tool install --global dotnet-ef
+dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj --configuration Release
+npm install
+npm run test:js
 ```
 
-## 6. Фронтенд: архитектура JS
+`CustomWebApplicationFactory` запускает конвейер приложения с уникальной EF InMemory БД. Эти проверки не воспроизводят блокировки SQL Server, фильтрованные индексы и ограничения БД. Изменения конкурентного доступа и схемы требуют отдельных проверок с SQL Server.
 
-Фронтенд — без сборщиков и фреймворков, обычные ES-модули:
+Для Playwright в PowerShell:
 
-- `assets/js/core/` — сквозная инфраструктура: i18n, чат-бот, переключатель языка,
-  навигация, уведомления в шапке;
-- `assets/js/services/` — низкоуровневые сервисы: `apiClient.js` (обёртка над `fetch` с
-  JWT), `realtime.js` (обёртка над SignalR-клиентом), `dateUtils.js`;
-- `assets/js/managers/` — логика конкретных страниц, разделена по ролям:
-  `public/` (публичные страницы), `patient/` (кабинет пациента), `admin/` (панель админа).
-
-Стили организованы по методологии, близкой к ITCSS: `base/` (переменные, сброс) →
-`layout/` (шапка/подвал) → `components/` (переиспользуемые блоки) → `pages/`
-(специфика конкретных страниц).
-
-## 7. Тестирование локально
-
-### Автотесты
-
-Проект `DentalClinic.Tests` (xUnit) запускается без реальной БД —
-интеграционные тесты используют EF Core InMemory вместо SQL Server:
-
-```bash
-dotnet test DentalClinic.Tests/DentalClinic.Tests.csproj
+```powershell
+npx playwright install chromium
+$env:BASE_URL = 'http://localhost:5192'
+npm run test:e2e
 ```
 
-Что покрыто:
-- `Unit/JwtTokenServiceTests` — выпуск JWT, claims, обработка отсутствующего `Jwt:Key`;
-- `Unit/GeminiTranslateLimiterTests` — что лимитер реально не даёт двум вызовам
-  выполняться параллельно;
-- `Integration/HealthEndpointTests` — `/health` отвечает 200 и не требует авторизации;
-- `Integration/AuthControllerTests` — регистрация/вход, дубликат email, короткий
-  пароль, неверный пароль.
+В Bash: `BASE_URL=http://localhost:5192 npm run test:e2e`.
 
-CI (`.github/workflows/ci.yml`) гоняет этот же набор на каждый push/PR в `main`.
-Добавляя новый контроллер или сервис — заводите тесты рядом, по той же схеме:
-`CustomWebApplicationFactory` уже поднимает всё приложение целиком с in-memory БД.
+Без `BASE_URL` тесты направлены на публичный сайт. Некоторые проверки канонического URL ожидают production-домен даже при другом адресе, поэтому локальный запуск не является полностью независимым от окружения. Не запускайте разрушительные сценарии на production без отдельного разрешения.
 
-### Ручная проверка
+CI также собирает контейнер и проверяет обнаружение миграций. Отдельные процессы предусмотрены для CodeQL, опубликованного сайта, Playwright, Gemini и хранения образов Vercel.
 
-Дополнительно к автотестам, при заметных изменениях в UI полезно:
-1. Проверить эндпоинты через Swagger UI (`/swagger`) или файл `DentalClinic.http`
-   (можно открыть и выполнять запросы прямо в Visual Studio / VS Code с расширением REST Client).
-2. Проверить UI вручную в браузере для всех трёх ролей (гость, пациент, администратор).
+## Типовые задачи
 
-## 8. Устранение типичных проблем
+При добавлении API-маршрута используйте ограниченный DTO, проверяйте роль и владельца, выносите общую логику в сервис, защищайте важные инварианты в БД. Покройте успешный запрос, валидацию, отсутствие прав, конфликт и отмену; обновите обе версии справочника API.
 
-**Приложение не запускается, ошибка «Jwt:Key не задан в конфигурации».**
-Вы не создали `appsettings.json` (или не задали ключ через `user-secrets`/переменные
-окружения). См. раздел 3 выше.
+При изменении текста интерфейса обновляйте одинаковые ключи всех пяти языков и проверяйте арабскую раскладку, а не только наличие перевода.
 
-**Ошибка подключения к SQL Server при `dotnet ef database update`.**
-Проверьте, что строка подключения в `ConnectionStrings:DefaultConnection` верна и сервер
-БД доступен (для локального SQL Server Express обычно
-`Server=(localdb)\mssqllocaldb;Database=DentalClinic;Trusted_Connection=True;`).
+Для нового платного вызова провайдера нужны серверный ключ, ограничения тела, тайм-ауты/отмена, безопасные журналы, проверка происхождения, локальные и распределённые квоты, понятный отказ и тесты на утечку ключа.
 
-**AI-чат не отвечает / возвращает ошибку.**
-Проверьте, что `Gemini:ApiKey` задан и ключ действителен — без него `ChatController` не
-сможет обратиться к Gemini API. Голосовой ответ (TTS) при этом необязателен: без
-`ElevenLabs:ApiKey` просто не будет звука, но текстовый ответ бота продолжит работать.
+## Решение проблем
 
-## 9. Расширение функциональности
+| Симптом | Проверка |
+|---|---|
+| Не хватает строки подключения или JWT-ключа | Проверьте действующую конфигурацию; переменные окружения используют `__` |
+| Ошибка HTTPS-сертификата | Выполните `dotnet dev-certs https --trust` либо используйте HTTP только локально |
+| Команда `dotnet ef` не найдена | Выполните `dotnet tool restore` в корне проекта |
+| Чат или перевод не отвечает | Проверьте ключ Gemini, квоту, Origin и ограничения запроса |
+| Вход работает в браузере, но не в Postman | Проверьте cookie jar, адрес/порт и Origin; токена в JSON нет |
+| Миграция не проходит | Проверьте сеть, TLS, права, историю миграций и ограничения данных; не удаляйте production-данные |
 
-**Добавить новый язык интерфейса:**
-1. Создайте файл `wwwroot/assets/i18n/<код_языка>.json` со всеми ключами по аналогии с `ru.json`.
-2. Добавьте язык в список в `languageSwitcher.js`.
-3. Если нужны переводы ФИО врачей — добавьте поле `FullName<Код>` в модель `Doctor` и
-   таблицу `Doctors` (потребуется миграция).
-
-**Изменить цены без правки кода:**
-Все цены — в таблице `Services`, редактируются через панель администратора. AI-бот
-подхватывает изменения автоматически, без перезапуска сервера — см. `ChatKnowledgeService`.
+Перед PR выполните [CONTRIBUTING.md](../CONTRIBUTING.md), обновите документацию на обоих языках и перечитайте [безопасность](SECURITY.md), если меняются сессии, персональные данные, загрузки, провайдеры или развёртывание.

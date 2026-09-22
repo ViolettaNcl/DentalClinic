@@ -1,334 +1,528 @@
 {
   "info": {
-    "name": "DentalClinic API",
-    "description": "Коллекция запросов для тестирования REST API проекта DentalClinic. Импортируйте в Postman и задайте переменные окружения base_url и token.",
+    "name": "DentalClinic API — cookie-session starter",
+    "description": "Starter collection for the current DentalClinic API. Authentication uses the dc_auth HttpOnly cookie, not a token returned in JSON. Postman stores Set-Cookie automatically in its cookie jar. Patient and administrator logins replace the same cookie, so sign in as the role required by the next folder. State-changing and paid-AI requests include the Origin header required by production same-origin policy. The complete route/access reference is docs/en/API.md. Use a disposable local test database: requests create, update, and delete records. Do not run the entire collection blindly or against production. All credentials are examples, not seeded accounts. Update IDs from actual responses (patient_id from login/session); IDs are not captured automatically. Clear the cookie jar before a guest request. Replace the example dates with future clinic-local dates and valid available slots; the examples do not reserve a slot.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "auth": {
+    "type": "noauth"
+  },
   "variable": [
-    { "key": "base_url", "value": "https://localhost:7063" },
-    { "key": "token", "value": "" },
-    { "key": "admin_token", "value": "" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:5192"
+    },
+    {
+      "key": "origin",
+      "value": "http://localhost:5192"
+    },
+    {
+      "key": "patient_email",
+      "value": "patient@example.com"
+    },
+    {
+      "key": "patient_password",
+      "value": "PatientP@ss123"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "admin_password",
+      "value": "replace-with-a-real-local-admin-password"
+    },
+    {
+      "key": "patient_id",
+      "value": "1"
+    },
+    {
+      "key": "appointment_id",
+      "value": "1"
+    },
+    {
+      "key": "doctor_id",
+      "value": "1"
+    },
+    {
+      "key": "service_id",
+      "value": "1"
+    },
+    {
+      "key": "review_id",
+      "value": "1"
+    },
+    {
+      "key": "knowledge_id",
+      "value": "1"
+    },
+    {
+      "key": "admin_id",
+      "value": "1"
+    },
+    {
+      "key": "appointment_date",
+      "value": "2027-01-15T00:00:00"
+    },
+    {
+      "key": "reschedule_date",
+      "value": "2027-01-16T00:00:00"
+    },
+    {
+      "key": "slot_datetime",
+      "value": "2027-01-15T10:00:00"
+    },
+    {
+      "key": "schedule_from",
+      "value": "2027-01-01"
+    },
+    {
+      "key": "schedule_to",
+      "value": "2027-01-31"
+    }
   ],
   "item": [
     {
-      "name": "Auth",
+      "name": "System and public catalogue",
       "item": [
         {
-          "name": "Register (patient)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/api/auth/register",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd123\",\n  \"phone\": \"+79990000000\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login (patient)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/api/auth/login",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
-            },
-            "description": "Скопируйте token из ответа в переменную окружения {{token}}"
-          }
-        },
-        {
-          "name": "Admin login",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/api/auth/admin/login",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminP@ss123\"\n}"
-            },
-            "description": "Скопируйте token из ответа в переменную окружения {{admin_token}}"
-          }
-        },
-        {
-          "name": "Get my profile",
+          "name": "Health",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Clinic profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/clinic/profile"
+          }
+        },
+        {
+          "name": "Active doctors",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/doctor"
+          }
+        },
+        {
+          "name": "Active services",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/service"
+          }
+        },
+        {
+          "name": "Approved reviews",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/review/approved"
+          }
+        },
+        {
+          "name": "Create guest appointment request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test Guest\",\n  \"phone\": \"+79990000000\",\n  \"appointmentDate\": \"{{appointment_date}}\",\n  \"comment\": \"Documentation smoke request\",\n  \"doctorId\": null\n}"
+            },
+            "url": "{{base_url}}/api/appointmentrequest"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patient session",
+      "description": "Run Register or Login first. Postman keeps dc_auth in its cookie jar for subsequent requests to the same base URL.",
+      "item": [
+        {
+          "name": "Register patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test Patient\",\n  \"email\": \"{{patient_email}}\",\n  \"password\": \"{{patient_password}}\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/register"
+          }
+        },
+        {
+          "name": "Login patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patient_email}}\",\n  \"password\": \"{{patient_password}}\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Current session",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/auth/session"
+          }
+        },
+        {
+          "name": "Patient profile",
+          "request": {
+            "method": "GET",
             "url": "{{base_url}}/api/auth/profile"
           }
         },
         {
-          "name": "Change password",
+          "name": "My appointments",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/appointmentrequest/patient/{{patient_id}}"
+          }
+        },
+        {
+          "name": "Reschedule pending appointment",
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
             ],
-            "url": "{{base_url}}/api/auth/change-password",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"P@ssw0rd123\",\n  \"newPassword\": \"NewP@ssw0rd456\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Appointment Requests",
-      "item": [
-        {
-          "name": "Create request (guest)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/api/appointmentrequest",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Гость\",\n  \"phone\": \"+79990000000\",\n  \"appointmentDate\": \"2026-08-01T10:00:00\",\n  \"comment\": \"Болит зуб\",\n  \"doctorId\": null\n}"
-            }
+              "raw": "{\n  \"appointmentDate\": \"{{reschedule_date}}\"\n}"
+            },
+            "url": "{{base_url}}/api/appointmentrequest/{{appointment_id}}/reschedule"
           }
         },
         {
-          "name": "My requests (patient)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/api/appointmentrequest/patient/1"
-          }
-        },
-        {
-          "name": "All requests (admin)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/appointmentrequest/admin/all"
-          }
-        },
-        {
-          "name": "Update request (admin)",
+          "name": "Cancel pending appointment",
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
             ],
-            "url": "{{base_url}}/api/appointmentrequest/1",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"confirmed\",\n  \"doctorId\": 1,\n  \"appointmentDate\": \"2026-08-01T10:00:00\"\n}"
-            }
+            "url": "{{base_url}}/api/appointmentrequest/{{appointment_id}}/cancel"
           }
         },
         {
-          "name": "Cancel own request (patient)",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/api/appointmentrequest/1/cancel"
-          }
-        },
-        {
-          "name": "Reschedule own request (patient)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/api/appointmentrequest/1/reschedule",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"newDate\": \"2026-08-05T12:00:00\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Doctors",
-      "item": [
-        {
-          "name": "List active doctors",
-          "request": { "method": "GET", "url": "{{base_url}}/api/doctor" }
-        },
-        {
-          "name": "List all doctors (admin)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/doctor/admin/all"
-          }
-        },
-        {
-          "name": "Create doctor (admin)",
+          "name": "Create review",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
             ],
-            "url": "{{base_url}}/api/doctor",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Иванов Иван Иванович\",\n  \"specialization\": \"Импланты, хирургия\",\n  \"experienceYears\": 10,\n  \"bio\": \"Опытный специалист\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Services",
-      "item": [
-        {
-          "name": "List active services",
-          "request": { "method": "GET", "url": "{{base_url}}/api/service" }
-        },
-        {
-          "name": "Create service (admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/api/service",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"category\": \"Импланты\",\n  \"name\": \"Имплант стандарт\",\n  \"priceFrom\": 25000,\n  \"priceTo\": 40000,\n  \"unit\": \"зуб\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reviews",
-      "item": [
-        {
-          "name": "Approved reviews (public)",
-          "request": { "method": "GET", "url": "{{base_url}}/api/review/approved" }
-        },
-        {
-          "name": "Create review (patient)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/api/review",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"rating\": 5,\n  \"text\": \"Отличная клиника!\"\n}"
-            }
+              "raw": "{\n  \"rating\": 5,\n  \"text\": \"Professional and helpful test review.\"\n}"
+            },
+            "url": "{{base_url}}/api/review"
           }
         },
         {
-          "name": "Pending reviews (admin)",
+          "name": "Notifications",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/review/admin/pending"
-          }
-        },
-        {
-          "name": "Moderate review (admin)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "url": "{{base_url}}/api/review/admin/1/moderate",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"approve\": true,\n  \"rejectionReason\": null\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "item": [
-        {
-          "name": "My notifications",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{base_url}}/api/notification"
           }
         },
         {
-          "name": "Unread count",
+          "name": "Mark all notifications read",
           "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/api/notification/unread-count"
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{base_url}}/api/notification/read-all"
           }
         },
         {
-          "name": "Mark all read",
+          "name": "Logout",
           "request": {
-            "method": "PUT",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": "{{base_url}}/api/notification/read-all"
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{base_url}}/api/auth/logout"
           }
         }
       ]
     },
     {
-      "name": "AI Chat",
+      "name": "Administrator session and operations",
+      "description": "Login replaces any patient dc_auth cookie in the same Postman cookie jar.",
       "item": [
         {
-          "name": "Send message",
+          "name": "Login administrator",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/api/chat",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sessionId\": \"test-session-1\",\n  \"message\": \"Сколько стоит имплант?\",\n  \"lang\": \"ru\"\n}"
-            }
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/admin/login"
           }
         },
         {
-          "name": "Recent sessions (admin)",
+          "name": "All appointment requests",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/api/appointmentrequest/admin/all"
+          }
+        },
+        {
+          "name": "Confirm appointment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"doctorId\": {{doctor_id}},\n  \"appointmentDate\": \"{{slot_datetime}}\"\n}"
+            },
+            "url": "{{base_url}}/api/appointmentrequest/{{appointment_id}}"
+          }
+        },
+        {
+          "name": "Doctor availability",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/doctorschedule/availability?doctorId={{doctor_id}}&from={{schedule_from}}&to={{schedule_to}}"
+          }
+        },
+        {
+          "name": "All doctors",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/doctor/admin/all"
+          }
+        },
+        {
+          "name": "All services",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/service/admin/all"
+          }
+        },
+        {
+          "name": "Review moderation page",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/review/admin/list/pending?page=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Moderate review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"rejectionReason\": null\n}"
+            },
+            "url": "{{base_url}}/api/review/admin/{{review_id}}/moderate"
+          }
+        },
+        {
+          "name": "Analytics summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/adminstats/summary"
+          }
+        },
+        {
+          "name": "Denta sessions",
+          "request": {
+            "method": "GET",
             "url": "{{base_url}}/api/chat/admin/sessions?take=50"
           }
         },
         {
-          "name": "Chat stats (admin)",
+          "name": "Clinic knowledge",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/chat/admin/stats?days=30"
+            "url": "{{base_url}}/api/clinic-knowledge"
+          }
+        },
+        {
+          "name": "Create clinic knowledge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"policy\",\n  \"title\": \"Test knowledge\",\n  \"content\": \"Replace with an approved clinic fact.\",\n  \"keywords\": \"test\",\n  \"sortOrder\": 100,\n  \"isActive\": true\n}"
+            },
+            "url": "{{base_url}}/api/clinic-knowledge"
           }
         }
       ]
     },
     {
-      "name": "Admin Stats",
+      "name": "Super-admin access",
+      "description": "These requests require the current administrator to have IsSuperAdmin=true in the database.",
       "item": [
         {
-          "name": "Export Excel report",
+          "name": "List administrators",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/adminstats/export/xlsx?from=2026-07-01&to=2026-07-31"
+            "url": "{{base_url}}/api/admin-access"
           }
         },
         {
-          "name": "Printable report",
+          "name": "Set super-admin status",
           "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-            "url": "{{base_url}}/api/adminstats/export/report?from=2026-07-01&to=2026-07-31"
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isSuperAdmin\": true\n}"
+            },
+            "url": "{{base_url}}/api/admin-access/{{admin_id}}/super-admin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Denta and translation",
+      "item": [
+        {
+          "name": "Denta response",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"postman-docs-smoke\",\n  \"message\": \"What services are available?\",\n  \"lang\": \"en\",\n  \"history\": []\n}"
+            },
+            "url": "{{base_url}}/api/chat"
+          }
+        },
+        {
+          "name": "Translate text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hello\",\n  \"targetLang\": \"ru\"\n}"
+            },
+            "url": "{{base_url}}/api/translate"
           }
         }
       ]

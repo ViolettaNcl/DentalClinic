@@ -1,5 +1,7 @@
 # Security Hardening Notes
 
+> **Superseded working notes.** These items were part of an earlier review and may already be implemented. The current source of truth is the [security guide](en/SECURITY.md), with planned work in the [roadmap](../ROADMAP.md).
+
 ## Patient dashboard review
 
 - Replace duplicated password validation rules with a shared password policy.

@@ -1,5 +1,7 @@
 # DentalClinic Audit Progress
 
+> **Historical checkpoint (2026-09).** This record preserves the scope and evidence of a completed hardening pass. It is not the canonical current security, deployment, or roadmap document. Use the [documentation hub](README.md), [security guide](en/SECURITY.md), and [roadmap](../ROADMAP.md) for current guidance.
+
 ## Phase 0/1 source-hardening checkpoint — COMPLETE
 
 The GitHub source hardening scope for Phase 0/1 has reached its stop condition. Deployment/Vercel recovery remains intentionally paused by operator instruction and is not included in this checkpoint.

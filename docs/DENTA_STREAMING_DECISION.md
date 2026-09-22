@@ -1,40 +1,40 @@
-# Denta structured streaming decision
+# ADR 0001: validated responses over browser SSE
 
-Status: **Accepted**  
-Date: **2026-09-06**
+[Documentation](README.md) · [Architecture](en/ARCHITECTURE.md) · [Русский](DENTA_STREAMING_DECISION.ru.md)
+
+Status: Accepted
+
+Original decision: 2026-09-06
+
+Implementation reviewed: 2026-09-22
+
+## Context
+
+A Denta response includes prose, suggestions, local links, and a booking flag. Exposing fragments of provider JSON would require another partial parser at the boundary where safety rules and link checks apply.
 
 ## Decision
 
-Keep the current **reliability-first structured SSE contract** for Denta instead of reintroducing token-by-token provider streaming.
+Keep `POST /api/chat/stream` as a browser-facing SSE endpoint. Resolve one complete typed response before emitting answer content.
 
-The public browser endpoint remains `/api/chat/stream` and keeps an SSE transport contract. Internally, however, `GeminiApiKeyHandler` intentionally converts Denta's provider request from `streamGenerateContent` to `generateContent` whenever the strict structured response schema is active. It validates the complete structured object first and only then exposes the converted result as a single synthetic provider SSE event.
+The current implementation is:
 
-`ChatController` still converts that provider event into the browser-facing reply event(s) plus the final metadata event containing suggestions, links and booking state. The visible answer may therefore arrive as one reply chunk rather than token-by-token.
+1. `DentaAssistantService` asks `DentaClinicRouter` for a deterministic answer from clinic data.
+2. If generation is needed, `DentaAiService` calls Gemini `generateContent`, tries supported request formats/models, and parses the result into `DentaResponse`.
+3. `ChatController` normalizes the result, emits one `delta` event with the reply, and then a `done` event with suggestions, links, and `startBooking`.
+4. Provider failures become an SSE error event. Ordinary `POST /api/chat` remains available for a JSON response.
 
-## Why this is intentional
+`GeminiApiKeyHandler` handles API-key transport, cancellation, and duplicate trailing user messages. It no longer rewrites provider streaming calls or synthesizes provider SSE events. Earlier descriptions of that mechanism are superseded.
 
-Denta is a healthcare-facing assistant. Its response schema carries more than prose: it also contains suggestions, safe local links and booking intent, while the safety layer forbids diagnosis, medication/dosage advice, pain/outcome guarantees and unsafe emergency handling.
+## Consequences
 
-Gemini's schema-constrained streaming response arrives as partial JSON fragments. Exposing or interpreting those fragments before the object is complete would add a second partial-JSON parser in the safety boundary and could let malformed/incomplete structured output leak into the UI. Denta's normal answers are deliberately short, so the UX gain from token animation is smaller than the reliability and safety cost.
+The browser receives the answer after validation, rather than token by token. This simplifies response handling and avoids displaying partial structured data, at the cost of waiting for the complete response.
 
-The current contract also preserves the ordinary `/api/chat` fallback for browsers, proxies or networks that cannot consume SSE correctly.
+Structured parsing and safety checks reduce risk; they do not guarantee that every generated statement is correct. Clinic facts and clinical decisions still require authoritative sources and human oversight.
 
-## Regression contract
+## Verification
 
-`DentaStructuredSseContractTests` locks the important behavior:
+`DentalClinic.Tests/Unit/DentaStructuredSseContractTests.cs` checks the typed response contract, reply/metadata events, and absence of the old provider-SSE and marker parsers.
 
-- the provider call is changed from `streamGenerateContent` to `generateContent`;
-- `alt=sse` and the legacy query-string API key are removed before the provider call;
-- the API key is sent through the protected header path;
-- the schema-validated provider response is exposed as exactly one synthetic SSE event;
-- the converted event preserves the safe reply, bounded/localized suggestions, safe local links and booking fallback.
+## When to revisit
 
-## Revisit only when
-
-True structured streaming should be reconsidered only if at least one of these becomes true:
-
-1. the provider exposes independently validated structured fields incrementally rather than arbitrary partial JSON;
-2. measured response latency becomes a material UX problem for Denta's short-answer format; or
-3. we implement and test a dedicated incremental structured decoder that cannot expose unvalidated partial fields and preserves the existing medical-safety boundary.
-
-Until then, deterministic structured output is the production default.
+Reconsider incremental generation only if measured latency justifies it and a tested incremental decoder can preserve schema validation, safe links, booking semantics, and the existing safety checks.

@@ -1,5 +1,7 @@
 # DentalClinic Phase 2 Progress
 
+> **Historical planning snapshot (2026-09).** Completed checkboxes describe work at the time of this record; open items are not delivery commitments. Use the current [roadmap](../ROADMAP.md) and [documentation hub](README.md) for project direction.
+
 ## Phase 2 — IN PROGRESS
 
 ### Denta / knowledge base

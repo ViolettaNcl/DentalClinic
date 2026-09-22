@@ -1,80 +1,107 @@
-[⬅ Back to README](../../README.en.md)
+# User guide
 
-# 👤 User Guide (Patient)
+[Documentation](../README.md) · [Live application](https://dental-clinic-vn.vercel.app/) · [Русский](../USER_GUIDE.md)
 
-*[🇷🇺 Русская версия](../USER_GUIDE.md)*
+This guide covers the public site and patient dashboard. The website supports Russian, English, French, Greek, and Arabic; Arabic switches the page to right-to-left layout.
 
-This guide describes how to use the clinic website — both without registering and inside
-the patient dashboard.
+![DentalClinic home page](../screenshots/home.png)
 
-📷 *[screenshot placeholder: home page with the request form]*
+## 1. Explore the clinic
 
-## 1. Booking an appointment without registering
+Visitors can browse services and prices, doctor profiles, clinic information, reviews, and detailed treatment pages without an account. Public information is loaded from explicit public API projections; administrator-only fields are not part of those responses.
 
-1. Open the site's home page.
-2. Fill in the appointment request form: name, phone, desired date, doctor (optional), comment.
-3. Click "Submit request".
-4. The request lands in the admin panel with status "pending". You'll be contacted at
-   the phone number you provided to confirm it.
+Prices and website content are informational. Treatment suitability and final cost require an assessment by the clinic.
 
-> Registration isn't required for your first request — but if you do register, you can
-> track its status, reschedule, and cancel it yourself, plus receive realtime
-> notifications.
+## 2. Request an appointment as a guest
 
-## 2. Registration and login
+1. Open the appointment form.
+2. Enter a name, valid phone number, desired future date, optional doctor, and comment.
+3. Submit the request.
+4. The clinic receives it as `pending` and contacts you to confirm details.
 
-1. Click "Log in" → "No account? Sign up".
-2. Enter your name, email, and password.
-3. After registering, log in with the same email and password.
+A guest request is not automatically attached to an account created later. If you want self-service history and notifications, sign in before creating the request.
 
-## 3. Patient dashboard
+Submitting a request is not confirmation. An appointment becomes confirmed only after the clinic assigns/validates the exact doctor/time and changes its status.
 
-📷 *[screenshot placeholder: patient dashboard, "My appointments" tab]*
+## 3. Register and sign in
 
-Once logged in, the "Dashboard" tab is available, where you can:
+Registration requires a name, valid email, and password with at least eight characters including uppercase, lowercase, a number, and a special character.
 
-- **My appointments** — a list of your requests with statuses:
-  - `pending` — awaiting admin confirmation;
-  - `confirmed` — confirmed;
-  - `cancelled` — cancelled;
-  - `completed` — the appointment took place.
-- **Reschedule** — a "Reschedule" button on requests that are pending/confirmed.
-- **Cancel** — a "Cancel" button.
-- **My reviews** — reviews you've submitted and their moderation status (pending /
-  published / rejected — with a reason if rejected).
-- **Profile** — change your name, phone, avatar, password.
+After successful registration/login, the server creates a protected browser session cookie. The password or token is not stored in browser JavaScript storage.
 
-## 4. Notifications
+Do not share an account. Sign out on a shared device. A password change requires a new sign-in; invalidation on another server may take up to 45 seconds.
 
-The notification bell in the site header updates **instantly** (no page reload) when:
-- an admin confirms or cancels your request;
-- your review passes or fails moderation;
-- your appointment date is approaching (a reminder 24 hours ahead).
+## 4. Patient dashboard
 
-## 5. Reviews
+![DentalClinic patient dashboard](../screenshots/patient-dashboard.png)
 
-1. Go to the "Reviews" section on the public site or in your dashboard.
-2. Give a rating (1–5) and write your review text.
-3. The review is sent to the admin for moderation and will appear on the site once approved.
-4. Reviews on the site can be switched to your preferred language — translation is done
-   automatically via AI and cached, so it doesn't repeat the work every time.
+The dashboard includes:
 
-## 6. "Denta" AI assistant
+- **Appointments:** active/history status and permitted actions;
+- **Reviews:** submitted reviews and moderation result;
+- **Notifications:** durable clinic updates with unread state;
+- **Profile:** name, phone, password, and personal avatar.
 
-📷 *[screenshot placeholder: the chatbot window open]*
+### Appointment actions
 
-There's a chatbot icon in the bottom-right corner of the site. It can:
-- answer questions about service prices and doctor specializations (pulled from the
-  current price list, not hardcoded in advance);
-- read its answer out loud (a play button);
-- reply in the site's current interface language.
+| Status | Meaning | Patient self-service |
+|---|---|---|
+| `pending` | Waiting for clinic confirmation | May cancel or request another future date |
+| `confirmed` | Clinic confirmed doctor/time | Contact the clinic to cancel or reschedule |
+| `completed` | Visit completed | No schedule changes |
+| `cancelled` | Request cancelled | No patient reactivation; create/contact clinic as appropriate |
 
-## 7. Switching language
+These restrictions protect the clinic schedule from uncoordinated changes after confirmation.
 
-There's a language switcher in the site header: 🇷🇺 Russian, 🇬🇧 English, 🇫🇷 French,
-🇬🇷 Greek, 🇸🇦 Arabic. Switching happens instantly, without a page reload.
+## 5. Notifications
 
----
+The bell can show:
 
-If something doesn't work as described, let us know through the site's "Contact" section
-or open an Issue in the project's GitHub repository.
+- welcome;
+- appointment confirmed/cancelled/completed;
+- appointment reminder;
+- post-visit follow-up;
+- review approved/rejected.
+
+SignalR can deliver updates immediately. If realtime connectivity is unavailable, reloading/restoring the dashboard fetches the durable notification state through REST.
+
+You can mark one/all notifications as read or delete them. Deleting a visible notification does not change the underlying appointment/review state.
+
+## 6. Reviews
+
+1. Sign in as a patient.
+2. Submit a rating from 1 to 5 and 10–1,000 characters of text.
+3. The review remains `pending` until an administrator decides.
+4. Approved reviews become public; rejected reviews show the reason in your dashboard.
+
+Do not include phone numbers, email addresses, private health details, or information about another person. Review translation uses an external AI provider when requested.
+
+## 7. Profile and avatar
+
+Patients can update their display name and phone, change password, and upload a JPG/PNG/WebP avatar up to 3 MB. The service validates the file signature and stores image bytes in SQL.
+
+Only the current authenticated account can read/change its avatar. Removing an avatar does not delete the account.
+
+## 8. Denta assistant
+
+![Denta assistant](../screenshots/chat-bot.png)
+
+Denta can answer bounded questions about published services, prices, doctors, clinic facts, and navigation. It can suggest safe local links, help structure an appointment request, and optionally play a speech version of an answer.
+
+Denta is an informational assistant, not a clinician. Do not rely on it for diagnosis, medication instructions, treatment guarantees, or emergency care. The Smile Meter is a cosmetic illustration, not a prediction of an individual treatment result. For clinical concerns, contact the clinic or an appropriate local emergency service.
+
+External providers may be temporarily unavailable or rate-limited. Some deterministic clinic answers can still work; generated/translation/speech features may degrade gracefully.
+
+## 9. Language and accessibility
+
+![Language selector](../screenshots/language-switcher.png)
+
+Use the header language control to switch among RU/EN/FR/EL/AR. The preference applies without a full page reload where supported. Arabic uses RTL layout.
+
+The project includes keyboard/focus and automated accessibility checks, but if a control is inaccessible, report the page, browser/device, chosen language, and exact step through a GitHub issue without including personal or medical information.
+
+## 10. Privacy and support
+
+The application stores information needed for the requested workflow. Chat IP values are pseudonymized before persistence and cleared after a short configured period; chat messages have a configured retention period.
+
+For account, appointment, or clinical questions, use the clinic contact information shown by the application. For a software bug, open a GitHub issue with sanitized reproduction steps. Security vulnerabilities must follow the private [security policy](../../SECURITY.md), not a public issue.
