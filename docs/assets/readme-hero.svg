@@ -1,119 +1,223 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
-  <title id="title">DentalClinic animated project banner</title>
-  <desc id="desc">DentalClinic production-oriented dental platform with patient portal, clinic CRM, realtime notifications and bounded AI.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="470" viewBox="0 0 1400 470" role="img" aria-labelledby="title desc">
+  <title id="title">DentalClinic — Production-grade dental platform</title>
+  <desc id="desc">Animated DentalClinic project banner using only safe SVG animation.</desc>
+
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#020706"/>
-      <stop offset="0.48" stop-color="#071411"/>
-      <stop offset="1" stop-color="#020504"/>
+      <stop offset="0%" stop-color="#020807"/>
+      <stop offset="45%" stop-color="#04110f"/>
+      <stop offset="100%" stop-color="#071c18"/>
     </linearGradient>
-    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#13b39b" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#5fd9c4" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#13b39b" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="glow">
-      <stop offset="0" stop-color="#13b39b" stop-opacity="0.34"/>
-      <stop offset="1" stop-color="#13b39b" stop-opacity="0"/>
+
+    <radialGradient id="glowA" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#13b39b" stop-opacity=".24"/>
+      <stop offset="100%" stop-color="#13b39b" stop-opacity="0"/>
     </radialGradient>
-    <pattern id="grid" width="38" height="38" patternUnits="userSpaceOnUse">
-      <path d="M38 0H0V38" fill="none" stroke="#5fd9c4" stroke-opacity="0.055" stroke-width="1"/>
+
+    <radialGradient id="glowB" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffb672" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="#ffb672" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="42%" stop-color="#d9fff8"/>
+      <stop offset="70%" stop-color="#7ee6d3"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+      <animate attributeName="x1" values="-0.2;0.5;-0.2" dur="8s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="0.8;1.5;0.8" dur="8s" repeatCount="indefinite"/>
+    </linearGradient>
+
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#13b39b" stop-opacity="0"/>
+      <stop offset="48%" stop-color="#8ff5e2" stop-opacity=".06"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity=".28"/>
+      <stop offset="52%" stop-color="#8ff5e2" stop-opacity=".06"/>
+      <stop offset="100%" stop-color="#13b39b" stop-opacity="0"/>
+    </linearGradient>
+
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" fill="none" stroke="#65d4c1" stroke-opacity=".055" stroke-width="1"/>
     </pattern>
-    <filter id="blur"><feGaussianBlur stdDeviation="24"/></filter>
-    <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
-    <clipPath id="clip"><rect x="0" y="0" width="1200" height="360" rx="28"/></clipPath>
+
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <filter id="microGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <clipPath id="panelClip">
+      <rect x="10" y="10" width="1380" height="450" rx="34"/>
+    </clipPath>
   </defs>
 
-  <g clip-path="url(#clip)">
-    <rect width="1200" height="360" rx="28" fill="url(#bg)"/>
-    <rect width="1200" height="360" fill="url(#grid)"/>
+  <!-- Frame -->
+  <rect x="10" y="10" width="1380" height="450" rx="34" fill="url(#bg)" stroke="#16483f" stroke-width="1.4"/>
+  <g clip-path="url(#panelClip)">
+    <rect x="10" y="10" width="1380" height="450" fill="url(#grid)"/>
 
-    <circle cx="1030" cy="75" r="190" fill="url(#glow)" filter="url(#blur)">
-      <animate attributeName="cx" values="1030;970;1030" dur="9s" repeatCount="indefinite"/>
-      <animate attributeName="cy" values="75;118;75" dur="11s" repeatCount="indefinite"/>
+    <!-- animated atmosphere -->
+    <circle cx="980" cy="40" r="320" fill="url(#glowA)">
+      <animate attributeName="cx" values="980;1120;980" dur="13s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="40;120;40" dur="11s" repeatCount="indefinite"/>
     </circle>
-    <circle cx="235" cy="325" r="155" fill="url(#glow)" opacity="0.44" filter="url(#blur)">
-      <animate attributeName="cx" values="235;305;235" dur="12s" repeatCount="indefinite"/>
+    <circle cx="360" cy="420" r="270" fill="url(#glowA)" opacity=".72">
+      <animate attributeName="cx" values="360;520;360" dur="15s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="1300" cy="360" r="210" fill="url(#glowB)">
+      <animate attributeName="cy" values="360;290;360" dur="10s" repeatCount="indefinite"/>
     </circle>
 
-    <rect x="0" y="-12" width="1200" height="2" fill="url(#line)" opacity="0">
-      <animate attributeName="y" values="-12;372" dur="6.5s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0;0.28;0.28;0" dur="6.5s" repeatCount="indefinite"/>
+    <!-- soft scan -->
+    <rect x="-520" y="10" width="420" height="450" fill="url(#scan)" opacity=".55" transform="skewX(-14)">
+      <animate attributeName="x" values="-520;1520" dur="7.5s" repeatCount="indefinite"/>
     </rect>
 
-    <g transform="translate(62 62)">
-      <circle cx="58" cy="58" r="55" fill="#0b1c18" stroke="#13b39b" stroke-opacity="0.42"/>
-      <circle cx="58" cy="58" r="43" fill="none" stroke="#5fd9c4" stroke-opacity="0.16" stroke-dasharray="4 7">
+    <!-- top technical rail -->
+    <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+      <text x="52" y="48" font-size="11" font-weight="700" letter-spacing="2.8" fill="#68cbbb" opacity=".82">PRODUCTION SYSTEM</text>
+      <circle cx="240" cy="44" r="4" fill="#2ee6c8" filter="url(#microGlow)">
+        <animate attributeName="opacity" values=".35;1;.35" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+      <text x="252" y="48" font-size="11" font-weight="650" letter-spacing="1.6" fill="#83dfcf" opacity=".76">ONLINE</text>
+      <text x="1286" y="48" text-anchor="end" font-size="10.5" letter-spacing="2.2" fill="#6bbcaf" opacity=".58">SECURE • REALTIME • AI-ASSISTED</text>
+    </g>
+
+    <!-- left tooth mark -->
+    <g transform="translate(64 88)">
+      <circle cx="58" cy="58" r="52" fill="#071c18" stroke="#1a6f61" stroke-width="1.4"/>
+      <circle cx="58" cy="58" r="42" fill="none" stroke="#13b39b" stroke-opacity=".24" stroke-dasharray="3 8">
         <animateTransform attributeName="transform" type="rotate" from="0 58 58" to="360 58 58" dur="18s" repeatCount="indefinite"/>
       </circle>
-      <path d="M58 23c-14 0-25 9-25 24 0 10 4 18 8 27 5 11 7 25 12 25 4 0 4-18 9-18s5 18 9 18c5 0 7-14 12-25 4-9 8-17 8-27 0-15-11-24-25-24-4 0-6 2-8 2s-4-2-8-2Z" fill="none" stroke="#5fd9c4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="58" cy="58" r="4" fill="#ffb672">
-        <animate attributeName="r" values="3;5;3" dur="2.2s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0.65;1;0.65" dur="2.2s" repeatCount="indefinite"/>
-      </circle>
-    </g>
-
-    <g font-family="Inter,Segoe UI,Arial,sans-serif">
-      <text x="200" y="92" fill="#dffaf5" font-size="52" font-weight="800" letter-spacing="-1.2">DentalClinic</text>
-      <text x="202" y="128" fill="#8fbbb3" font-size="19" font-weight="500">Production-oriented dental platform</text>
-
-      <g transform="translate(202 158)" font-size="14" font-weight="700">
-        <rect width="132" height="34" rx="17" fill="#0f2d27" stroke="#13b39b" stroke-opacity="0.38"/>
-        <circle cx="18" cy="17" r="5" fill="#13b39b">
-          <animate attributeName="opacity" values="0.45;1;0.45" dur="1.7s" repeatCount="indefinite"/>
-        </circle>
-        <text x="31" y="22" fill="#bfeee6">ASP.NET 10</text>
-
-        <g transform="translate(144 0)">
-          <rect width="148" height="34" rx="17" fill="#0f2d27" stroke="#13b39b" stroke-opacity="0.38"/>
-          <circle cx="18" cy="17" r="5" fill="#5fd9c4">
-            <animate attributeName="r" values="4;6;4" dur="2.4s" repeatCount="indefinite"/>
-          </circle>
-          <text x="31" y="22" fill="#bfeee6">SignalR realtime</text>
-        </g>
-
-        <g transform="translate(304 0)">
-          <rect width="125" height="34" rx="17" fill="#2b2217" stroke="#ffb672" stroke-opacity="0.45"/>
-          <circle cx="18" cy="17" r="5" fill="#ffb672">
-            <animate attributeName="opacity" values="0.55;1;0.55" dur="2.8s" repeatCount="indefinite"/>
-          </circle>
-          <text x="31" y="22" fill="#ffd8b5">Gemini AI</text>
-        </g>
-      </g>
-
-      <text x="202" y="232" fill="#eefbf8" font-size="18" font-weight="650">Patient Portal  •  Clinic CRM  •  Realtime  •  Denta AI</text>
-      <text x="202" y="262" fill="#6f9f96" font-size="14">Secure sessions · multilingual UX · durable notifications · operational tooling</text>
-
-      <g transform="translate(202 292)" font-size="12" font-weight="700" letter-spacing="0.4">
-        <rect width="124" height="28" rx="14" fill="#0c201c" stroke="#17453b"/>
-        <text x="18" y="19" fill="#86cfc2">PATIENT PORTAL</text>
-        <g transform="translate(136 0)"><rect width="104" height="28" rx="14" fill="#0c201c" stroke="#17453b"/><text x="18" y="19" fill="#86cfc2">CLINIC CRM</text></g>
-        <g transform="translate(252 0)"><rect width="124" height="28" rx="14" fill="#0c201c" stroke="#17453b"/><text x="18" y="19" fill="#86cfc2">SECURE SESSIONS</text></g>
-        <g transform="translate(388 0)"><rect width="116" height="28" rx="14" fill="#0c201c" stroke="#17453b"/><text x="18" y="19" fill="#86cfc2">MULTILINGUAL</text></g>
-      </g>
-    </g>
-
-    <g transform="translate(850 62)" fill="none" stroke-linecap="round">
-      <path d="M45 70C92 15 190 20 238 74S306 167 252 222 105 264 49 216 1 125 45 70Z" stroke="#13b39b" stroke-opacity="0.16" stroke-width="1.4" stroke-dasharray="5 9">
-        <animate attributeName="stroke-dashoffset" values="0;-84" dur="12s" repeatCount="indefinite"/>
+      <path d="M35 39 C39 18 78 18 82 39 C84 51 78 61 75 75 C72 88 69 98 63 98 C58 98 57 82 53 76 C49 82 48 98 42 98 C36 98 33 88 30 75 C27 61 22 51 25 39 C27 28 34 22 44 20"
+            fill="none" stroke="#69edd5" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="220" stroke-dashoffset="220" filter="url(#microGlow)">
+        <animate attributeName="stroke-dashoffset" values="220;0;0" dur="3.2s" repeatCount="1" fill="freeze"/>
       </path>
-      <path d="M82 94L151 58 220 100 252 163 190 211 108 206 54 150Z" stroke="#5fd9c4" stroke-opacity="0.32"/>
-      <path d="M151 58L154 137M82 94L154 137M220 100L154 137M252 163L154 137M190 211L154 137M108 206L154 137M54 150L154 137" stroke="#13b39b" stroke-opacity="0.20"/>
-      <g fill="#13b39b" stroke="none">
-        <circle cx="82" cy="94" r="5"><animate attributeName="r" values="4;7;4" dur="2.6s" repeatCount="indefinite"/></circle>
-        <circle cx="151" cy="58" r="4" opacity="0.8"><animate attributeName="opacity" values="0.35;1;0.35" dur="2.1s" repeatCount="indefinite"/></circle>
-        <circle cx="220" cy="100" r="5"><animate attributeName="r" values="5;3;5" dur="2.9s" repeatCount="indefinite"/></circle>
-        <circle cx="252" cy="163" r="4" opacity="0.75"><animate attributeName="opacity" values="1;0.35;1" dur="2.4s" repeatCount="indefinite"/></circle>
-        <circle cx="190" cy="211" r="5"><animate attributeName="r" values="4;7;4" dur="3.1s" repeatCount="indefinite"/></circle>
-        <circle cx="108" cy="206" r="4" opacity="0.8"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.7s" repeatCount="indefinite"/></circle>
-        <circle cx="54" cy="150" r="5"><animate attributeName="r" values="5;3;5" dur="2.2s" repeatCount="indefinite"/></circle>
-      </g>
-      <circle cx="154" cy="137" r="18" fill="#0d2a24" stroke="#5fd9c4" stroke-opacity="0.7"/>
-      <circle cx="154" cy="137" r="6" fill="#ffb672" stroke="none">
-        <animate attributeName="r" values="5;8;5" dur="2.1s" repeatCount="indefinite"/>
+      <circle cx="58" cy="58" r="4.7" fill="#ffb672">
+        <animate attributeName="r" values="4.2;5.6;4.2" dur="2.8s" repeatCount="indefinite"/>
       </circle>
     </g>
 
-    <rect x="1" y="1" width="1198" height="358" rx="27" fill="none" stroke="#5fd9c4" stroke-opacity="0.14"/>
+    <!-- main copy -->
+    <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+      <text x="205" y="148" font-size="58" font-weight="800" letter-spacing="-2.1" fill="url(#titleGrad)">DentalClinic</text>
+      <text x="208" y="184" font-size="22" font-weight="580" fill="#8bdccd" opacity=".95">Production-grade dental platform</text>
+
+      <!-- stack chips -->
+      <g transform="translate(208 211)">
+        <rect x="0" y="0" width="132" height="36" rx="18" fill="#0b2d27" stroke="#17685a"/>
+        <circle cx="18" cy="18" r="4.8" fill="#2ee6c8"><animate attributeName="opacity" values=".5;1;.5" dur="2.2s" repeatCount="indefinite"/></circle>
+        <text x="34" y="23" font-size="13.5" font-weight="700" fill="#cafff5">ASP.NET 10</text>
+
+        <rect x="144" y="0" width="130" height="36" rx="18" fill="#0b2d27" stroke="#17685a"/>
+        <circle cx="162" cy="18" r="4.8" fill="#66e8d3"><animate attributeName="opacity" values="1;.45;1" dur="2.7s" repeatCount="indefinite"/></circle>
+        <text x="178" y="23" font-size="13.5" font-weight="700" fill="#cafff5">SignalR</text>
+
+        <rect x="286" y="0" width="126" height="36" rx="18" fill="#2b2118" stroke="#8d5d35"/>
+        <circle cx="304" cy="18" r="4.8" fill="#ffb672"><animate attributeName="opacity" values=".45;1;.45" dur="3s" repeatCount="indefinite"/></circle>
+        <text x="320" y="23" font-size="13.5" font-weight="700" fill="#ffe2c7">Gemini AI</text>
+      </g>
+
+      <text x="208" y="286" font-size="19" font-weight="760" fill="#f3fffc">Patient Portal  •  Clinic CRM  •  Realtime  •  Denta AI</text>
+      <text x="208" y="318" font-size="13.5" font-weight="500" fill="#66b9aa" letter-spacing=".1">Secure sessions  •  multilingual UX  •  durable notifications  •  operational tooling</text>
+    </g>
+
+    <!-- right architecture/orbit -->
+    <g transform="translate(1010 104)">
+      <circle cx="150" cy="112" r="108" fill="#061914" stroke="#0f4e43" stroke-width="1.2" stroke-dasharray="5 8"/>
+      <circle cx="150" cy="112" r="75" fill="none" stroke="#125a4d" stroke-opacity=".62"/>
+      <circle cx="150" cy="112" r="45" fill="none" stroke="#1b806f" stroke-opacity=".45"/>
+
+      <!-- static network -->
+      <g stroke="#1a7666" stroke-opacity=".72" stroke-width="1.3">
+        <line x1="150" y1="112" x2="150" y2="28"/>
+        <line x1="150" y1="112" x2="220" y2="64"/>
+        <line x1="150" y1="112" x2="231" y2="139"/>
+        <line x1="150" y1="112" x2="185" y2="191"/>
+        <line x1="150" y1="112" x2="92" y2="181"/>
+        <line x1="150" y1="112" x2="66" y2="131"/>
+        <line x1="150" y1="112" x2="92" y2="61"/>
+        <line x1="92" y1="61" x2="150" y2="28"/>
+        <line x1="150" y1="28" x2="220" y2="64"/>
+        <line x1="220" y1="64" x2="231" y2="139"/>
+        <line x1="231" y1="139" x2="185" y2="191"/>
+        <line x1="185" y1="191" x2="92" y2="181"/>
+        <line x1="92" y1="181" x2="66" y2="131"/>
+        <line x1="66" y1="131" x2="92" y2="61"/>
+      </g>
+
+      <!-- rotating active ring -->
+      <g>
+        <circle cx="150" cy="4" r="5.5" fill="#2ee6c8" filter="url(#microGlow)"/>
+        <circle cx="150" cy="4" r="11" fill="none" stroke="#2ee6c8" stroke-opacity=".28"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 150 112" to="360 150 112" dur="9s" repeatCount="indefinite"/>
+      </g>
+
+      <!-- network nodes -->
+      <g fill="#25cbb0">
+        <circle cx="150" cy="28" r="5"/><circle cx="220" cy="64" r="5"/>
+        <circle cx="231" cy="139" r="5"/><circle cx="185" cy="191" r="5"/>
+        <circle cx="92" cy="181" r="5"/><circle cx="66" cy="131" r="5"/><circle cx="92" cy="61" r="5"/>
+      </g>
+
+      <circle cx="150" cy="112" r="17" fill="#0d342c" stroke="#32cbb2" stroke-width="1.5"/>
+      <circle cx="150" cy="112" r="6" fill="#ffb672" filter="url(#microGlow)">
+        <animate attributeName="r" values="5.5;7;5.5" dur="2.2s" repeatCount="indefinite"/>
+      </circle>
+
+      <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif" font-size="10.5" font-weight="700" fill="#74d7c7">
+        <text x="150" y="226" text-anchor="middle" letter-spacing="1.6">LIVE SYSTEM GRAPH</text>
+      </g>
+    </g>
+
+    <!-- lower pipeline -->
+    <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+      <line x1="208" y1="366" x2="1260" y2="366" stroke="#16584c" stroke-width="1.2"/>
+      <circle cx="208" cy="366" r="3.5" fill="#13b39b"/>
+      <circle cx="1260" cy="366" r="3.5" fill="#13b39b"/>
+
+      <!-- moving telemetry dot -->
+      <circle cy="366" r="4" fill="#8ff5e2" filter="url(#microGlow)">
+        <animate attributeName="cx" values="208;1260;208" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values=".35;1;.35" dur="2s" repeatCount="indefinite"/>
+      </circle>
+
+      <g transform="translate(208 383)">
+
+        <g transform="translate(0 0)">
+          <rect x="0" y="0" width="94" height="28" rx="14" fill="#071d18" stroke="#145d50"/>
+          <text x="47" y="18" text-anchor="middle" font-size="10.5" font-weight="750" letter-spacing=".8" fill="#8fe5d6">PATIENT</text>
+        </g>
+        <g transform="translate(112 0)">
+          <rect x="0" y="0" width="94" height="28" rx="14" fill="#071d18" stroke="#145d50"/>
+          <text x="47" y="18" text-anchor="middle" font-size="10.5" font-weight="750" letter-spacing=".8" fill="#8fe5d6">API</text>
+        </g>
+        <g transform="translate(222 0)">
+          <rect x="0" y="0" width="94" height="28" rx="14" fill="#071d18" stroke="#145d50"/>
+          <text x="47" y="18" text-anchor="middle" font-size="10.5" font-weight="750" letter-spacing=".8" fill="#8fe5d6">DOMAIN</text>
+        </g>
+        <g transform="translate(332 0)">
+          <rect x="0" y="0" width="94" height="28" rx="14" fill="#071d18" stroke="#145d50"/>
+          <text x="47" y="18" text-anchor="middle" font-size="10.5" font-weight="750" letter-spacing=".8" fill="#8fe5d6">SQL</text>
+        </g>
+        <g transform="translate(442 0)">
+          <rect x="0" y="0" width="94" height="28" rx="14" fill="#071d18" stroke="#145d50"/>
+          <text x="47" y="18" text-anchor="middle" font-size="10.5" font-weight="750" letter-spacing=".8" fill="#8fe5d6">AI</text>
+        </g>
+      </g>
+
+      <text x="1260" y="403" text-anchor="end" font-size="10.5" font-weight="700" letter-spacing="1.45" fill="#70bfb2" opacity=".72">ENGINEERED FOR RELIABILITY • SECURITY • OPERABILITY</text>
+    </g>
+
+    <!-- corner details -->
+    <path d="M10 94h18 M10 94v18" stroke="#1a6a5c" stroke-width="1.2" opacity=".7"/>
+    <path d="M1390 94h-18 M1390 94v18" stroke="#1a6a5c" stroke-width="1.2" opacity=".7"/>
+    <path d="M10 382h18 M10 382v-18" stroke="#1a6a5c" stroke-width="1.2" opacity=".7"/>
+    <path d="M1390 382h-18 M1390 382v-18" stroke="#1a6a5c" stroke-width="1.2" opacity=".7"/>
   </g>
 </svg>
