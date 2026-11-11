@@ -24,14 +24,46 @@ export function resolveClinicMapTarget(profile = {}) {
     return address ? Object.freeze({ type: 'address', value: address }) : null;
 }
 
+// Embedded maps use the Yandex Maps widget. The legacy Google "maps?output=embed"
+// renderer is no longer framable (it answers 404 + X-Frame-Options), which left
+// the contact page with an empty grey map. The widget is framable without an API
+// key and renders a real route (with ETA) inside the page.
+const YANDEX_WIDGET = 'https://yandex.ru/map-widget/v1/';
+const YANDEX_ROUTE_TYPES = Object.freeze({
+    driving: 'auto',
+    walking: 'pd',
+    transit: 'mt',
+    bicycling: 'bc'
+});
+
+function yandexPoint(target) {
+    // rtext expects "lat,lon"; ll/pt expect "lon,lat".
+    if (target.type !== 'coordinates') return null;
+    const [lat, lon] = target.value.split(',');
+    return { lat, lon };
+}
+
+function routeType(mode) {
+    return YANDEX_ROUTE_TYPES[ALLOWED_ROUTE_MODES.has(mode) ? mode : 'driving'];
+}
+
 export function buildClinicMapEmbedUrl(target) {
-    return target
-        ? `https://www.google.com/maps?q=${encodeURIComponent(target.value)}&output=embed`
-        : null;
+    if (!target) return null;
+
+    const point = yandexPoint(target);
+    const params = new URLSearchParams();
+    if (point) {
+        params.set('ll', `${point.lon},${point.lat}`);
+        params.set('pt', `${point.lon},${point.lat},pm2rdl`);
+        params.set('z', '16');
+    } else {
+        params.set('text', target.value);
+        params.set('z', '16');
+    }
+    return `${YANDEX_WIDGET}?${params.toString()}`;
 }
 
 // Full Google Maps link retained only as a compatibility helper for tests/legacy code.
-// The contact page no longer opens it: routes are rendered in the existing map iframe.
 export function buildClinicDirectionsUrl(target, origin = null, travelMode = 'driving') {
     if (!target) return null;
 
@@ -46,23 +78,32 @@ export function buildClinicDirectionsUrl(target, origin = null, travelMode = 'dr
 }
 
 /**
- * Build an embedded directions view that stays inside the clinic page.
- * Google Maps' classic embedded renderer understands saddr/daddr/dirflg and does not
- * require the user to leave the site. The destination always comes from trusted clinic
- * configuration; origin is either browser geolocation or text explicitly entered by user.
+ * Build an embedded directions view that stays inside the clinic page. The
+ * destination always comes from trusted clinic configuration; origin is either
+ * browser geolocation or text explicitly entered by the visitor.
  */
 export function buildClinicDirectionsEmbedUrl(target, origin, travelMode = 'driving') {
     if (!target || typeof origin !== 'string' || !origin.trim()) return null;
 
-    const mode = ALLOWED_ROUTE_MODES.has(travelMode) ? travelMode : 'driving';
     const params = new URLSearchParams({
-        output: 'embed',
-        saddr: origin.trim(),
-        daddr: target.value,
-        dirflg: EMBED_DIRECTION_FLAGS[mode] || EMBED_DIRECTION_FLAGS.driving
+        rtext: `${origin.trim()}~${target.value}`,
+        rtt: routeType(travelMode)
     });
+    return `${YANDEX_WIDGET}?${params.toString()}`;
+}
 
-    return `https://www.google.com/maps?${params.toString()}`;
+/**
+ * Link that opens the same route in the Yandex Maps / Navigator app (mobile) or
+ * the full site (desktop). Without an origin the app uses the current location.
+ */
+export function buildClinicExternalRouteUrl(target, origin = null, travelMode = 'driving') {
+    if (!target) return null;
+    const start = typeof origin === 'string' && origin.trim() ? origin.trim() : '';
+    const params = new URLSearchParams({
+        rtext: `${start}~${target.value}`,
+        rtt: routeType(travelMode)
+    });
+    return `https://yandex.ru/maps/?${params.toString()}`;
 }
 
 export function recommendTravelMode(distanceKmValue) {

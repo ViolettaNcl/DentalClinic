@@ -39,8 +39,9 @@ test('logout is independent of a remote Somee DB round-trip', () => {
     assert.ok(logoutStart >= 0 && sessionStart > logoutStart);
     const logout = authController.slice(logoutStart, sessionStart);
     assert.match(logout, /DeleteSessionCookie\(\);/);
-    assert.match(logout, /JwtTokenService\.TokenVersionClaim/);
-    assert.match(logout, /_tokenVersionCache\?\.Set/);
+    // Logout revokes exactly the current token id; it must never bump the whole
+    // account version in one instance's memory (that kicked out fresh logins).
+    assert.match(logout, /_tokenVersionCache\?\.RevokeToken\(tokenId/);
     assert.doesNotMatch(logout, /_db\.|FindAsync|SaveChangesAsync|AnyAsync|FirstOrDefaultAsync/);
     assert.match(logout, /return Ok\(new \{ message = "Выход выполнен" \}\)/);
 });

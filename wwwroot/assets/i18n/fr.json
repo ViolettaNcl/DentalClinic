@@ -982,6 +982,7 @@
   "route_use_location": "Utiliser ma position",
   "route_build_here": "Tracer sur cette carte",
   "route_reset_map": "Afficher seulement la clinique",
+  "route_open_navigator": "Ouvrir l’itinéraire dans Yandex Maps / Navigator",
   "route_origin_current": "Ma position",
   "route_origin_required": "Saisissez une adresse de départ ou autorisez la géolocalisation.",
   "route_map_title": "Itinéraire vers Dental Clinic",

@@ -1,0 +1,468 @@
+/* =====================================================================
+   Site-wide motion layer (подключается на всех публичных страницах).
+   Всё отключается при prefers-reduced-motion и не меняет разметку/контент.
+   ===================================================================== */
+
+/* ---------- 1. Плавное появление страницы ---------- */
+@keyframes motion-page-in {
+    /* opacity only: a transform here would re-parent position:fixed children */
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+body.motion-ready main,
+body.motion-ready > section,
+body.motion-ready .contact-hero {
+    animation: motion-page-in .7s var(--ease-smooth, ease) backwards;
+}
+
+/* ---------- 2. Hero: появление заголовка + блик ---------- */
+@keyframes motion-rise {
+    from { opacity: 0; transform: translateY(28px); filter: blur(6px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes motion-shine {
+    0%   { background-position: -160% 0; }
+    60%, 100% { background-position: 260% 0; }
+}
+
+.hero .hero-content h1,
+.contact-hero-title {
+    animation: motion-rise .9s var(--ease-smooth, ease) .1s backwards;
+}
+
+.hero .hero-content p,
+.contact-hero-subtitle {
+    animation: motion-rise .9s var(--ease-smooth, ease) .3s backwards;
+}
+
+.hero .hero-buttons {
+    animation: motion-rise .9s var(--ease-smooth, ease) .5s backwards;
+}
+
+.hero .stats .stat {
+    animation: motion-rise .8s var(--ease-smooth, ease) backwards;
+}
+.hero .stats .stat:nth-child(1) { animation-delay: .65s; }
+.hero .stats .stat:nth-child(2) { animation-delay: .8s; }
+.hero .stats .stat:nth-child(3) { animation-delay: .95s; }
+
+/* Пульс-приглашение у главной кнопки записи */
+@keyframes motion-cta-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(19, 179, 155, .55); }
+    70%  { box-shadow: 0 0 0 18px rgba(19, 179, 155, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(19, 179, 155, 0); }
+}
+
+.hero .hero-buttons .btn-primary {
+    animation: motion-cta-pulse 2.6s ease-out 1.6s infinite;
+}
+
+/* Блик, пробегающий по кнопкам при наведении */
+.btn-primary .motion-shine,
+.route-build-btn .motion-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .45) 50%, transparent 65%);
+    background-size: 220% 100%;
+    background-position: -160% 0;
+    border-radius: inherit;
+}
+
+.btn-primary:hover .motion-shine,
+.route-build-btn:hover .motion-shine {
+    animation: motion-shine 1.1s ease forwards;
+}
+
+/* ---------- 3. Волна (ripple) при клике ---------- */
+.motion-ripple-host {
+    position: relative;
+    overflow: hidden;
+}
+
+.motion-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    background: rgba(255, 255, 255, .45);
+    pointer-events: none;
+    animation: motion-ripple .65s ease-out forwards;
+}
+
+@keyframes motion-ripple {
+    to { transform: scale(2.6); opacity: 0; }
+}
+
+/* ---------- 4. 3D-наклон и «прожектор» на карточках ---------- */
+.motion-tilt {
+    transform-style: preserve-3d;
+    --rx: 0deg;
+    --ry: 0deg;
+    --mx: 50%;
+    --my: 50%;
+}
+
+.motion-tilt.is-tilting {
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-8px);
+    transition: transform .12s linear, box-shadow .45s ease, border-color .45s ease;
+}
+
+.motion-spot {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 0;
+    background: radial-gradient(420px circle at var(--mx) var(--my), rgba(19, 179, 155, .16), transparent 45%);
+    transition: opacity .35s ease;
+}
+
+.motion-tilt.is-tilting .motion-spot {
+    opacity: 1;
+}
+
+/* ---------- 5. Плавающие частицы в hero ---------- */
+.motion-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.motion-particle {
+    position: absolute;
+    bottom: -30px;
+    color: rgba(255, 255, 255, .55);
+    font-size: var(--p-size, 16px);
+    text-shadow: 0 0 12px rgba(95, 217, 196, .8);
+    animation: motion-float var(--p-duration, 12s) linear var(--p-delay, 0s) infinite;
+    will-change: transform, opacity;
+}
+
+@keyframes motion-float {
+    0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: .8; }
+    100% { transform: translate3d(var(--p-drift, 20px), -110vh, 0) rotate(240deg); opacity: 0; }
+}
+
+/* ---------- 6. Модальные окна входа/регистрации ---------- */
+@keyframes motion-modal-in {
+    from { opacity: 0; transform: translateY(26px) scale(.94); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes motion-backdrop-in {
+    from { background-color: rgba(0, 0, 0, 0); backdrop-filter: blur(0); }
+}
+
+#login-modal[style*="block"],
+#signup-modal[style*="block"],
+#review-modal[style*="block"] {
+    animation: motion-backdrop-in .35s ease backwards;
+}
+
+#login-modal[style*="block"] .modal-content,
+#signup-modal[style*="block"] .modal-content,
+#review-modal[style*="block"] .modal-content {
+    animation: motion-modal-in .5s var(--ease-bounce, ease) backwards;
+}
+
+#login-modal .modal-content input,
+#signup-modal .modal-content input {
+    transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
+}
+
+#login-modal .modal-content input:focus,
+#signup-modal .modal-content input:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 4px rgba(19, 179, 155, .18);
+}
+
+/* ---------- 8. Альтернативные варианты появления ---------- */
+[data-reveal="blur"] {
+    filter: blur(10px);
+    transform: translateY(24px) scale(.98);
+    transition: opacity .9s var(--ease-smooth), transform .9s var(--ease-smooth), filter .9s var(--ease-smooth);
+}
+
+[data-reveal="blur"].reveal-visible {
+    filter: blur(0);
+    transform: none;
+}
+
+/* ---------- 9. Карта и маршрут ---------- */
+.location-section .map-wrapper {
+    transition: box-shadow .5s ease, transform .5s var(--ease-smooth, ease);
+}
+
+.location-section .map-wrapper:hover {
+    box-shadow: 0 26px 60px rgba(10, 83, 74, .22);
+}
+
+@keyframes motion-route-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(19, 179, 155, .7); }
+    100% { box-shadow: 0 0 0 26px rgba(19, 179, 155, 0); }
+}
+
+.map-wrapper.route-flash {
+    animation: motion-route-flash 1.1s ease-out 2;
+}
+
+.route-external-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1.5px dashed rgba(19, 179, 155, .55);
+    color: var(--primary-dark, #0a8a77);
+    font-weight: 700;
+    font-size: .92rem;
+    text-decoration: none;
+    transition: background-color .25s ease, transform .25s var(--ease-bounce, ease), border-color .25s ease;
+}
+
+.route-external-link:hover,
+.route-external-link:focus-visible {
+    background: rgba(19, 179, 155, .08);
+    border-style: solid;
+    transform: translateY(-2px);
+}
+
+.route-external-link span[aria-hidden] {
+    display: inline-block;
+    transition: transform .6s var(--ease-bounce, ease);
+}
+
+.route-external-link:hover span[aria-hidden] {
+    transform: rotate(360deg);
+}
+
+.smart-map-mode {
+    transition: transform .25s var(--ease-bounce, ease), background-color .25s ease, color .25s ease, box-shadow .25s ease;
+}
+
+.smart-map-mode:hover {
+    transform: translateY(-2px);
+}
+
+.smart-map-mode.is-active {
+    animation: motion-pop .45s var(--ease-bounce, ease);
+}
+
+@keyframes motion-pop {
+    0%   { transform: scale(.92); }
+    60%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+}
+
+/* ---------- 10. Счётчики статистики ---------- */
+.stat h3.motion-counting {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 11. Иконки карточек: лёгкое «покачивание» ---------- */
+@keyframes motion-wiggle {
+    0%, 100% { transform: rotate(0) scale(1.08); }
+    25% { transform: rotate(-8deg) scale(1.12); }
+    75% { transform: rotate(8deg) scale(1.12); }
+}
+
+.card:hover .card__icon-circle,
+.contact-card:hover .card__icon-circle {
+    animation: motion-wiggle .6s ease;
+}
+
+/* ---------- 12. Шапка выезжает сверху при загрузке ---------- */
+/* opacity only: any transform/filter on <header> re-parents its position:fixed
+   children (mobile login/sign-up buttons, mobile menu). */
+@keyframes motion-header-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* fill-mode "backwards" (not "both"): after the animation the header must have NO
+   transform at all, otherwise it becomes the containing block of its
+   position:fixed children and the mobile login/sign-up buttons jump to the top. */
+body.motion-ready > header {
+    animation: motion-header-in .7s var(--ease-smooth, ease) backwards;
+}
+
+/* Логотип слегка «дышит» */
+@keyframes motion-breathe {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(19, 179, 155, .35); }
+    50%      { box-shadow: 0 0 18px 2px rgba(19, 179, 155, .55); }
+}
+
+.logo img {
+    animation: motion-breathe 4.5s ease-in-out infinite;
+}
+
+/* ---------- 13. Выпадающее меню «Услуги»: пункты по очереди ---------- */
+@keyframes motion-slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@media (min-width: 993px) {
+    nav ul li.services-menu:hover .dropdown li,
+    nav ul li.services-menu:focus-within .dropdown li {
+        animation: motion-slide-in .35s var(--ease-smooth, ease) backwards;
+    }
+    nav ul li.services-menu .dropdown li:nth-child(1) { animation-delay: .02s; }
+    nav ul li.services-menu .dropdown li:nth-child(2) { animation-delay: .05s; }
+    nav ul li.services-menu .dropdown li:nth-child(3) { animation-delay: .08s; }
+    nav ul li.services-menu .dropdown li:nth-child(4) { animation-delay: .11s; }
+    nav ul li.services-menu .dropdown li:nth-child(5) { animation-delay: .14s; }
+    nav ul li.services-menu .dropdown li:nth-child(6) { animation-delay: .17s; }
+    nav ul li.services-menu .dropdown li:nth-child(7) { animation-delay: .2s; }
+    nav ul li.services-menu .dropdown li:nth-child(8) { animation-delay: .23s; }
+}
+
+/* Мобильное меню: пункты выезжают по очереди при открытии */
+@media (max-width: 992px) {
+    nav ul.active > li {
+        animation: motion-menu-item .4s var(--ease-smooth, ease) backwards;
+    }
+    nav ul.active > li:nth-child(2) { animation-delay: .04s; }
+    nav ul.active > li:nth-child(3) { animation-delay: .08s; }
+    nav ul.active > li:nth-child(4) { animation-delay: .12s; }
+    nav ul.active > li:nth-child(5) { animation-delay: .16s; }
+    nav ul.active > li:nth-child(6) { animation-delay: .2s; }
+}
+
+@keyframes motion-menu-item {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ---------- 14. Световое пятно за курсором в hero + параллакс ---------- */
+.motion-hero-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity .5s ease;
+    background: radial-gradient(520px circle at var(--gx, 50%) var(--gy, 50%), rgba(95, 217, 196, .18), transparent 60%);
+}
+
+.motion-hero-glow.is-on {
+    opacity: 1;
+}
+
+/* translate is independent from the existing heroZoom transform animation */
+.hero.motion-parallax::before {
+    inset: -24px;
+    translate: var(--px, 0px) var(--py, 0px);
+    transition: translate .5s ease-out;
+}
+
+/* ---------- 15. Переливающийся градиент заголовков секций ---------- */
+@keyframes motion-title-gradient {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+.section-title.reveal-visible::after {
+    background: linear-gradient(90deg, var(--primary, #13b39b), var(--primary-light, #5fd9c4), var(--accent, #ffb672), var(--primary, #13b39b));
+    background-size: 200% 100%;
+    animation: motion-title-gradient 3.5s linear infinite;
+}
+
+/* ---------- 16. Фото: появление «шторкой» и приближение при наведении ---------- */
+.motion-img-reveal {
+    clip-path: inset(0 0 100% 0 round 18px);
+    transition: clip-path 1.1s var(--ease-smooth, ease);
+}
+
+.motion-img-reveal.is-revealed {
+    clip-path: inset(0 0 0 0 round 0);
+}
+
+.doctor-card__photo,
+.philosophy-image,
+.gallery-item {
+    overflow: hidden;
+}
+
+.doctor-card__photo img,
+.philosophy-image img,
+.about-block img {
+    transition: transform .8s var(--ease-smooth, ease), filter .6s ease;
+}
+
+.doctor-card:hover .doctor-card__photo img,
+.philosophy-image:hover img,
+.about-block:hover img {
+    transform: scale(1.06);
+    filter: saturate(1.1);
+}
+
+/* ---------- 17. Магнитные кнопки (только мышь) ---------- */
+.motion-magnetic {
+    transition: transform .25s var(--ease-smooth, ease), box-shadow .35s ease;
+}
+
+.motion-magnetic.is-pulled {
+    transform: translate(var(--tx, 0), var(--ty, 0));
+}
+
+/* ---------- 18. Ссылки в подвале ---------- */
+footer a {
+    transition: color .25s ease, transform .25s var(--ease-smooth, ease);
+}
+
+footer a:hover {
+    transform: translateX(4px);
+}
+
+/* ---------- 19. Плавный уход со страницы при переходе ---------- */
+body.motion-leaving {
+    opacity: 0;
+    transition: opacity .22s ease;
+}
+
+/* ---------- 20. Отзывы и формы ---------- */
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+    transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
+}
+
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(19, 179, 155, .14);
+}
+
+/* ---------- Доступность: без анимаций по запросу системы ---------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+
+    .motion-particles,
+    .motion-spot,
+    .motion-shine {
+        display: none !important;
+    }
+}
+
+/* Overlays use display:flex; respect the hidden attribute (e.g. ETA without coordinates). */
+.ai-map-overlay[hidden] {
+    display: none !important;
+}

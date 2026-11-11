@@ -982,6 +982,7 @@
   "route_use_location": "Χρήση της τοποθεσίας μου",
   "route_build_here": "Δημιουργία σε αυτόν τον χάρτη",
   "route_reset_map": "Εμφάνιση μόνο της κλινικής",
+  "route_open_navigator": "Άνοιγμα διαδρομής στους Χάρτες Yandex / Navigator",
   "route_origin_current": "Η τοποθεσία μου",
   "route_origin_required": "Γράψτε διεύθυνση εκκίνησης ή επιτρέψτε την τοποθεσία.",
   "route_map_title": "Διαδρομή προς Dental Clinic",

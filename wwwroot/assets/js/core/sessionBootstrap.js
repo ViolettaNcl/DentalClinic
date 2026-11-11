@@ -38,6 +38,22 @@ async function requestServerSession() {
     }
 }
 
+// A slow remote database answers 503 (not 401). Retry a couple of times instead of
+// treating the visitor as logged out right after a successful sign-in.
+async function requestServerSessionWithRetry() {
+    const delays = [600, 1500];
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            return await requestServerSession();
+        } catch (error) {
+            const retryable = error?.status === 503 || error?.status === 502 || error?.status === 504
+                || error instanceof TypeError;
+            if (!retryable || attempt >= delays.length) throw error;
+            await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+        }
+    }
+}
+
 export function clearSessionMetadata(storage = getDefaultStorage()) {
     if (!storage) return;
     SESSION_KEYS.forEach(key => storage.removeItem(key));
@@ -56,7 +72,7 @@ export function syncSessionMetadata(session, storage = getDefaultStorage()) {
 
 export async function getServerSession({
     force = false,
-    request = requestServerSession,
+    request = requestServerSessionWithRetry,
     storage = getDefaultStorage()
 } = {}) {
     if (!force && currentSessionPromise) return currentSessionPromise;
@@ -75,7 +91,7 @@ export async function getServerSession({
 }
 
 export async function requireServerSession(expectedRole, {
-    request = requestServerSession,
+    request = requestServerSessionWithRetry,
     storage = getDefaultStorage(),
     redirect = url => window.location.replace(url),
     redirectUrl = '/index.html'

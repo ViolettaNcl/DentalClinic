@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
     buildClinicDirectionsEmbedUrl,
     buildClinicDirectionsUrl,
+    buildClinicExternalRouteUrl,
     buildClinicMapEmbedUrl,
     estimateTravelMinutes,
     predictAdaptiveRoute,
@@ -20,10 +21,10 @@ test('uses exact clinic coordinates when they are configured', () => {
     });
 
     assert.deepEqual(target, { type: 'coordinates', value: '48.7,44.5' });
-    assert.equal(
-        buildClinicMapEmbedUrl(target),
-        'https://www.google.com/maps?q=48.7%2C44.5&output=embed'
-    );
+    const url = new URL(buildClinicMapEmbedUrl(target));
+    assert.equal(url.origin + url.pathname, 'https://yandex.ru/map-widget/v1/');
+    assert.equal(url.searchParams.get('ll'), '44.5,48.7');
+    assert.equal(url.searchParams.get('pt'), '44.5,48.7,pm2rdl');
 });
 
 test('renders a clinic map from its configured address when coordinates are absent', () => {
@@ -46,12 +47,10 @@ test('builds directions inside the same embedded map', () => {
     const target = resolveClinicMapTarget({ hasCoordinates: true, latitude: 48.7, longitude: 44.5 });
     const url = new URL(buildClinicDirectionsEmbedUrl(target, '48.71,44.51', 'walking'));
 
-    assert.equal(url.origin, 'https://www.google.com');
-    assert.equal(url.pathname, '/maps');
-    assert.equal(url.searchParams.get('output'), 'embed');
-    assert.equal(url.searchParams.get('saddr'), '48.71,44.51');
-    assert.equal(url.searchParams.get('daddr'), '48.7,44.5');
-    assert.equal(url.searchParams.get('dirflg'), 'w');
+    assert.equal(url.origin, 'https://yandex.ru');
+    assert.equal(url.pathname, '/map-widget/v1/');
+    assert.equal(url.searchParams.get('rtext'), '48.71,44.51~48.7,44.5');
+    assert.equal(url.searchParams.get('rtt'), 'pd');
 });
 
 test('embedded route requires a start point and never invents one', () => {
@@ -61,14 +60,30 @@ test('embedded route requires a start point and never invents one', () => {
     assert.equal(buildClinicDirectionsEmbedUrl(null, '48.71,44.51'), null);
 });
 
-test('embedded route maps supported travel modes to map direction flags', () => {
+test('embedded route maps supported travel modes to Yandex route types', () => {
     const target = { type: 'address', value: 'Clinic address' };
-    const flag = mode => new URL(buildClinicDirectionsEmbedUrl(target, 'Start', mode)).searchParams.get('dirflg');
-    assert.equal(flag('driving'), 'd');
-    assert.equal(flag('walking'), 'w');
-    assert.equal(flag('transit'), 'r');
-    assert.equal(flag('bicycling'), 'b');
-    assert.equal(flag('unknown'), 'd');
+    const flag = mode => new URL(buildClinicDirectionsEmbedUrl(target, 'Start', mode)).searchParams.get('rtt');
+    assert.equal(flag('driving'), 'auto');
+    assert.equal(flag('walking'), 'pd');
+    assert.equal(flag('transit'), 'mt');
+    assert.equal(flag('bicycling'), 'bc');
+    assert.equal(flag('unknown'), 'auto');
+});
+
+test('address-only clinic map searches the configured address', () => {
+    const url = new URL(buildClinicMapEmbedUrl({ type: 'address', value: 'Волгоград, проспект Ленина, 1' }));
+    assert.equal(url.searchParams.get('text'), 'Волгоград, проспект Ленина, 1');
+});
+
+test('external route link opens Yandex Maps and lets the app use current location', () => {
+    const target = { type: 'address', value: 'Clinic address' };
+    const noOrigin = new URL(buildClinicExternalRouteUrl(target));
+    assert.equal(noOrigin.origin + noOrigin.pathname, 'https://yandex.ru/maps/');
+    assert.equal(noOrigin.searchParams.get('rtext'), '~Clinic address');
+    const withOrigin = new URL(buildClinicExternalRouteUrl(target, '48.71,44.51', 'transit'));
+    assert.equal(withOrigin.searchParams.get('rtext'), '48.71,44.51~Clinic address');
+    assert.equal(withOrigin.searchParams.get('rtt'), 'mt');
+    assert.equal(buildClinicExternalRouteUrl(null), null);
 });
 
 test('does not invent a map destination without a configured address or coordinates', () => {

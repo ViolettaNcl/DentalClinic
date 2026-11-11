@@ -982,6 +982,7 @@
   "route_use_location": "استخدم موقعي",
   "route_build_here": "إنشاء المسار على هذه الخريطة",
   "route_reset_map": "إظهار العيادة فقط",
+  "route_open_navigator": "افتح المسار في خرائط ياندكس / الملاح",
   "route_origin_current": "موقعي الحالي",
   "route_origin_required": "أدخل عنوان البداية أو اسمح بالوصول إلى الموقع.",
   "route_map_title": "المسار إلى Dental Clinic",

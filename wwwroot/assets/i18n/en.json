@@ -982,6 +982,7 @@
   "route_use_location": "Use my location",
   "route_build_here": "Build on this map",
   "route_reset_map": "Show clinic only",
+  "route_open_navigator": "Open route in Yandex Maps / Navigator",
   "route_origin_current": "My location",
   "route_origin_required": "Enter a starting address or allow location access.",
   "route_map_title": "Route to Dental Clinic",

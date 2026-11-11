@@ -24,14 +24,17 @@ class AuthManager {
         this.setupEvents();
         this._configureSignupPasswordInput();
 
-        try {
-            await getServerSession({ force: true });
-        } catch (err) {
-            // A temporary network/server problem must not be treated as a logout.
-            console.warn('Не удалось проверить серверную сессию:', err?.message || err);
-        }
-
+        // Show what we already know immediately, then refresh from the server in
+        // the background. Awaiting the session here used to block the burger menu,
+        // language switcher and chat for up to 25 s on a slow database.
         this.updateHeader();
+        getServerSession({ force: true })
+            .then(() => this.updateHeader())
+            .catch(err => {
+                // A temporary network/server problem must not be treated as a logout.
+                console.warn('Не удалось проверить серверную сессию:', err?.message || err);
+            });
+
         onLanguageChange(() => {
             this.updateHeader();
             this._configureSignupPasswordInput();
@@ -55,11 +58,16 @@ class AuthManager {
             ['.link-to-signup', 'signup']
         ];
 
-        modalBtns.forEach(([selector, key]) => {
-            document.querySelector(selector)?.addEventListener('click', e => {
-                e.preventDefault();
-                this.showModal(this.modals[key]);
-            });
+        // Delegated: the header buttons can be re-rendered (login <-> logout state),
+        // so per-element listeners would be lost.
+        document.addEventListener('click', e => {
+            for (const [selector, key] of modalBtns) {
+                if (e.target.closest(selector)) {
+                    e.preventDefault();
+                    this.showModal(this.modals[key]);
+                    return;
+                }
+            }
         });
 
         document.querySelectorAll('.close').forEach(btn =>
@@ -177,13 +185,21 @@ class AuthManager {
         const cabinet = document.getElementById('cabinet-link');
         const headerBtns = document.getElementById('header-buttons');
 
-        if (name && cabinet && headerBtns) {
+        if (!cabinet || !headerBtns) return;
+        if (this._guestHeaderHtml === undefined) this._guestHeaderHtml = headerBtns.innerHTML;
+
+        if (name) {
             cabinet.href = role === 'admin'
                 ? '/pages/admin-dashboard.html'
                 : '/pages/patient-dashboard.html';
             cabinet.style.display = 'block';
             headerBtns.innerHTML =
                 `<button class="btn-primary btn-logout">${t('auth_logout_btn', 'Выход')}</button>`;
+        } else if (headerBtns.querySelector('.btn-logout')) {
+            // Stale browser metadata turned out to be an expired session: bring the
+            // "Вход / Регистрация" buttons back instead of leaving a dead logout button.
+            cabinet.style.display = 'none';
+            headerBtns.innerHTML = this._guestHeaderHtml;
         }
     }
 

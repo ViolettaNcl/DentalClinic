@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.Extensions.Caching.Memory;
 
 namespace DentalClinic.Services;
 
@@ -37,6 +37,22 @@ public sealed class TokenVersionCache
             {
                 AbsoluteExpirationRelativeToNow = Lifetime
             });
+
+    /// <summary>Revoke one specific token (logout) until it would expire anyway.</summary>
+    public void RevokeToken(string tokenId, DateTimeOffset expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(tokenId)) return;
+        var ttl = expiresAt - DateTimeOffset.UtcNow;
+        if (ttl <= TimeSpan.Zero) return;
+        _cache.Set($"auth-revoked-jti:{tokenId}", true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = ttl
+        });
+    }
+
+    public bool IsTokenRevoked(string? tokenId)
+        => !string.IsNullOrWhiteSpace(tokenId)
+            && _cache.TryGetValue($"auth-revoked-jti:{tokenId}", out _);
 
     public void Remove(string role, int userId)
         => _cache.Remove(Key(role, userId));

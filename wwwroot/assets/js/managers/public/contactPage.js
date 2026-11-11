@@ -2,13 +2,14 @@
  * Contact page: AI Route Studio + live embedded route.
  *
  * Privacy boundary: the local prediction model never uploads location to an extra AI
- * provider. The actual route is rendered by Google Maps in the existing iframe only
+ * provider. The actual route is rendered by the Yandex Maps widget in the existing iframe only
  * after the visitor explicitly provides/permits a starting point.
  */
 import { t, onLanguageChange } from '../../core/i18n.js';
 import { getPublicClinicProfile } from '../../core/publicClinicProfile.js';
 import {
     buildClinicDirectionsEmbedUrl,
+    buildClinicExternalRouteUrl,
     buildClinicMapEmbedUrl,
     estimateTravelMinutes,
     predictAdaptiveRoute,
@@ -118,6 +119,8 @@ function initRouteBuilder(profile, target) {
     const etaEl = document.getElementById('map-route-eta');
     const distanceEl = document.getElementById('map-route-distance');
     const originStatusEl = document.getElementById('map-origin-status');
+    const externalLink = document.getElementById('route-open-external');
+    const etaOverlay = document.querySelector('.ai-map-overlay--eta');
 
     if (!iframe || !mapZone || !companion || !panel || !target) return;
 
@@ -131,6 +134,16 @@ function initRouteBuilder(profile, target) {
     let currentRouteOrigin = null;
     let nudgeTimer = null;
     let nudgeWasShown = false;
+
+    // Without exact clinic coordinates the local ETA cannot be computed; the
+    // Yandex widget shows its own real ETA inside the map instead.
+    if (etaOverlay && !clinic) etaOverlay.hidden = true;
+
+    const updateExternalLink = () => {
+        if (!externalLink) return;
+        const href = buildClinicExternalRouteUrl(target, currentRouteOrigin, selectedMode);
+        if (href) externalLink.href = href;
+    };
 
     const setPanelOpen = open => {
         companion.classList.toggle('is-open', open);
@@ -202,6 +215,10 @@ function initRouteBuilder(profile, target) {
         mapZone.classList.add('has-route');
         if (originStatusEl) originStatusEl.textContent = originInput?.value?.trim() || t('route_origin_current', 'Моё местоположение');
         renderRouteResult(resultEl, t('route_rendered_here', 'Маршрут построен прямо на карте. Можно двигать и масштабировать её как обычно.'), 'success');
+        updateExternalLink();
+        mapZone.classList.remove('route-flash');
+        void mapZone.offsetWidth; // restart the CSS "route drawn" animation
+        mapZone.classList.add('route-flash');
         return true;
     };
 
@@ -209,6 +226,7 @@ function initRouteBuilder(profile, target) {
         selectedMode = mode;
         modeButtons.forEach(button => button.classList.toggle('is-active', button.dataset.routeMode === mode));
         updatePredictionUi();
+        updateExternalLink();
         if (currentRouteOrigin && iframe.dataset.mapView === 'route') renderRouteOnMap(currentRouteOrigin);
     };
 
@@ -301,12 +319,14 @@ function initRouteBuilder(profile, target) {
         iframe.title = profile.address ? `Dental Clinic — ${profile.address}` : 'Dental Clinic location';
         currentRouteOrigin = null;
         mapZone.classList.remove('has-route');
+        updateExternalLink();
         renderRouteResult(resultEl, t('route_map_reset', 'Показываем расположение клиники.'), 'neutral');
     });
 
     // Desktop intentionally starts open like the premium reference layout. Mobile remains compact.
     setPanelOpen(!window.matchMedia('(max-width: 820px)').matches);
     updatePredictionUi();
+    updateExternalLink();
 
     mapZone.addEventListener('pointerenter', () => revealNudgeSoon(800), { passive: true });
     mapZone.addEventListener('focusin', () => revealNudgeSoon(350));

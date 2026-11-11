@@ -39,12 +39,19 @@ async function initializePage() {
 
         document.body.insertAdjacentHTML('afterbegin', headerHTML + bellHTML + modalsHTML);
         document.body.insertAdjacentHTML('beforeend', footerHTML);
+
+        // Header controls must work the moment they are visible. They used to be
+        // wired only after i18n + the auth session check, so an early click on the
+        // language button or burger menu was silently lost (also broke Production E2E).
+        const nav = new NavigationManager(); nav.init();
+        const langSwitcher = new LanguageSwitcher();
+        const langReady = langSwitcher.init();
+
         await i18nReady;
 
         const auth = new AuthManager(); await auth.init();
         const bell = new NotificationBell(); bell.init();
-        const nav = new NavigationManager(); nav.init();
-        const langSwitcher = new LanguageSwitcher(); await langSwitcher.init();
+        await langReady;
 
         // Install the reply-avatar observer before Denta renders any messages.
         // It upgrades both streamed and fallback bot bubbles to the same real

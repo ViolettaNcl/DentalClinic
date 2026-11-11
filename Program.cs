@@ -1,4 +1,4 @@
-using DentalClinic.BackgroundJobs;
+﻿using DentalClinic.BackgroundJobs;
 using DentalClinic.Data;
 using DentalClinic.Filters;
 using DentalClinic.HealthChecks;
@@ -171,6 +171,19 @@ builder.Services
                 return Task.CompletedTask;
             },
 
+            OnChallenge = async context =>
+            {
+                if (context.HttpContext.Items.ContainsKey(AuthDatabaseUnavailableItem))
+                {
+                    context.HandleResponse();
+                    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                    context.Response.ContentType = "application/json";
+                    context.Response.Headers["Retry-After"] = "5";
+                    await context.Response.WriteAsync(
+                        "{\"message\":\"База данных временно отвечает медленно. Повторите запрос через несколько секунд.\",\"code\":\"database_temporarily_unavailable\"}");
+                }
+            },
+
             OnTokenValidated = async context =>
             {
                 // Keep immediate session revocation without doing an extra remote-SQL
@@ -198,6 +211,14 @@ builder.Services
 
                 var versionCache = context.HttpContext.RequestServices
                     .GetRequiredService<TokenVersionCache>();
+
+                if (versionCache.IsTokenRevoked(
+                    context.Principal?.FindFirstValue(
+                        System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)))
+                {
+                    context.Fail("Authentication session has been revoked.");
+                    return;
+                }
 
                 if (versionCache.TryGet(role, userId, out var cachedVersion))
                 {
@@ -263,6 +284,9 @@ builder.Services
                         return;
                     }
 
+                    // Do not turn a slow database into a silent logout: mark the
+                    // request so OnChallenge answers 503 instead of 401.
+                    context.HttpContext.Items[AuthDatabaseUnavailableItem] = true;
                     context.Fail("Authentication validation timed out.");
                 }
                 catch (Exception ex) when (DatabaseTransientError.IsTransient(ex))
@@ -280,6 +304,7 @@ builder.Services
                         return;
                     }
 
+                    context.HttpContext.Items[AuthDatabaseUnavailableItem] = true;
                     context.Fail("Authentication validation database check failed.");
                 }
             }
@@ -554,7 +579,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = staticFile =>
+    {
+        // HTML/JS/CSS/i18n are not fingerprinted, and ES modules import each other
+        // by plain URL. Force revalidation (cheap 304 via ETag) so visitors never keep
+        // a stale module mix after a deploy.
+        var extension = Path.GetExtension(staticFile.File.Name);
+        if (extension is ".html" or ".js" or ".css" or ".json")
+            staticFile.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
 app.UseRouting();
 
 app.UseUnsafeRequestOriginProtection();
@@ -763,4 +799,5 @@ app.Run();
 
 public partial class Program
 {
+    internal const string AuthDatabaseUnavailableItem = "dc_auth_database_unavailable";
 }

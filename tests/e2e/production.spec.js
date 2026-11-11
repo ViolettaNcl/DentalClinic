@@ -116,6 +116,9 @@ test('all supported localization dictionaries are available', async ({ request }
 test('language switcher applies all supported languages and Arabic RTL', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#lang-btn')).toBeVisible();
+  // The switcher fills its options when its click handlers are attached; wait for
+  // that hydration signal instead of racing the header bootstrap.
+  await expect(page.locator('#lang-dropdown .lang-option')).toHaveCount(5);
 
   for (const lang of ['en', 'fr', 'el', 'ar', 'ru']) {
     await page.locator('#lang-btn').click();

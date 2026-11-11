@@ -982,6 +982,7 @@
   "route_use_location": "Использовать моё местоположение",
   "route_build_here": "Построить на этой карте",
   "route_reset_map": "Показать только клинику",
+  "route_open_navigator": "Открыть маршрут в Яндекс Картах / навигаторе",
   "route_origin_current": "Моё местоположение",
   "route_origin_required": "Укажите стартовый адрес или разрешите геолокацию.",
   "route_map_title": "Маршрут до Dental Clinic",

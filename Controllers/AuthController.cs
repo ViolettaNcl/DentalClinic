@@ -1,10 +1,11 @@
-using DentalClinic.Models;
+﻿using DentalClinic.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using DentalClinic.Data;
 using DentalClinic.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace DentalClinic.Controllers
@@ -213,21 +214,44 @@ namespace DentalClinic.Controllers
         public IActionResult Logout()
         {
             // Logout must never depend on a live round-trip to the remote Somee DB.
-            // Expire the HttpOnly browser cookie immediately, then invalidate the
-            // current token version in the in-process cache when its claims are present.
+            // Expire the HttpOnly browser cookie immediately, then revoke exactly this
+            // token in the in-process cache.
+            //
+            // BUGFIX: logout used to bump the whole account's TokenVersion in this
+            // instance's memory only (the database kept the old value). On Vercel
+            // with several instances the next login was issued by another instance
+            // with the database version and then rejected as "revoked" by the
+            // instance that handled logout, so the patient was thrown back to the
+            // home page right after a successful sign-in/registration. Revoking only
+            // the logged-out token id (jti) keeps replay protection without ever
+            // affecting a newer session.
             DeleteSessionCookie();
 
             if (User.Identity?.IsAuthenticated == true)
             {
-                var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var role = User.FindFirstValue(ClaimTypes.Role);
-                var versionText = User.FindFirstValue(JwtTokenService.TokenVersionClaim);
+                var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                var expiresText = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
 
-                if (int.TryParse(userIdText, out var userId)
-                    && int.TryParse(versionText, out var tokenVersion)
-                    && !string.IsNullOrWhiteSpace(role))
+                if (!string.IsNullOrWhiteSpace(tokenId))
                 {
-                    _tokenVersionCache?.Set(role, userId, checked(tokenVersion + 1));
+                    var expiresAt = long.TryParse(expiresText, out var exp)
+                        ? DateTimeOffset.FromUnixTimeSeconds(exp)
+                        : DateTimeOffset.UtcNow.AddMinutes(_tokens.ExpiryMinutes);
+                    _tokenVersionCache?.RevokeToken(tokenId, expiresAt);
+                }
+                else
+                {
+                    // Legacy token without jti: fall back to the previous behaviour.
+                    var userIdText = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var role = User.FindFirstValue(ClaimTypes.Role);
+                    var versionText = User.FindFirstValue(JwtTokenService.TokenVersionClaim);
+
+                    if (int.TryParse(userIdText, out var userId)
+                        && int.TryParse(versionText, out var tokenVersion)
+                        && !string.IsNullOrWhiteSpace(role))
+                    {
+                        _tokenVersionCache?.Set(role, userId, checked(tokenVersion + 1));
+                    }
                 }
             }
 

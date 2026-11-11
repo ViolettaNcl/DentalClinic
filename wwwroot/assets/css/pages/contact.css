@@ -1317,3 +1317,34 @@
     .ai-location-section{padding:0 12px;margin:46px auto 65px}.ai-map-heading__subtitle{font-size:12px}.ai-map-shell{border-radius:22px}.ai-map-canvas,.ai-map-canvas .map-container{border-radius:17px}.ai-map-canvas,.ai-map-canvas .map-container,.ai-map-canvas .map-container iframe{min-height:390px}.ai-clinic-facts{grid-template-columns:1fr 1fr}.ai-clinic-fact--address{grid-column:1/-1}.route-companion[data-ai-route-console] .route-panel-actions{grid-template-columns:1fr}.ai-map-overlay--note{max-width:190px}.ai-map-overlay--note p{font-size:9px}
 }
 @media (prefers-reduced-motion: reduce) { .ai-pulse-dot{animation:none}.ai-route-meter span{transition:none} }
+
+/* Заголовок блока карты — по центру, как остальные заголовки сайта */
+.ai-map-heading {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 10px;
+}
+
+.ai-map-heading > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ai-map-heading .section-title {
+    text-align: center;
+    margin: 6px auto 14px;
+}
+
+.ai-map-heading__subtitle {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+@media (max-width: 820px) {
+    .ai-map-heading {
+        align-items: center;
+    }
+}
