@@ -4,7 +4,9 @@ on:
   push:
     branches: [ "main" ]
   schedule:
-    - cron: '5 * * * *'
+    # Every 6 hours (was hourly): each run wakes the Vercel container, and the
+    # Hobby plan's Fluid CPU / provisioned-memory budget was being exceeded.
+    - cron: '5 */6 * * *'
   workflow_dispatch:
 
 permissions:

@@ -191,7 +191,7 @@ sequenceDiagram
 <td align="center" width="25%"><h3>488</h3><sub>модульных и интеграционных<br>.NET-тестов</sub></td>
 <td align="center" width="25%"><h3>200</h3><sub>регрессионных<br>JS-тестов</sub></td>
 <td align="center" width="25%"><h3>19</h3><sub>E2E-проверок Playwright<br>десктоп + мобильный</sub></td>
-<td align="center" width="25%"><h3>1 ч · 6 ч</h3><sub>плановые проверки<br>production: smoke · E2E</sub></td>
+<td align="center" width="25%"><h3>6 ч · 24 ч</h3><sub>плановые проверки<br>production: smoke · E2E</sub></td>
 </tr>
 </table>
 

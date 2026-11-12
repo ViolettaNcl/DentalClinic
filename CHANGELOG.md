@@ -4,6 +4,18 @@ All notable changes to DentalClinic are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); entries are grouped by release date because
 the project ships continuously from `main`. Russian summary is provided for each release.
 
+## 2026-11-12 — Lower Vercel resource usage
+
+### Changed
+- Production smoke runs every 6 hours instead of hourly.
+- Production E2E runs once a day and on demand; it no longer runs on every push, because pushes do
+  not change production while Vercel Git deployments are paused.
+- Both changes cut scheduled wake-ups of the Vercel container by roughly 5×, keeping Fluid Active CPU
+  and provisioned memory within the Hobby plan.
+
+> **RU:** Плановые проверки реже: smoke — раз в 6 часов, E2E — раз в сутки и вручную, без запуска
+> на каждый пуш. Пробуждений контейнера Vercel примерно в 5 раз меньше.
+
 ## 2026-11-12 — Documentation experience
 
 ### Added

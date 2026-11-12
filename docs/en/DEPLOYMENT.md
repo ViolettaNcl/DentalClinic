@@ -120,10 +120,12 @@ Reminder/follow-up delivery uses durable flags and unique idempotency keys so ov
 | `ci.yml` | Restore/build, Vercel container build, migration discovery, .NET tests, JS tests |
 | `codeql.yml` | C# and JavaScript/TypeScript static analysis on push/PR and weekly |
 | `cd.yml` | Post-CI test gate, optional FTPS fallback publish, GHCR image push |
-| `e2e.yml` | Every 6 h and on push: Playwright desktop + mobile checks against **production** (a push alone does not change what it tests while Vercel Git deployments are paused) |
-| `production-smoke.yml` | Hourly health, canonical domain, routes, headers, public API, HTTP→HTTPS |
+| `e2e.yml` | Daily and on demand (`workflow_dispatch`): Playwright desktop + mobile checks against **production**. Not triggered by pushes while Vercel Git deployments are paused — run it manually after each production deploy |
+| `production-smoke.yml` | Every 6 h and on push: health, canonical domain, routes, headers, public API, HTTP→HTTPS |
 | `denta-live-smoke.yml` | Optional weekly live Gemini contract test when its secret is configured |
 | `vercel-vcr-retention.yml` | Safe retention of Vercel container-registry images |
+
+Scheduled checks are deliberately sparse: every run wakes the Vercel container, and on the Hobby plan Fluid Active CPU and provisioned memory are the first limits to be exceeded. Prefer manual `workflow_dispatch` runs after a release over more frequent schedules.
 
 The FTPS path requires `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, and `FTP_SERVER_DIR`. When any is missing, the job is deliberately skipped. It is a fallback path, not evidence that Vercel deployed.
 

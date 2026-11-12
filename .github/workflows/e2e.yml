@@ -1,10 +1,11 @@
 name: Production E2E
 
 on:
-  push:
-    branches: [ "main" ]
+  # Once a day (was every 6 h and on every push). While Vercel Git deployments
+  # are paused a push does not change production, so a push-triggered run only
+  # spent the Hobby plan's CPU/memory budget. Run it manually after a deploy.
   schedule:
-    - cron: '20 */6 * * *'
+    - cron: '20 4 * * *'
   workflow_dispatch:
 
 permissions:

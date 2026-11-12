@@ -191,7 +191,7 @@ Deep dive: [architecture guide](docs/en/ARCHITECTURE.md) — trust boundaries, r
 <td align="center" width="25%"><h3>488</h3><sub>.NET unit &amp; integration tests</sub></td>
 <td align="center" width="25%"><h3>200</h3><sub>JavaScript regression tests</sub></td>
 <td align="center" width="25%"><h3>19</h3><sub>Playwright E2E checks<br>desktop + mobile</sub></td>
-<td align="center" width="25%"><h3>1 h · 6 h</h3><sub>scheduled production<br>smoke · E2E</sub></td>
+<td align="center" width="25%"><h3>6 h · 24 h</h3><sub>scheduled production<br>smoke · E2E</sub></td>
 </tr>
 </table>
 
