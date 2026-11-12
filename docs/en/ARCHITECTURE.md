@@ -38,6 +38,7 @@ flowchart LR
 - **ElevenLabs** is optional and receives bounded text for speech generation.
 - **Vercel** terminates TLS, forwards the container request, and invokes protected maintenance routes when the app is deployed there.
 - **SignalR's browser client** is loaded from a CDN at runtime; failure degrades realtime delivery but not the REST source of truth.
+- **Yandex Maps widget** is embedded on the contact page for the clinic map and in-page routes. Only the configured clinic location and, when the visitor builds a route, the visitor-provided origin are sent to it.
 
 ## 2. Runtime components
 
@@ -100,6 +101,8 @@ wwwroot/
 ```
 
 The browser uses relative URLs, credentials-enabled `fetch`, and the same-origin session cookie. Sensitive JWT material is never read by JavaScript.
+
+Page bootstrap (`main.js`) injects the shared header/footer and wires navigation and the language switcher **before** awaiting i18n or the session check, so header controls work from the first paint; session state then refreshes the header in the background. A site-wide motion layer (`components/motion.css` + `core/siteMotion.js`) adds reveals, tilt, ripple and counters, is purely additive, and is disabled under `prefers-reduced-motion`. Static assets are not fingerprinted; the server sends `Cache-Control: no-cache` for HTML/JS/CSS/JSON so ES modules are revalidated via `ETag` after each deploy.
 
 ## 3. Request pipeline and trust boundaries
 

@@ -112,6 +112,17 @@ Do not use `docker compose down -v` against data you need to retain; `-v` delete
 | Dashboard behavior | `wwwroot/assets/js/managers/{patient,admin}/` and dashboard HTML/CSS |
 | Shared browser infrastructure | `wwwroot/assets/js/core/` or `services/` |
 | UI copy | Every relevant file under `wwwroot/assets/i18n/` |
+| Header bootstrap | `wwwroot/pages/header.html`, `wwwroot/assets/js/main.js`, `managers/auth/authManager.js` |
+| Contact map and routes | `wwwroot/assets/js/core/clinicMap.js`, `managers/public/contactPage.js`, `pages/contact.html` |
+| Motion layer | `wwwroot/assets/css/components/motion.css`, `wwwroot/assets/js/core/siteMotion.js` |
+| README visuals | `docs/assets/*.svg` (animated SVG), `docs/screenshots/*.webp` |
+
+### Frontend conventions
+
+- **No build step.** Pages load plain ES modules. HTML, JS, CSS and JSON are served with `Cache-Control: no-cache`, so browsers revalidate with `ETag` after every deploy — never rely on hashed file names.
+- **Header controls first.** `main.js` wires navigation and the language switcher immediately after injecting `header.html`, before awaiting i18n or the session check. Keep anything a user can click usable from the first paint.
+- **Motion must be safe.** Animations live in `motion.css`/`siteMotion.js`, use `animation-fill-mode: backwards` (the end state is the normal style) and are disabled under `prefers-reduced-motion`. Never animate `transform`/`filter` on `<header>` or other ancestors of `position: fixed` elements — that re-parents the mobile login buttons and menu.
+- **Maps.** Embedded maps and routes use the Yandex Maps widget (`yandex.ru/map-widget/v1`) through the URL builders in `clinicMap.js`; the destination always comes from trusted `Clinic__*` configuration.
 
 See [Architecture](ARCHITECTURE.md) for the component and trust-boundary model.
 
@@ -162,7 +173,7 @@ npm install
 npm run test:js
 ```
 
-The Node test suite protects browser/session, rendering, localization, Denta, dashboard, deployment-policy, and UI contracts.
+The Node test suite (≈200 tests) protects browser/session, rendering, localization, Denta, dashboard, map URL builders, deployment-policy, and UI contracts. The .NET suite currently contains ≈490 unit and integration tests.
 
 ### Playwright
 
@@ -171,7 +182,9 @@ npx playwright install chromium
 BASE_URL=http://localhost:5192 npm run test:e2e
 ```
 
-Without `BASE_URL`, E2E targets the public deployment. Some canonical-URL assertions still expect the production domain even when `BASE_URL` changes; a local run is therefore not an environment-independent acceptance suite. The suite includes desktop/mobile flows and axe-core checks. Never point destructive or credentialed tests at production unless the test is explicitly designed and approved for that environment.
+If the Playwright browser download is blocked (proxy/VPN), run against an installed browser with a local config that sets `use: { channel: 'chrome' }` (or `'msedge'`); keep such configs out of the repository.
+
+Without `BASE_URL`, E2E targets the public deployment. Wait for client hydration signals (for example the language options being rendered) rather than clicking the moment an element becomes visible. Some canonical-URL assertions still expect the production domain even when `BASE_URL` changes; a local run is therefore not an environment-independent acceptance suite. The suite includes desktop/mobile flows and axe-core checks. Never point destructive or credentialed tests at production unless the test is explicitly designed and approved for that environment.
 
 ### CI parity
 

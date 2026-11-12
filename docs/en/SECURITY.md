@@ -132,6 +132,8 @@ Retention is applied when the protected chat-retention maintenance endpoint runs
 
 Hashing an IP is pseudonymization, not anonymization. Database access and retention still require privacy governance.
 
+**Maps and location.** Browser geolocation is requested only after the visitor presses *Use my location* (`Permissions-Policy` allows geolocation for the site's own origin only). Coordinates or a typed origin are placed in the Yandex Maps widget URL only when a route is built or opened in the app; they are not sent to the DentalClinic backend or stored. The local ETA estimate runs entirely in the browser.
+
 ## 9. Browser response hardening
 
 The middleware currently sets:

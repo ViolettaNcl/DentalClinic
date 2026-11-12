@@ -86,6 +86,17 @@ docker compose down
 | Кабинеты | `wwwroot/assets/js/managers/{patient,admin}/`, HTML/CSS кабинетов |
 | Общий браузерный код | `wwwroot/assets/js/core/`, `services/` |
 | Переводы | `wwwroot/assets/i18n/{ru,en,fr,el,ar}.json` |
+| Инициализация шапки | `wwwroot/pages/header.html`, `wwwroot/assets/js/main.js`, `managers/auth/authManager.js` |
+| Карта и маршруты | `wwwroot/assets/js/core/clinicMap.js`, `managers/public/contactPage.js`, `pages/contact.html` |
+| Слой анимаций | `wwwroot/assets/css/components/motion.css`, `wwwroot/assets/js/core/siteMotion.js` |
+| Визуал README | `docs/assets/*.svg` (анимированные SVG), `docs/screenshots/*.webp` |
+
+### Правила фронтенда
+
+- **Без сборки.** Страницы загружают обычные ES-модули. HTML, JS, CSS и JSON отдаются с `Cache-Control: no-cache`, поэтому браузер перепроверяет их через `ETag` после каждого деплоя — не полагайтесь на хеши в именах файлов.
+- **Шапка — сразу.** `main.js` подключает навигацию и переключатель языка сразу после вставки `header.html`, до ожидания переводов и проверки сессии. Всё, на что можно нажать, должно работать с первой отрисовки.
+- **Безопасные анимации.** Анимации находятся в `motion.css`/`siteMotion.js`, используют `animation-fill-mode: backwards` (конечное состояние — обычный стиль) и отключаются при `prefers-reduced-motion`. Не анимируйте `transform`/`filter` у `<header>` и других предков элементов с `position: fixed` — иначе мобильные кнопки входа и меню смещаются.
+- **Карты.** Карта и маршруты используют виджет Яндекс.Карт (`yandex.ru/map-widget/v1`) через функции `clinicMap.js`; точка назначения всегда берётся из доверенной конфигурации `Clinic__*`.
 
 Подробности — в [архитектуре](ARCHITECTURE.md).
 
@@ -128,6 +139,10 @@ npm run test:e2e
 ```
 
 В Bash: `BASE_URL=http://localhost:5192 npm run test:e2e`.
+
+Если загрузка браузера Playwright блокируется (прокси/VPN), запускайте тесты в установленном браузере через локальный конфиг с `use: { channel: 'chrome' }` (или `'msedge'`) и не добавляйте его в репозиторий. В тестах ждите сигналов готовности интерфейса (например, отрисованного списка языков), а не кликайте в момент появления элемента.
+
+Сейчас в проекте ≈490 модульных и интеграционных .NET-тестов, ≈200 JS-тестов и 19 E2E-проверок (десктоп и мобильный).
 
 Без `BASE_URL` тесты направлены на публичный сайт. Некоторые проверки канонического URL ожидают production-домен даже при другом адресе, поэтому локальный запуск не является полностью независимым от окружения. Не запускайте разрушительные сценарии на production без отдельного разрешения.
 

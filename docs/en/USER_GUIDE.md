@@ -4,13 +4,26 @@
 
 This guide covers the public site and patient dashboard. The website supports Russian, English, French, Greek, and Arabic; Arabic switches the page to right-to-left layout.
 
-![DentalClinic home page](../screenshots/home.png)
+![DentalClinic home page](../screenshots/home.webp)
 
 ## 1. Explore the clinic
 
 Visitors can browse services and prices, doctor profiles, clinic information, reviews, and detailed treatment pages without an account. Public information is loaded from explicit public API projections; administrator-only fields are not part of those responses.
 
 Prices and website content are informational. Treatment suitability and final cost require an assessment by the clinic.
+
+### Find the clinic and build a route
+
+![Route built on the contact page](../screenshots/contact-route.webp)
+
+The **Contacts** page ends with an interactive map of the clinic and a route builder:
+
+1. Type a starting address, or press **Use my location** and allow geolocation in the browser.
+2. Choose **Car**, **Walk** or **Transit**.
+3. Press **Build on this map** — the route, distance and travel time appear inside the page; the map can be zoomed and dragged as usual.
+4. On a phone, **Open route in Yandex Maps / Navigator** hands the same route to the app.
+
+**Show clinic only** resets the map. Your starting point is sent to Yandex Maps only when you build a route or open it in the app; the "AI estimate" shown next to the map is calculated locally in the browser and is approximate.
 
 ## 2. Request an appointment as a guest
 
@@ -29,7 +42,9 @@ Registration requires a name, valid email, and password with at least eight char
 
 After successful registration/login, the server creates a protected browser session cookie. The password or token is not stored in browser JavaScript storage.
 
-Do not share an account. Sign out on a shared device. A password change requires a new sign-in; invalidation on another server may take up to 45 seconds.
+Do not share an account. Sign out on a shared device: signing out removes the session cookie immediately and revokes that session on the server. A password change requires a new sign-in; invalidation on another server may take up to 45 seconds.
+
+If the clinic database is briefly slow while your session is checked, the site retries automatically instead of signing you out. If a page still reports that the session could not be verified, refresh it after a few seconds.
 
 ## 4. Patient dashboard
 
@@ -97,6 +112,10 @@ External providers may be temporarily unavailable or rate-limited. Some determin
 ![Language selector](../screenshots/language-switcher.png)
 
 Use the header language control to switch among RU/EN/FR/EL/AR. The preference applies without a full page reload where supported. Arabic uses RTL layout.
+
+The site uses subtle animations (reveals, hover effects, animated counters). If your operating system has **Reduce motion** enabled, they are switched off automatically. Layouts are verified from 320 px phones to large desktop screens without horizontal scrolling.
+
+![DentalClinic on a phone](../screenshots/mobile-home.webp)
 
 The project includes keyboard/focus and automated accessibility checks, but if a control is inaccessible, report the page, browser/device, chosen language, and exact step through a GitHub issue without including personal or medical information.
 

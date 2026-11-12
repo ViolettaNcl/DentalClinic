@@ -120,7 +120,7 @@ Reminder/follow-up delivery uses durable flags and unique idempotency keys so ov
 | `ci.yml` | Restore/build, Vercel container build, migration discovery, .NET tests, JS tests |
 | `codeql.yml` | C# and JavaScript/TypeScript static analysis on push/PR and weekly |
 | `cd.yml` | Post-CI test gate, optional FTPS fallback publish, GHCR image push |
-| `e2e.yml` | Scheduled/on-push Playwright checks against production |
+| `e2e.yml` | Every 6 h and on push: Playwright desktop + mobile checks against **production** (a push alone does not change what it tests while Vercel Git deployments are paused) |
 | `production-smoke.yml` | Hourly health, canonical domain, routes, headers, public API, HTTP→HTTPS |
 | `denta-live-smoke.yml` | Optional weekly live Gemini contract test when its secret is configured |
 | `vercel-vcr-retention.yml` | Safe retention of Vercel container-registry images |
@@ -166,7 +166,8 @@ Legacy local avatar paths are deleted best-effort after a successful durable upd
 
 - [ ] HTTPS is canonical; HTTP redirects to HTTPS.
 - [ ] Expected security headers are present on HTML responses.
-- [ ] Patient registration/login/logout/session bootstrap work with an HttpOnly cookie.
+- [ ] Patient registration/login/logout/session bootstrap work with an HttpOnly cookie; sign out → sign in again immediately also works (per-token logout).
+- [ ] HTML/JS/CSS/JSON responses carry `Cache-Control: no-cache`; authenticated API responses carry `no-store`.
 - [ ] Admin login and super-admin-only access management enforce role/current DB state.
 - [ ] State-changing cross-origin requests and direct production AI calls without valid origin are rejected.
 - [ ] Cron routes return 401 without the correct `CRON_SECRET`.
@@ -180,6 +181,9 @@ Legacy local avatar paths are deleted best-effort after a successful durable upd
 - [ ] Avatar and doctor photo retrieval survive a fresh deployment.
 - [ ] Denta returns bounded safe links and degrades safely when a provider is unavailable.
 - [ ] RU/EN/FR/EL/AR switch correctly; Arabic layout is RTL.
+- [ ] Contact page shows the clinic on the map and builds a route from a typed address and from geolocation; "open in navigator" opens Yandex Maps.
+- [ ] Header menu is centred on desktop; burger menu and bottom sign-in buttons work on a phone; no horizontal scroll at 320–414 px.
+- [ ] Motion effects run smoothly and are disabled with the OS "reduce motion" setting.
 - [ ] Production smoke and Playwright workflows pass or have an investigated, documented exception.
 
 ## 10. Rollback and incident notes

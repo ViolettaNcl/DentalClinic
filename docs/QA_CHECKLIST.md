@@ -8,7 +8,8 @@ Use this checklist for a release candidate or a substantial user-facing change. 
 
 - Verify existing patient and administrator accounts can sign in against the configured SQL Server database.
 - Verify new patient registration persists and can sign in afterwards.
-- Verify logout clears the browser session cleanly.
+- Verify logout clears the browser session cleanly, and that signing in again right after logout opens the patient dashboard (no bounce back to the home page).
+- With the database artificially slow, confirm the dashboard shows a retry message instead of signing the patient out.
 - Do not replace the configured production/shared database with local demo data for release testing.
 
 ## Public site and services
@@ -18,6 +19,20 @@ Use this checklist for a release candidate or a substantial user-facing change. 
 - Confirm price amounts do not wrap unexpectedly.
 - Confirm no translated service title displays raw HTML such as `<br>`.
 - Verify the mobile header keeps the hamburger at the right edge and the language control directly to its left.
+- Verify the desktop menu is centred between the logo and the actions, with a single underline on hover/active items.
+- Verify no page scrolls horizontally at 320, 375, 414 and 768 px.
+
+## Contact map and routes
+
+- The clinic is shown on the map for the configured address (and exact pin when `Clinic__Latitude/Longitude` are set).
+- A route builds inside the page from a typed address and from geolocation; car / walk / transit switch the route.
+- "Show clinic only" resets the map; "Open route in Yandex Maps / Navigator" opens the same route.
+
+## Motion
+
+- Reveals, hero particles, card tilt, ripple and counters run without jank on a mid-range phone.
+- With the OS "reduce motion" setting enabled, all decorative animation stops and content remains visible.
+- Animations never move fixed elements (bottom sign-in buttons, mobile menu, chat).
 
 ## Dashboards
 

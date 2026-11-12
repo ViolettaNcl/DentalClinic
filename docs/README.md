@@ -12,6 +12,7 @@ This page is the entry point for project documentation. Documents under `docs/en
 | [Administrator guide](en/ADMIN_GUIDE.md) | Clinic staff, super-admins | Appointments, schedules, content, moderation, analytics, access management |
 | [Deployment guide](en/DEPLOYMENT.md) | Maintainers, DevOps | Vercel/Docker setup, migrations, cron, verification, rollback considerations |
 | [QA checklist](QA_CHECKLIST.md) | QA, reviewers | Release checks across security, responsive UI, localization, and accessibility |
+| [Changelog](../CHANGELOG.md) | Everyone | What changed and why, release by release |
 
 ## Engineering reference
 
