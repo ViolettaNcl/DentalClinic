@@ -13,7 +13,7 @@
 </p>
 
 <p>
-  <a href="https://dental-clinic-vn.vercel.app/"><img src="https://img.shields.io/badge/Демо-13B39B?style=for-the-badge&logo=vercel&logoColor=white" alt="Демо"></a>
+  <a href="https://dental-clinic-vjux.onrender.com/"><img src="https://img.shields.io/badge/Демо-13B39B?style=for-the-badge&logo=render&logoColor=white" alt="Демо"></a>
   <a href="docs/README.ru.md"><img src="https://img.shields.io/badge/Документация-0A8A77?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Документация"></a>
   <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/Архитектура-0A534A?style=for-the-badge&logo=diagramsdotnet&logoColor=white" alt="Архитектура"></a>
   <a href="docs/API.md"><img src="https://img.shields.io/badge/API-FFB672?style=for-the-badge&logo=swagger&logoColor=111111" alt="API"></a>
@@ -180,7 +180,7 @@ sequenceDiagram
 | **Безопасность** | ![JWT](https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white) ![BCrypt](https://img.shields.io/badge/BCrypt-0A8A77) ![CodeQL](https://img.shields.io/badge/CodeQL-2F363D?logo=github&logoColor=white) |
 | **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css&logoColor=white) ![JavaScript](https://img.shields.io/badge/ES_modules-F7DF1E?logo=javascript&logoColor=111) ![i18n](https://img.shields.io/badge/i18n-5_языков_·_RTL-13B39B) |
 | **Интеграции** | ![Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?logo=googlegemini&logoColor=white) ![ElevenLabs](https://img.shields.io/badge/ElevenLabs-000000) ![Yandex Maps](https://img.shields.io/badge/Яндекс.Карты-FC3F1D) |
-| **Поставка** | ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-181717?logo=github&logoColor=white) |
+| **Поставка** | ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Render](https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=111) ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-181717?logo=github&logoColor=white) |
 | **Тесты** | ![xUnit](https://img.shields.io/badge/xUnit-512BD4) ![Node test runner](https://img.shields.io/badge/node:test-339933?logo=nodedotjs&logoColor=white) ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white) ![axe-core](https://img.shields.io/badge/axe--core-663399) |
 
 <a id="quality"></a>
@@ -272,7 +272,7 @@ BASE_URL=http://localhost:5192 npx playwright test   # или локальное
 - **Медицинская безопасность** — «Дента» и Smile Meter носят информационный характер и не ставят диагноз и не планируют лечение.
 - **Эксплуатация** — нужны управляемые оператором секреты, внешняя БД и отдельно выданный доступ администраторов.
 - **Известные ограничения** — пока нет MFA и восстановления пароля для администраторов; для нескольких экземпляров SignalR нужен backplane; отзыв токена при выходе действует в пределах экземпляра. Подробнее — в разделе [Безопасность](docs/SECURITY.md).
-- **Развёртывание** — Git-деплой Vercel приостановлен в `vercel.json`; production обновляется вручную, а GitHub Actions работают при каждом пуше. Готов бесплатный вариант на **Render** через [`render.yaml`](render.yaml) — см. [руководство по развёртыванию](docs/DEPLOYMENT.md#бесплатный-хостинг-на-render-вместо-vercel).
+- **Развёртывание** — production работает на **Render** (бесплатный тариф) по адресу [dental-clinic-vjux.onrender.com](https://dental-clinic-vjux.onrender.com/) через [`render.yaml`](render.yaml) и обновляется автоматически при каждом пуше в `main`; бесплатный сервис засыпает без посещений и просыпается за 30–60 секунд. Конфигурация Vercel сохранена как альтернатива. См. [руководство по развёртыванию](docs/DEPLOYMENT.md#бесплатный-хостинг-на-render-вместо-vercel).
 
 <a id="documentation"></a>
 ## 📚 Документация

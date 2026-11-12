@@ -27,13 +27,13 @@ jobs:
       - name: Wait for production deployment
         run: |
           for i in $(seq 1 24); do
-            if curl --fail --silent --max-time 15 https://dental-clinic-vn.vercel.app/health | grep -q '"status":"Healthy"'; then exit 0; fi
+            if curl --fail --silent --max-time 15 https://dental-clinic-vjux.onrender.com/health | grep -q '"status":"Healthy"'; then exit 0; fi
             sleep 15
           done
           exit 1
       - name: Run Playwright E2E
         env:
-          BASE_URL: https://dental-clinic-vn.vercel.app
+          BASE_URL: https://dental-clinic-vjux.onrender.com
         run: npx playwright test --project=chromium --project=mobile
       - name: Upload Playwright report on failure
         if: failure()

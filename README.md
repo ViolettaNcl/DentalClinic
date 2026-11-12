@@ -13,7 +13,7 @@
 </p>
 
 <p>
-  <a href="https://dental-clinic-vn.vercel.app/"><img src="https://img.shields.io/badge/Live_demo-13B39B?style=for-the-badge&logo=vercel&logoColor=white" alt="Live demo"></a>
+  <a href="https://dental-clinic-vjux.onrender.com/"><img src="https://img.shields.io/badge/Live_demo-13B39B?style=for-the-badge&logo=render&logoColor=white" alt="Live demo"></a>
   <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-0A8A77?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation"></a>
   <a href="docs/en/ARCHITECTURE.md"><img src="https://img.shields.io/badge/Architecture-0A534A?style=for-the-badge&logo=diagramsdotnet&logoColor=white" alt="Architecture"></a>
   <a href="docs/en/API.md"><img src="https://img.shields.io/badge/API-FFB672?style=for-the-badge&logo=swagger&logoColor=111111" alt="API"></a>
@@ -180,7 +180,7 @@ Deep dive: [architecture guide](docs/en/ARCHITECTURE.md) — trust boundaries, r
 | **Security** | ![JWT](https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white) ![BCrypt](https://img.shields.io/badge/BCrypt-0A8A77) ![CodeQL](https://img.shields.io/badge/CodeQL-2F363D?logo=github&logoColor=white) |
 | **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?logo=css&logoColor=white) ![JavaScript](https://img.shields.io/badge/ES_modules-F7DF1E?logo=javascript&logoColor=111) ![i18n](https://img.shields.io/badge/i18n-5_languages_·_RTL-13B39B) |
 | **Integrations** | ![Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?logo=googlegemini&logoColor=white) ![ElevenLabs](https://img.shields.io/badge/ElevenLabs-000000) ![Yandex Maps](https://img.shields.io/badge/Yandex_Maps-FC3F1D) |
-| **Delivery** | ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-181717?logo=github&logoColor=white) |
+| **Delivery** | ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white) ![Render](https://img.shields.io/badge/Render-46E3B7?logo=render&logoColor=111) ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white) ![GHCR](https://img.shields.io/badge/GHCR-181717?logo=github&logoColor=white) |
 | **Testing** | ![xUnit](https://img.shields.io/badge/xUnit-512BD4) ![Node test runner](https://img.shields.io/badge/node:test-339933?logo=nodedotjs&logoColor=white) ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white) ![axe-core](https://img.shields.io/badge/axe--core-663399) |
 
 <a id="quality"></a>
@@ -272,7 +272,7 @@ See [Security](docs/en/SECURITY.md) before configuring any shared or production 
 - **Medical safety** — Denta and the Smile Meter are informational, never diagnostic or treatment-planning tools.
 - **Operations** — deployment needs operator-managed secrets, an external database and separately provisioned administrators.
 - **Known limits** — no administrator MFA or password recovery yet; multi-instance SignalR needs a backplane; logout revocation is per instance. Details in [Security](docs/en/SECURITY.md).
-- **Deployment status** — Vercel Git deployments are paused in `vercel.json`; production is deployed manually, while GitHub Actions still run on every push. A free **Render** alternative is ready via [`render.yaml`](render.yaml) — see the [deployment guide](docs/en/DEPLOYMENT.md#5a-free-hosting-on-render-alternative-to-vercel).
+- **Deployment status** — production runs on **Render** (free plan) at [dental-clinic-vjux.onrender.com](https://dental-clinic-vjux.onrender.com/) via [`render.yaml`](render.yaml) and deploys automatically on every push to `main`; the free instance sleeps when idle and wakes in ~30–60 s. The Vercel configuration is kept as an alternative. See the [deployment guide](docs/en/DEPLOYMENT.md#5a-free-hosting-on-render-alternative-to-vercel).
 
 <a id="documentation"></a>
 ## 📚 Documentation

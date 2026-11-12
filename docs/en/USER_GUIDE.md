@@ -1,6 +1,6 @@
 # User guide
 
-[Documentation](../README.md) · [Live application](https://dental-clinic-vn.vercel.app/) · [Русский](../USER_GUIDE.md)
+[Documentation](../README.md) · [Live application](https://dental-clinic-vjux.onrender.com/) · [Русский](../USER_GUIDE.md)
 
 This guide covers the public site and patient dashboard. The website supports Russian, English, French, Greek, and Arabic; Arabic switches the page to right-to-left layout.
 

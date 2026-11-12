@@ -4,7 +4,7 @@
 
 The primary public topology is an ASP.NET Core 10 container service on Vercel backed by an external SQL Server. `Dockerfile.vercel` builds the service and `vercel.json` routes all traffic to service `app`.
 
-Target domain: [https://dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/)
+Production: [https://dental-clinic-vjux.onrender.com](https://dental-clinic-vjux.onrender.com/) on **Render** (see [section 5a](#5a-free-hosting-on-render-alternative-to-vercel)). The former Vercel domain `dental-clinic-vn.vercel.app` is paused; the Vercel configuration below is kept as an alternative.
 
 ## 1. Current release policy
 
@@ -110,7 +110,7 @@ Notes:
 - `RENDER=true` is set by the platform; `Program.cs` then trusts `X-Forwarded-Proto`/`X-Forwarded-For` (same as on Vercel). Any other proxy host can enable this with `ForwardedHeaders__Enabled=true`. Without it HTTPS requests look like HTTP and login/registration are rejected by the same-origin guard.
 - Free instances sleep after ~15 minutes without traffic; the next request wakes them in roughly 30–60 seconds. Reminders and follow-ups run as hosted services while the instance is awake (there is no Vercel Cron on Render).
 - `autoDeploy: true` redeploys on every push to `main`.
-- After switching, point the scheduled checks at the new address: replace `https://dental-clinic-vn.vercel.app` in `.github/workflows/production-smoke.yml`, `.github/workflows/e2e.yml` and the canonical URLs/sitemap, otherwise they keep testing the old deployment.
+- The scheduled checks already target the Render address. When the address changes again, replace it in `.github/workflows/production-smoke.yml`, `.github/workflows/e2e.yml` and the canonical URLs/sitemap, otherwise they keep testing the old deployment.
 
 ## 5. Scheduled maintenance
 

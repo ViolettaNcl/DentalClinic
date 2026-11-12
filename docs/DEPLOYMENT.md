@@ -4,7 +4,7 @@
 
 Репозиторий настроен для контейнерного сервиса ASP.NET Core 10 в Vercel с внешней SQL Server. `Dockerfile.vercel` собирает приложение, `vercel.json` направляет трафик в сервис `app`.
 
-Целевой адрес: [dental-clinic-vn.vercel.app](https://dental-clinic-vn.vercel.app/). Наличие адреса в конфигурации не подтверждает доступность сайта или соответствие опубликованной версии текущему коду.
+Production: [dental-clinic-vjux.onrender.com](https://dental-clinic-vjux.onrender.com/) на **Render** (см. раздел «Бесплатный хостинг на Render»). Прежний адрес Vercel `dental-clinic-vn.vercel.app` приостановлен; конфигурация Vercel ниже сохранена как альтернатива.
 
 ## Политика выпуска
 
@@ -88,7 +88,7 @@ Vercel завершает TLS и задаёт `PORT`; контейнер слу�
 - Render сам задаёт `RENDER=true`; тогда `Program.cs` доверяет `X-Forwarded-Proto`/`X-Forwarded-For` (как на Vercel). Для другого хостинга за прокси включите `ForwardedHeaders__Enabled=true`. Без этого HTTPS-запросы выглядят как HTTP, и вход/регистрация отклоняются защитой same-origin.
 - Бесплатный сервис засыпает примерно через 15 минут без посещений; следующий запрос будит его за 30–60 секунд. Напоминания и follow-up выполняются фоновыми задачами, пока сервис активен (Vercel Cron на Render нет).
 - `autoDeploy: true` — каждый пуш в `main` выпускается автоматически.
-- После переезда направьте плановые проверки на новый адрес: замените `https://dental-clinic-vn.vercel.app` в `.github/workflows/production-smoke.yml`, `.github/workflows/e2e.yml`, канонических URL и sitemap, иначе они продолжат проверять старый деплой.
+- Плановые проверки уже направлены на адрес Render. Если адрес снова изменится, замените его в `.github/workflows/production-smoke.yml`, `.github/workflows/e2e.yml`, канонических URL и sitemap, иначе они продолжат проверять старый деплой.
 
 ## Служебные задачи
 

@@ -9,7 +9,7 @@ test('production health and canonical HTTPS are healthy', async ({ page, request
 
   await page.goto('/');
   await expect(page.locator('link[rel="canonical"]'))
-    .toHaveAttribute('href', 'https://dental-clinic-vn.vercel.app/');
+    .toHaveAttribute('href', 'https://dental-clinic-vjux.onrender.com/');
 });
 
 test('all sitemap public routes return HTML with matching canonical URLs', async ({ request }) => {
@@ -22,7 +22,7 @@ test('all sitemap public routes return HTML with matching canonical URLs', async
 
   for (const absoluteUrl of urls) {
     const url = new URL(absoluteUrl);
-    expect(url.origin).toBe('https://dental-clinic-vn.vercel.app');
+    expect(url.origin).toBe('https://dental-clinic-vjux.onrender.com');
 
     const response = await request.get(`${url.pathname}${url.search}`);
     expect(response.ok(), `${url.pathname} should return 2xx`).toBeTruthy();

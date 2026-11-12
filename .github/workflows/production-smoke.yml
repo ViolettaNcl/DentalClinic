@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
   schedule:
-    # Every 6 hours (was hourly): each run wakes the Vercel container, and the
+    # Every 6 hours (was hourly): each run wakes the hosting container (Render free plan sleeps when idle), and the
     # Hobby plan's Fluid CPU / provisioned-memory budget was being exceeded.
     - cron: '5 */6 * * *'
   workflow_dispatch:
@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      PRODUCTION_ORIGIN: https://dental-clinic-vn.vercel.app
-      PRODUCTION_HTTP_ORIGIN: http://dental-clinic-vn.vercel.app
+      PRODUCTION_ORIGIN: https://dental-clinic-vjux.onrender.com
+      PRODUCTION_HTTP_ORIGIN: http://dental-clinic-vjux.onrender.com
     steps:
       - name: Wait for healthy production and current canonical domain
         shell: bash
@@ -34,7 +34,7 @@ jobs:
             home="$(curl --silent --show-error --fail --max-time 20 "${PRODUCTION_ORIGIN}/" 2>/dev/null || true)"
             if printf '%s' "$health" | grep -q '"status":"Healthy"' \
               && printf '%s' "$health" | grep -q '"name":"db"' \
-              && printf '%s' "$home" | grep -q 'https://dental-clinic-vn.vercel.app/'; then
+              && printf '%s' "$home" | grep -q 'https://dental-clinic-vjux.onrender.com/'; then
               echo "Production is healthy and serving the canonical domain."
               printf '%s\n' "$health"
               exit 0
@@ -126,4 +126,4 @@ jobs:
           result="$(curl --silent --show-error --head --max-time 20 --write-out '%{http_code} %{redirect_url}' --output /dev/null "${PRODUCTION_HTTP_ORIGIN}/")"
           code="${result%% *}"; redirect="${result#* }"
           case "$code" in 301|302|307|308) ;; *) echo "Expected HTTP redirect, got ${code}." >&2; exit 1 ;; esac
-          case "$redirect" in https://dental-clinic-vn.vercel.app/*) ;; *) echo "HTTP did not redirect to HTTPS production." >&2; exit 1 ;; esac
+          case "$redirect" in https://dental-clinic-vjux.onrender.com/*) ;; *) echo "HTTP did not redirect to HTTPS production." >&2; exit 1 ;; esac
