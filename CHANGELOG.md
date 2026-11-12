@@ -4,6 +4,18 @@ All notable changes to DentalClinic are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); entries are grouped by release date because
 the project ships continuously from `main`. Russian summary is provided for each release.
 
+## 2026-11-12 — Free Render hosting option
+
+### Added
+- `render.yaml` Blueprint: the same container image on Render's free plan, using the existing external
+  SQL Server (no data migration). Secrets are entered in the Render dashboard, never committed.
+- Forwarded headers are trusted on Render (`RENDER=true`) or any proxy host with
+  `ForwardedHeaders__Enabled=true`; without this, HTTPS login/registration were rejected as cross-origin.
+- Step-by-step move guide in the deployment docs (EN/RU).
+
+> **RU:** Добавлен бесплатный вариант хостинга на Render (тот же образ, та же база), исправлено
+> доверие заголовкам прокси вне Vercel, инструкция по переезду в руководстве по развёртыванию.
+
 ## 2026-11-12 — Lower Vercel resource usage
 
 ### Changed

@@ -1,0 +1,54 @@
+# Render Blueprint — free hosting alternative to Vercel.
+# Render → New → Blueprint → select this repository. Values marked `sync: false`
+# are secrets: Render asks for them once in the dashboard; never commit them here.
+#
+# Free instances sleep after ~15 minutes without traffic and wake on the next
+# request (the first page load then takes ~30–60 s). The SQL Server database is
+# external (ConnectionStrings__DefaultConnection), so no data lives on Render.
+services:
+  - type: web
+    name: dental-clinic
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    # Same image Vercel used; it listens on ${PORT:-8080}.
+    dockerfilePath: ./Dockerfile.vercel
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: "8080"
+      # Database (the existing SQL Server — data stays where it is)
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      # Authentication
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: DentalClinic
+      - key: Jwt__Audience
+        value: DentalClinicClient
+      # Public origin of this service, e.g. https://dental-clinic.onrender.com
+      - key: AllowedOrigins__0
+        sync: false
+      # Public clinic profile shown on the site and the map
+      - key: Clinic__Phone
+        sync: false
+      - key: Clinic__Email
+        sync: false
+      - key: Clinic__Address
+        sync: false
+      - key: Clinic__Hours
+        sync: false
+      # AI providers (optional features)
+      - key: Gemini__ApiKey
+        sync: false
+      - key: ElevenLabs__ApiKey
+        sync: false
+      # Reminders/follow-ups run as hosted services on Render (no Vercel Cron).
+      - key: BackgroundJobs__EnableHostedServices
+        value: "true"

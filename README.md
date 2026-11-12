@@ -272,7 +272,7 @@ See [Security](docs/en/SECURITY.md) before configuring any shared or production 
 - **Medical safety** — Denta and the Smile Meter are informational, never diagnostic or treatment-planning tools.
 - **Operations** — deployment needs operator-managed secrets, an external database and separately provisioned administrators.
 - **Known limits** — no administrator MFA or password recovery yet; multi-instance SignalR needs a backplane; logout revocation is per instance. Details in [Security](docs/en/SECURITY.md).
-- **Deployment status** — Vercel Git deployments are paused in `vercel.json`; production is deployed manually, while GitHub Actions still run on every push. See the [deployment guide](docs/en/DEPLOYMENT.md).
+- **Deployment status** — Vercel Git deployments are paused in `vercel.json`; production is deployed manually, while GitHub Actions still run on every push. A free **Render** alternative is ready via [`render.yaml`](render.yaml) — see the [deployment guide](docs/en/DEPLOYMENT.md#5a-free-hosting-on-render-alternative-to-vercel).
 
 <a id="documentation"></a>
 ## 📚 Documentation

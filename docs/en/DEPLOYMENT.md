@@ -96,6 +96,22 @@ Use the first command for a Preview verification, then promote/deploy the same r
 
 `Dockerfile.vercel` uses the platform's `PORT` variable with an 8080 fallback. When `VERCEL=1`, `Program.cs` accepts one forwarded-header hop and clears the known-proxy/network lists; the deployment must restrict direct access to the application so that the header source can be trusted.
 
+## 5a. Free hosting on Render (alternative to Vercel)
+
+The repository ships a Render Blueprint (`render.yaml`). It builds the same `Dockerfile.vercel` image on Render's free plan and keeps using the existing external SQL Server, so **no data moves**.
+
+1. Sign in at [render.com](https://render.com) with GitHub and allow access to this repository.
+2. **New → Blueprint**, choose the repository; Render reads `render.yaml` and proposes the `dental-clinic` web service.
+3. Fill in the secret values it asks for — copy them from your current Vercel environment variables or local `appsettings.json`: `ConnectionStrings__DefaultConnection`, `Jwt__Key` (keep the same key so existing sessions stay valid), `Clinic__*`, `Gemini__ApiKey`, `ElevenLabs__ApiKey`. Set `AllowedOrigins__0` to the service URL Render shows, e.g. `https://dental-clinic.onrender.com`.
+4. **Apply**. The first build takes a few minutes; then open the URL and check `/health`.
+
+Notes:
+
+- `RENDER=true` is set by the platform; `Program.cs` then trusts `X-Forwarded-Proto`/`X-Forwarded-For` (same as on Vercel). Any other proxy host can enable this with `ForwardedHeaders__Enabled=true`. Without it HTTPS requests look like HTTP and login/registration are rejected by the same-origin guard.
+- Free instances sleep after ~15 minutes without traffic; the next request wakes them in roughly 30–60 seconds. Reminders and follow-ups run as hosted services while the instance is awake (there is no Vercel Cron on Render).
+- `autoDeploy: true` redeploys on every push to `main`.
+- After switching, point the scheduled checks at the new address: replace `https://dental-clinic-vn.vercel.app` in `.github/workflows/production-smoke.yml`, `.github/workflows/e2e.yml` and the canonical URLs/sitemap, otherwise they keep testing the old deployment.
+
 ## 5. Scheduled maintenance
 
 Vercel containers may suspend, so hosted background services are disabled when `VERCEL=1`. `vercel.json` defines UTC cron schedules that call protected routes:

@@ -71,6 +71,17 @@ builder.Services.AddScoped<AdminAccessService>();
 builder.Services.AddScoped<DistributedRequestQuotaService>();
 
 var isVercel = Environment.GetEnvironmentVariable("VERCEL") == "1";
+var isRender = string.Equals(
+    Environment.GetEnvironmentVariable("RENDER"), "true", StringComparison.OrdinalIgnoreCase);
+
+// Managed platforms (Vercel, Render, or any host that sets
+// ForwardedHeaders:Enabled=true) terminate TLS in front of the container. The
+// original scheme must be restored from X-Forwarded-Proto, otherwise HTTPS
+// requests look like HTTP: auth cookies lose Secure and the same-origin guard
+// rejects login/registration as cross-origin (403).
+var trustForwardedHeaders = isVercel
+    || isRender
+    || builder.Configuration.GetValue<bool>("ForwardedHeaders:Enabled");
 var enableHostedBackgroundJobs =
     builder.Configuration.GetValue<bool?>("BackgroundJobs:EnableHostedServices")
     ?? !builder.Environment.IsDevelopment();
@@ -81,7 +92,7 @@ if (!isVercel && enableHostedBackgroundJobs)
     builder.Services.AddHostedService<StalePendingCleanupService>();
 }
 
-if (isVercel)
+if (trustForwardedHeaders)
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -478,7 +489,7 @@ builder.Services.AddResponseCompression(options =>
 
 var app = builder.Build();
 
-if (isVercel)
+if (trustForwardedHeaders)
 {
     app.UseForwardedHeaders();
 }
