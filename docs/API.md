@@ -31,7 +31,7 @@
 | `POST` | `/register` | Public | Регистрация пациента и создание защищённой сессии |
 | `POST` | `/login` | Public | Вход пациента |
 | `POST` | `/admin/login` | Public | Вход администратора |
-| `POST` | `/logout` | Public/session-aware | Удаление cookie; обновление локального revocation cache при наличии claims |
+| `POST` | `/logout` | Public/session-aware | Удаление cookie и отзыв текущего токена (`jti`) в кеше процесса; без обращения к БД |
 | `GET` | `/session` | Patient/Admin | Восстановление несекретных UI-метаданных из проверенных claims |
 | `GET` | `/profile` | Patient | Профиль текущего пациента |
 | `GET` | `/admin/profile` | Admin | Профиль текущего администратора |

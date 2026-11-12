@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/readme-hero.svg" alt="DentalClinic — production-oriented dental platform" width="100%">
+<img src="docs/assets/readme-hero.svg" alt="DentalClinic — production-grade dental clinic platform" width="100%">
 
 <br>
 
@@ -20,11 +20,17 @@
 [![CI](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/codeql.yml)
 [![Production smoke](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/production-smoke.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/production-smoke.yml)
+[![Production E2E](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/e2e.yml/badge.svg)](https://github.com/ViolettaNcl/DentalClinic/actions/workflows/e2e.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ViolettaNcl/DentalClinic?style=social)](https://github.com/ViolettaNcl/DentalClinic/stargazers)
 
 </div>
+
+<p align="center">
+  <strong>A clinic platform engineered like a product, not a demo.</strong><br>
+  <sub>Booking · CRM · realtime notifications · secure sessions · route maps · AI assistant · 5 languages · 700+ automated checks</sub>
+</p>
 
 ![DentalClinic home page](docs/screenshots/home.png)
 <details>
@@ -44,6 +50,20 @@
 
 </details>
 
+<img src="docs/assets/readme-divider.svg" width="100%" alt="" aria-hidden="true">
+
+## What's new
+
+| | Change | Why it matters |
+|---|---|---|
+| 🔐 | **Reliable patient sign-in across instances** — logout now revokes only the current token (`jti`); a slow database during session validation returns `503` + client retry instead of `401` | Fresh logins and registrations are no longer rejected by another Vercel instance, and patients are not logged out by transient database latency |
+| 🗺 | **In-page route builder** — the contact map moved to the Yandex Maps widget with real driving, walking and transit routes, plus a one-tap "open in navigator" link | The legacy Google embed was no longer framable and rendered an empty map |
+| ✨ | **Motion layer** — scroll reveals, hero particles and cursor glow, 3D card tilt, ripple and shine on buttons, animated counters and modals; honours `prefers-reduced-motion` | A polished, premium feel without heavy libraries (one CSS file + one deferred script) |
+| 📐 | **Symmetric header and responsive hardening** — centred desktop navigation, no page-level horizontal scroll on phones, header controls usable from the first paint | Consistent layout from 320 px to 4K; fixed an E2E race on the language switcher |
+| ⚡ | **Cache-safe static assets** — HTML, JS, CSS and i18n revalidate via `ETag` | Visitors never run a stale mix of ES modules after a deploy |
+
+<img src="docs/assets/readme-divider.svg" width="100%" alt="" aria-hidden="true">
+
 ## What this project demonstrates
 
 DentalClinic is an end-to-end clinic operations system, not a static landing-page demo. It covers the workflows that connect a patient request to administrative scheduling, durable notifications, reporting, and post-visit follow-up.
@@ -59,12 +79,14 @@ DentalClinic is an end-to-end clinic operations system, not a static landing-pag
 
 ## Engineering highlights
 
-- **Protected browser sessions:** signed JWTs travel in `HttpOnly`, `SameSite=Strict` cookies. Password and access changes increment a stored token version; other instances observe the change after their short-lived cache expires. Tokens stay out of JavaScript storage and URL query strings.
+- **Protected browser sessions:** signed JWTs travel in `HttpOnly`, `SameSite=Strict` cookies and never touch JavaScript storage or URLs. Logout revokes the exact token id (`jti`); password and access changes persist a token-version increment that other instances observe within a short cache window. Database latency during validation surfaces as a retryable `503`, never as a silent logout.
 - **Defense in depth:** same-origin enforcement for state-changing and paid-AI routes, CORS allow-lists, production rate limits, SQL-backed distributed quotas, security headers, bounded payloads, and file-signature validation.
 - **Data integrity:** EF Core migrations, database check constraints and indexes, serializable scheduling operations, conflict detection, idempotency keys, and guarded cross-role email uniqueness.
 - **Reliable realtime UX:** SignalR delivers patient/admin events while REST remains the source of truth for initial state and reconnect recovery.
 - **AI with an application boundary:** deterministic clinic facts are resolved from SQL/configuration first; Gemini handles bounded natural-language work behind structured-output and healthcare-safety rules.
 - **Operational verification:** .NET integration/unit tests, Node regression tests, Playwright production E2E, CodeQL, container builds, health checks, and scheduled production smoke tests.
+
+<img src="docs/assets/readme-divider.svg" width="100%" alt="" aria-hidden="true">
 
 ## Architecture at a glance
 
@@ -100,6 +122,8 @@ The application is a modular monolith: one deployable ASP.NET Core service owns 
 | Frontend | Semantic HTML, modular vanilla JavaScript, component/page CSS, JSON i18n |
 | Delivery | Docker, Vercel container service, GitHub Actions, GHCR, optional FTPS fallback |
 | Quality | xUnit, `WebApplicationFactory`, Node test runner, Playwright, axe-core, CodeQL |
+
+<img src="docs/assets/readme-divider.svg" width="100%" alt="" aria-hidden="true">
 
 ## Quick start
 
@@ -172,6 +196,8 @@ Playwright targets the deployed site by default. Set `BASE_URL` to target anothe
 ## Operational boundaries
 
 Denta and the Smile Meter are informational features, not diagnostic or treatment-planning tools. Deployment requires operator-managed secrets, an external database, and separately provisioned administrator access. The current implementation has no administrator MFA or password-recovery flow, and multi-instance SignalR delivery needs additional infrastructure. See [Security](docs/en/SECURITY.md) for session-revocation, upload, proxy, and retention limitations.
+
+<img src="docs/assets/readme-divider.svg" width="100%" alt="" aria-hidden="true">
 
 ## Documentation
 

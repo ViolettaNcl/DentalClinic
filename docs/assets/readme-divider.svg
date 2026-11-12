@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="28" viewBox="0 0 1400 28" role="img" aria-label="Section divider">
+  <style>
+    .pulse{animation:run 5s cubic-bezier(.65,0,.35,1) infinite}
+    @keyframes run{0%{transform:translateX(-220px)}100%{transform:translateX(1420px)}}
+    .dot{transform-box:fill-box;transform-origin:center;animation:beat 2.4s ease-in-out infinite}
+    @keyframes beat{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.5);opacity:.5}}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important}}
+  </style>
+  <defs>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#13b39b" stop-opacity="0"/>
+      <stop offset=".2" stop-color="#13b39b" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#5fd9c4" stop-opacity=".8"/>
+      <stop offset=".8" stop-color="#ffb672" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ffb672" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="g" x="-50%" y="-300%" width="200%" height="700%"><feGaussianBlur stdDeviation="2.5"/></filter>
+  </defs>
+  <rect x="0" y="13" width="1400" height="2" rx="1" fill="url(#line)"/>
+  <g class="pulse"><rect x="0" y="11" width="200" height="6" rx="3" fill="url(#spark)" filter="url(#g)"/><rect x="0" y="13" width="200" height="2" rx="1" fill="url(#spark)"/></g>
+  <circle class="dot" cx="700" cy="14" r="5" fill="#5fd9c4"/>
+  <circle cx="700" cy="14" r="2.2" fill="#ffffff"/>
+</svg>

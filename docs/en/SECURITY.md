@@ -43,13 +43,13 @@ Operational rules:
 | JWT validation | HMAC signature, issuer, audience, lifetime, zero clock skew |
 | Browser transport | `dc_auth` cookie with `HttpOnly`, `SameSite=Strict`, root path, `Secure` on HTTPS |
 | JavaScript boundary | Token is not returned in login JSON, local/session storage, or query strings |
-| Revocation | `TokenVersion` claim checked against cached/database account state; password/access changes increment it |
+| Revocation | `TokenVersion` claim checked against cached/database account state; password/access changes increment it; logout revokes the individual token id (`jti`) |
 | Authorization | Endpoint roles plus resource ownership; super-admin actions re-check `IsSuperAdmin` in SQL |
 | Admin safety | Last-super-admin, self-delete, duplicate/cross-role email guards |
 
-The SignalR hub uses the same cookie and does not accept an `access_token` query parameter. Authenticated API responses receive `Cache-Control: no-store` and `Pragma: no-cache`.
+The SignalR hub uses the same cookie and does not accept an `access_token` query parameter. Authenticated API responses receive `Cache-Control: no-store` and `Pragma: no-cache`. Static HTML, JavaScript, CSS and i18n files are served with `Cache-Control: no-cache` so browsers revalidate them via `ETag` after each deploy.
 
-Token-version validation uses a 45-second process-local cache. Password/access changes persist a version increment, but other instances may observe it only after cache expiry. Logout deletes the browser cookie and updates the current process cache without persisting an increment; it is not durable global revocation. In Development, token validation tolerates selected transient database failures; production rejects those requests.
+Token-version validation uses a 45-second process-local cache. Password/access changes persist a version increment, but other instances may observe it only after cache expiry. Logout deletes the browser cookie and revokes the current token id (`jti`) in the current process cache until expiry; it is not durable global revocation, but it can no longer invalidate newer sessions issued by other instances. In Development, token validation tolerates selected transient database failures; production answers those requests with a retryable `503` instead of `401`, so the browser retries rather than discarding the session.
 
 The app has no seeded/default administrator credentials. First-admin provisioning is intentionally an operator-controlled process.
 

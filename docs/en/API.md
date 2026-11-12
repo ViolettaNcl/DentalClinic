@@ -31,7 +31,7 @@ In production, session-creating/mutating requests and unsafe cookie-authenticate
 | `POST` | `/register` | Public | Register a patient, create a protected session cookie |
 | `POST` | `/login` | Public | Patient login, create a protected session cookie |
 | `POST` | `/admin/login` | Public | Administrator login, create a protected session cookie |
-| `POST` | `/logout` | Public/session-aware | Expire the session cookie; update the local revocation cache when claims are available |
+| `POST` | `/logout` | Public/session-aware | Expire the session cookie and revoke the current token id (`jti`) in the process cache; never touches the database |
 | `GET` | `/session` | Patient/Admin | Restore non-secret UI session metadata from validated claims |
 | `GET` | `/profile` | Patient | Read the current patient's profile |
 | `GET` | `/admin/profile` | Admin | Read the current administrator's profile |

@@ -139,7 +139,7 @@ sequenceDiagram
     API-->>B: Authorized response
 ```
 
-The same cookie authenticates SignalR negotiation. The application intentionally does not accept JWTs from query strings. Logout clears the browser cookie and updates a process-local cache, but does not persist a token-version increment. It is not durable cross-instance revocation. Password and administrator-access changes persist a version increment; other instances may retain the old version for up to 45 seconds.
+The same cookie authenticates SignalR negotiation. The application intentionally does not accept JWTs from query strings. Logout clears the browser cookie and revokes the exact token id (`jti`) in a process-local cache until the token would expire; it deliberately does not bump the account-wide token version, so a newer login handled by another instance is never rejected. It is not durable cross-instance revocation of the old token. If the database is unavailable while a token version is validated, production answers `503` (retried by the browser) rather than `401`, so latency never looks like a logout. Password and administrator-access changes persist a version increment; other instances may retain the old version for up to 45 seconds.
 
 ## 5. Appointment consistency
 
