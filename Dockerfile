@@ -16,7 +16,7 @@ RUN dotnet publish ./DentalClinic.csproj \
     --no-restore
 
 # ============ 2. Runtime ============
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 WORKDIR /app
 
 # .NET 10 images already ship with the non-root `app` account (APP_UID=1654).
